@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+
+/* Tokens do Abastece Fácil.
+   Os valores partem das cores que o projeto já usava: #16496E (barra superior),
+   #0F324C (menu lateral) e os cinzas do Material. */
+:root {
+  --color-primary: #16496e;
+  --color-primary-soft: #e8eff5;
+
+  --color-background: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-border: #e3e7ec;
+  --color-border-strong: #cfd6de;
+
+  --color-text: #1f2933;
+  --color-text-muted: #6b7785;
+
+  /* success/error saem do tema do Vuetify (plugins/vuetify.js);
+     warning fica aqui porque é usado direto em CSS no overlay do mapa. */
+  --color-warning: #ed6c02;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
+
+  --transition: 180ms ease;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  font-family: 'Manrope', sans-serif !important;
+}
+
+/* Títulos de página — usados pelas views que já tinham .page-title/.page-subtitle */
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* As regras abaixo são prefixadas com .v-application porque, no dev server,
+   o CSS do Vuetify é injetado depois deste arquivo: com a mesma
+   especificidade o padrão do Vuetify venceria. */
+
+/* Superfícies: borda sutil no lugar de sombra pesada */
+.v-application .v-card {
+  border: 1px solid var(--color-border);
+}
+
+/* Campos de formulário.
+   O :not(.v-field--error) é essencial: sem ele, a borda definida aqui
+   sobrescreve o vermelho que o Vuetify aplica no estado inválido. */
+.v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__start,
+.v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__notch::before,
+.v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__notch::after,
+.v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__end {
+  opacity: 1;
+  border-color: var(--color-border-strong);
+}
+
+.v-application .v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline__start,
+.v-application .v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline__notch::before,
+.v-application .v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline__notch::after,
+.v-application .v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline__end {
+  border-color: var(--color-primary);
+}
+
+/* Botões: sem caixa-alta forçada e com peso consistente */
+.v-application .v-btn {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .page-title {
+    font-size: 1.5rem;
+  }
+}
