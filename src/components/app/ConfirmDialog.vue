@@ -3,27 +3,29 @@
     <v-dialog v-model="dialogModel" max-width="480" persistent>
       <v-card class="modal-card">
         <v-card-title class="modal-title">
-          Confirmar Exclusão
+          {{ title }}
         </v-card-title>
   
         <v-card-text class="modal-text">
-          Tem certeza que deseja excluir este item? Esta ação não poderá ser desfeita.
+          {{ message }}
         </v-card-text>
   
         <v-card-actions class="modal-actions">
           <v-btn
             class="btn-cancelar"
             variant="flat"
+            :disabled="loading"
             @click="handleCancel"
           >
-            Cancelar
+            {{ cancelText }}
           </v-btn>
           <v-btn
-            class="btn-confirmar"
+            :class="['btn-confirmar', { 'btn-confirmar--primary': confirmTone === 'primary' }]"
             variant="flat"
+            :loading="loading"
             @click="handleConfirm"
           >
-            Sim
+            {{ confirmText }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -33,8 +35,36 @@
   <script setup>
   import { computed } from 'vue'
   
+  // title, message, confirmText, cancelText, confirmTone e loading são aditivos:
+  // os defaults reproduzem o texto e o visual que o componente já tinha, então as
+  // telas que o usam sem passar nada continuam idênticas.
   const props = defineProps({
     modelValue: {
+      type: Boolean,
+      default: false
+    },
+    title: {
+      type: String,
+      default: 'Confirmar Exclusão'
+    },
+    message: {
+      type: String,
+      default: 'Tem certeza que deseja excluir este item? Esta ação não poderá ser desfeita.'
+    },
+    confirmText: {
+      type: String,
+      default: 'Sim'
+    },
+    cancelText: {
+      type: String,
+      default: 'Cancelar'
+    },
+    // 'danger' (default, vermelho de exclusão) | 'primary' (azul, ação não destrutiva)
+    confirmTone: {
+      type: String,
+      default: 'danger'
+    },
+    loading: {
       type: Boolean,
       default: false
     }
@@ -111,6 +141,17 @@
   
   .btn-confirmar:hover {
     background-color: #920606 !important;
+  }
+
+  /* Ação não destrutiva: azul da marca, direto do token. O hover escurece por
+     filtro para não inventar um segundo azul fora do design system. */
+  .btn-confirmar--primary {
+    background-color: var(--color-primary) !important;
+  }
+
+  .btn-confirmar--primary:hover {
+    background-color: var(--color-primary) !important;
+    filter: brightness(0.92);
   }
   
   @media (max-width: 640px) {

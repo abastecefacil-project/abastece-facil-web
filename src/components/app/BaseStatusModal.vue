@@ -24,7 +24,7 @@
           variant="flat"
           size="large"
           rounded="lg"
-          class="px-8"
+          :class="['px-8', { 'ok-btn--warning': type === 'warning' }]"
           @click="updateValue(false)"
         >
           OK
@@ -40,7 +40,7 @@ import { computed } from "vue";
 
 const props = defineProps({
   modelValue: { type: Boolean, required: true },
-  type: { type: String, default: "success" }, // success | error
+  type: { type: String, default: "success" }, // success | warning | error
   title: { type: String, default: "" },
   message: { type: String, default: "" },
 })
@@ -51,11 +51,28 @@ const updateValue = (val) => {
   emit("update:modelValue", val)
 }
 
-const icon = computed(() =>
-  props.type === "success" ? "mdi-check-circle" : "mdi-close-circle"
-)
+const icon = computed(() => {
+  if (props.type === "success") return "mdi-check-circle"
+  if (props.type === "warning") return "mdi-alert-circle"
+  return "mdi-close-circle"
+})
 
-const iconColor = computed(() =>
-  props.type === "success" ? "#4CAF50" : "#F44336"
-)
+// O amarelo sai do token --color-warning do main.css, e não de um literal, para
+// continuar amarrado ao design system se o valor mudar. O Vuetify aceita
+// var(--...) em prop de cor: isCssColor reconhece o prefixo e aplica por style.
+const iconColor = computed(() => {
+  if (props.type === "success") return "#4CAF50"
+  if (props.type === "warning") return "var(--color-warning)"
+  return "#F44336"
+})
 </script>
+
+<style scoped>
+/* O Vuetify calcula a cor de texto do botão a partir do fundo, mas só quando o
+   fundo é uma cor parseável — isParsableColor rejeita var(--...) de propósito.
+   Como o warning usa o token, a cor do texto é declarada aqui em vez de ficar
+   herdada por acaso. */
+.ok-btn--warning {
+  color: var(--color-surface) !important;
+}
+</style>
