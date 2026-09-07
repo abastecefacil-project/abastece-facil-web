@@ -17,6 +17,14 @@ const router = createRouter({
           component: () => import('../views/public/Login.vue'),
         },
         {
+          // Destino do link de convite enviado por e-mail. Pública e sem
+          // meta.perfis: quem chega aqui ainda não tem sessão nenhuma. O token
+          // vem em query string, como o backend monta em UserConstants.
+          path: 'definir-senha',
+          name: 'AtivacaoConta',
+          component: () => import('../views/public/AtivacaoConta.vue'),
+        },
+        {
           path: '', // Rota raiz, redireciona para /login
           redirect: '/user/dashboardUser',
         },
