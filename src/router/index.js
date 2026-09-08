@@ -25,6 +25,23 @@ const router = createRouter({
           component: () => import('../views/public/AtivacaoConta.vue'),
         },
         {
+          // Onde quem esqueceu a senha pede o link. O path não é contrato com o
+          // backend — a rota nasce de um clique, não de um e-mail —, e nomeia a
+          // ação que o usuário reconhece, como `/redefinir-senha` faz.
+          path: 'esqueci-senha',
+          name: 'SolicitarRecuperacao',
+          component: () => import('../views/public/SolicitarRecuperacao.vue'),
+        },
+        {
+          // Destino do link de recuperação enviado por e-mail. Pública e sem
+          // meta.perfis, como a de ativação. O path é contrato com o backend:
+          // UserConstants.ROTA_REDEFINIR_SENHA = "/redefinir-senha?token=".
+          // Mudar de um lado exige mudar do outro.
+          path: 'redefinir-senha',
+          name: 'RedefinirSenha',
+          component: () => import('../views/public/RedefinirSenha.vue'),
+        },
+        {
           path: '', // Rota raiz, redireciona para /login
           redirect: '/user/dashboardUser',
         },

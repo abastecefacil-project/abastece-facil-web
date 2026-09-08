@@ -44,6 +44,10 @@
                 </v-btn>
               </v-form>
 
+              <div class="text-center mt-4">
+                <router-link to="/esqueci-senha" class="user-link">Esqueci minha senha</router-link>
+              </div>
+
               <div class="text-center mt-6">
                 <p class="text-body-2 text-medium-emphasis mb-2">Não é administrador?</p>
                 <router-link to="/user/dashboardUser" class="user-link">

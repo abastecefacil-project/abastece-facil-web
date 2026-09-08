@@ -949,8 +949,8 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 ```
 src/
 ├── layouts/     AdminLayout.vue, DefaultLayout.vue
-├── views/       admin/ (7)  user/ (4)  public/Login.vue
-├── components/  admin/ (10)  user/ (8)  app/ (7 compartilhados)
+├── views/       admin/ (7)  user/ (4)  public/ (4)
+├── components/  admin/ (10)  user/ (8)  app/ (7 compartilhados)  public/ (2)
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
@@ -961,11 +961,27 @@ src/
 
 | Grupo | Layout | Rotas |
 |---|---|---|
-| público | nenhum | `/login` |
+| público | nenhum | `/login`, `/definir-senha`, `/esqueci-senha`, `/redefinir-senha` |
 | usuário | `DefaultLayout` | `/user/dashboardUser`, `/user/postos`, `/user/mapUser`, `/user/occurrencesUser`, `/user/HelpCenter` |
 | admin | `AdminLayout` | `/admin/dashboard`, `/admin/station`, `/admin/map`, `/admin/vehicle`, `/admin/occurrences`, `/admin/user` |
 
 A raiz `/` redireciona para `/user/dashboardUser`.
+
+**Três das quatro rotas públicas são destino de link de e-mail, e duas delas têm o
+path fixado pelo backend:** `/definir-senha?token=` é
+`UserConstants.ROTA_DEFINIR_SENHA` (ativação, S2b1 ↔ S6a) e
+`/redefinir-senha?token=` é `UserConstants.ROTA_REDEFINIR_SENHA` (recuperação,
+S4 ↔ S6b). Renomear qualquer uma das duas de um lado só quebra o link que já
+saiu por e-mail. `/esqueci-senha` é escolha do frontend: nasce de um clique no
+login, não de um e-mail.
+
+As quatro montam o próprio `<v-main>` — o grupo `path: '/'` do router não tem
+componente de layout — e a casca visual comum (fundo, card, logo, tipografia)
+vive em `components/public/CartaoAcesso.vue`, com `CampoNovaSenha.vue` ao lado.
+Foram extraídas de `AtivacaoConta.vue` pelo S6b, quando passaram a ter três
+consumidores. Atenção ao editar o `CartaoAcesso`: as classes `.acesso-*` usam
+`:deep()` porque conteúdo de `<slot>` carrega o `data-v` do **pai**, e um
+seletor escopado normal não alcançaria o que as views passam para dentro.
 
 O guard em `router/index.js` protege apenas `/admin/*`, e a checagem é
 `!!store.token` — ou seja, **qualquer string em `localStorage.token` passa pelo

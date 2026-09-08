@@ -3,7 +3,7 @@
     <!-- A sonda não responde de imediato; até lá não há o que decidir. -->
     <div v-if="estado === 'carregando'" class="text-center py-6">
       <v-progress-circular indeterminate color="primary" size="44" width="4" />
-      <p class="acesso-texto mt-4">Verificando seu link de ativação...</p>
+      <p class="acesso-texto mt-4">Verificando seu link de redefinição...</p>
     </div>
 
     <!-- Falha da consulta, não do token: dizer "expirado" aqui seria mentira. -->
@@ -18,25 +18,26 @@
       </v-btn>
     </div>
 
-    <!-- Inexistente, expirado, já usado: a API responde igual para todos, de
-         propósito, e a tela não tenta adivinhar qual foi. -->
+    <!-- Inexistente, expirado, já usado, ou de outra finalidade — um token de
+         ativação colado aqui, por exemplo. A API responde igual para os quatro,
+         de propósito, e a tela não tenta adivinhar qual foi. -->
     <div v-else-if="estado === 'invalido'" class="text-center">
       <v-icon icon="mdi-link-variant-off" size="44" class="acesso-icone" />
       <h1 class="acesso-titulo mt-3">Link inválido ou expirado</h1>
       <p class="acesso-texto mt-2">
-        Este link de ativação não vale mais — ele pode ter expirado ou já ter sido usado. Procure o
-        gestor da sua regional para receber um novo convite.
+        Este link de redefinição não vale mais — ele vale por pouco tempo e só pode ser usado uma
+        vez. Peça um link novo para continuar.
       </p>
-      <router-link to="/login" class="acesso-link d-inline-block mt-6">
-        Ir para o login
+      <!-- Diferente da ativação, onde a saída é procurar o gestor: aqui a
+           pessoa se resolve sozinha, e o caminho é a própria tela do pedido. -->
+      <router-link to="/esqueci-senha" class="acesso-link d-inline-block mt-6">
+        Pedir um novo link
       </router-link>
     </div>
 
     <div v-else>
       <h1 class="acesso-titulo text-center">{{ saudacao }}</h1>
-      <p class="acesso-texto text-center mt-2 mb-6">
-        Crie uma senha para ativar sua conta no Abastece Fácil.
-      </p>
+      <p class="acesso-texto text-center mt-2 mb-6">Escolha uma nova senha para sua conta.</p>
 
       <v-alert v-if="mensagemErro" type="error" variant="tonal" class="mb-4">
         {{ mensagemErro }}
@@ -52,7 +53,7 @@
           class="acesso-btn mt-8"
           :loading="enviando"
         >
-          Ativar conta
+          Redefinir senha
         </v-btn>
       </v-form>
     </div>
@@ -71,7 +72,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const MENSAGEM_ERRO_PADRAO = 'Não foi possível ativar sua conta. Tente novamente.'
+const MENSAGEM_ERRO_PADRAO = 'Não foi possível redefinir sua senha. Tente novamente.'
 
 // carregando → indisponivel | invalido | formulario
 const estado = ref('carregando')
@@ -89,7 +90,7 @@ const saudacao = computed(() => (nome.value ? `Olá, ${nome.value}!` : 'Olá!'))
 
 // A sonda responde 200 sempre, inclusive para token inválido — quem decide é o
 // campo `valido`, não o status. E ela não consome o token, então recarregar a
-// página não queima o convite.
+// página não queima o link.
 async function validarToken() {
   if (!token.value) {
     estado.value = 'invalido'
@@ -98,7 +99,7 @@ async function validarToken() {
 
   estado.value = 'carregando'
   try {
-    const data = await authService.validarTokenAtivacao(token.value)
+    const data = await authService.validarTokenRecuperacao(token.value)
     if (!data?.valido) {
       estado.value = 'invalido'
       return
@@ -127,7 +128,7 @@ async function handleSubmit() {
   enviando.value = true
   mensagemErro.value = ''
   try {
-    await authStore.ativarConta({ token: token.value, senha: senha.value })
+    await authStore.redefinirSenha({ token: token.value, senha: senha.value })
     limparTokenDaUrl()
     await router.replace(authStore.homeDoPerfil)
   } catch (err) {
@@ -140,8 +141,9 @@ async function handleSubmit() {
       return
     }
 
-    // SENHA_FRACA (400) traz a política violada no `message`; reescrever aqui
-    // trocaria a explicação por uma mensagem genérica.
+    // SENHA_FRACA (400) traz a política violada no `message` — inclusive a
+    // regra que o cliente não reproduz, a de não conter o nome nem o e-mail.
+    // Reescrever aqui trocaria a explicação por uma mensagem genérica.
     mensagemErro.value = corpo?.message || MENSAGEM_ERRO_PADRAO
   } finally {
     enviando.value = false

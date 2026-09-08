@@ -63,6 +63,15 @@ export const useAuthStore = defineStore('auth', {
       this.aplicarSessao(data)
     },
 
+    // A recuperação de senha devolve o mesmo AuthResponse do login e da
+    // ativação, então a persistência da sessão continua num lugar só. O erro
+    // sobe cru pelo mesmo motivo do `ativarConta`: a tela precisa distinguir
+    // TOKEN_INVALIDO de SENHA_FRACA pelo campo `error`.
+    async redefinirSenha({ token, senha }) {
+      const data = await authService.redefinirSenha({ token, senha })
+      this.aplicarSessao(data)
+    },
+
     logout(router) {
       this.token = null
       this.perfil = null

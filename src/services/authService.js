@@ -26,6 +26,31 @@ const authService = {
     return response.data
   },
 
+  // Pede o link de redefinição. Responde 200 com um corpo único, IDÊNTICO para
+  // conta existente, inexistente, inativa e sem senha definida — e o envio é
+  // assíncrono, depois da resposta, para que nem o tempo diferencie os casos.
+  // Nada aqui pode ramificar por resultado: a garantia é do S4, e o cliente só
+  // teria como desfazê-la. Devolve { message }.
+  async solicitarRecuperacao(email) {
+    const response = await apiPublic.post('/api/auth/recuperacao', { email })
+    return response.data
+  },
+
+  // Sonda do link de recuperação, gêmea da de ativação: 200 SEMPRE, decisão
+  // pelo campo `valido` do corpo, e não consome o token.
+  async validarTokenRecuperacao(token) {
+    const response = await apiPublic.get('/api/auth/recuperacao/validar', { params: { token } })
+    return response.data
+  },
+
+  // Consome o token e grava a senha nova. Devolve o mesmo AuthResponse do
+  // login e da ativação, já autenticando a pessoa. O erro sobe cru, pelo mesmo
+  // motivo do `ativarConta`.
+  async redefinirSenha({ token, senha }) {
+    const response = await apiPublic.post('/api/auth/recuperacao/confirmar', { token, senha })
+    return response.data
+  },
+
   logout() {
     this.token = null
     this.user = null
