@@ -983,9 +983,28 @@ consumidores. Atenção ao editar o `CartaoAcesso`: as classes `.acesso-*` usam
 `:deep()` porque conteúdo de `<slot>` carrega o `data-v` do **pai**, e um
 seletor escopado normal não alcançaria o que as views passam para dentro.
 
-O guard em `router/index.js` protege apenas `/admin/*`, e a checagem é
-`!!store.token` — ou seja, **qualquer string em `localStorage.token` passa pelo
-guard**. A proteção real vem do backend, que rejeita o token inválido com 403.
+O guard em `router/index.js` protege apenas `/admin/*`, e desde o P0.5 checa
+**token e perfil**. Ele não olha o path: lê `to.meta.perfis`, declarado uma vez
+no grupo `/admin` como `['ADMINISTRADOR', 'GESTOR_FROTA']` e herdado pelos seis
+filhos via merge de meta do vue-router. Rota sem `meta.perfis` passa direto, o
+que é o caso das públicas e de todo `/user/*`.
+
+Os dois desvios são diferentes de propósito: **sem token vai para `/login`**;
+**com token e perfil insuficiente vai para `auth.homeDoPerfil`**, porque a sessão
+é válida e só não alcança aquela área. `homeDoPerfil` também cobre o perfil
+`null` — sessão criada antes do P0.5a, ou valor adulterado que
+`normalizarPerfil` zerou —, que cai na home padrão. Todo destino que ele devolve
+está fora de `/admin`, e é isso que impede o redirecionamento de reentrar no
+guard.
+
+**Nenhuma rota de `/admin/*` é exceção**, porque as seis são telas de gestão e o
+projeto não tem tela de perfil próprio. Se uma surgir, o lugar de abrir a exceção
+é um `meta.perfis` no filho, sobrescrevendo o do pai.
+
+O guard continua sendo **conveniência de navegação**: qualquer string em
+`localStorage.token` passa por ele, e o `perfil` vem do mesmo `localStorage`
+editável. A proteção real vem do backend, que valida perfil e regional no serviço
+desde o S2a e responde 403 — o P0.5 não relaxou nada lá.
 
 `MapUser` e `MapAdmin` apontam para **a mesma view**, `views/admin/StationMap.vue`.
 
@@ -1006,9 +1025,10 @@ sessão criada antes do P0.5a, que tem `token` e nenhuma chave `perfil`, e o que
 impede um valor adulterado à mão de vazar para o resto do frontend. Consumidor
 nenhum deve supor que `perfil` está preenchido só porque há token.
 
-O guard do router **não** lê o perfil — continua sendo `!!store.token`. O
-controle por perfil no frontend é conveniência de interface; a regra real é do
-backend, que valida perfil e regional no serviço desde o S2a.
+O guard do router lê o `perfil` desde o P0.5, via `homeDoPerfil` e a lista em
+`meta.perfis` (detalhes em *Rotas*, acima). Continua sendo conveniência de
+interface; a regra real é do backend, que valida perfil e regional no serviço
+desde o S2a.
 
 ### Camada HTTP
 
