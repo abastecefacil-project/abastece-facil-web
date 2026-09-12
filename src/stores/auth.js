@@ -72,12 +72,29 @@ export const useAuthStore = defineStore('auth', {
       this.aplicarSessao(data)
     },
 
-    logout(router) {
-      this.token = null
-      this.perfil = null
-      localStorage.removeItem('token')
-      localStorage.removeItem('perfil')
-      router.push("/login")
+    // Navega ANTES de limpar, e essa ordem é o ponto todo desta action. Desde o
+    // P0.6 o menu do `AppShell` é um computed sobre `perfil`: limpando primeiro,
+    // o menu recalculava para vazio enquanto a tela administrativa ainda estava
+    // montada, e os itens sumiam por um frame antes de a navegação acontecer.
+    // Invertendo, quando o estado zera o `AppShell` já está sendo desmontado.
+    //
+    // Inverter é seguro porque o guard não lê `token` nem `perfil` ao navegar
+    // para `/login`: a rota não tem `meta.perfis`, então ele para no primeiro
+    // `if` e chama `next()` direto.
+    //
+    // O `finally` não é enfeite: se a navegação falhasse e a limpeza ficasse de
+    // fora, a pessoa veria "Sair" e continuaria com sessão válida. Falhar
+    // limpando (com o piscar de volta, no pior caso) é melhor que falhar sem
+    // limpar.
+    async logout(router) {
+      try {
+        await router.push('/login')
+      } finally {
+        this.token = null
+        this.perfil = null
+        localStorage.removeItem('token')
+        localStorage.removeItem('perfil')
+      }
     },
 
     restoreSession() {

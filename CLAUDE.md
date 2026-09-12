@@ -10,7 +10,7 @@
 >
 > **Seções que interessam ao trabalho de frontend:** 1 (domínio), 5 (contrato da
 > API, essencial), 7 (estrutura), 8 (design system), 9 (armadilhas de CSS e
-> Vuetify, itens 1 a 8) e 10 (linha de base do eslint: 15 erros).
+> Vuetify, itens 1 a 8) e 10 (linha de base do eslint: 11 erros).
 >
 > **Seções que são referência de backend**, para entender o contrato mas não para
 > agir: 3 (execução), 4 (modelo de dados e migrations), 6 (regras de negócio) e o
@@ -948,9 +948,10 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 
 ```
 src/
-├── layouts/     AdminLayout.vue, DefaultLayout.vue
+├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
 ├── components/  admin/ (10)  user/ (8)  app/ (7 compartilhados)  public/ (2)
+├── config/      navegacao.js
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
@@ -1008,6 +1009,44 @@ desde o S2a e responde 403 — o P0.5 não relaxou nada lá.
 
 `MapUser` e `MapAdmin` apontam para **a mesma view**, `views/admin/StationMap.vue`.
 
+### A casca dos dois layouts
+
+Desde o P0.6 existe **um shell só**, `layouts/AppShell.vue`: barra superior, menu
+lateral, modo rail, comportamento mobile e todo o CSS. `AdminLayout.vue` e
+`DefaultLayout.vue` sobreviveram como wrappers de ~20 linhas que só escolhem o
+contexto (`<AppShell contexto="admin" />` e `contexto="user"`).
+
+**Os wrappers continuam existindo com esses nomes porque `router/index.js` os
+importa**, e aquele arquivo foi validado no P0.5 com 23 casos de navegação. Virar
+wrapper é o que permitiu unificar a casca sem reabri-lo — o P0.6 não tocou no
+router.
+
+**Nenhum dos wrappers pode ganhar bloco `<style>`.** Um `<style scoped>` ali
+geraria um `data-v` que alcança apenas o elemento raiz do `AppShell`, e os dois
+seletores da casca escritos sem `:deep()` — `.v-navigation-drawer` (a transição
+de largura de 0.3s) e `.drawer-item:hover` — deixariam de resolver. A falha
+aparece só como animação e hover ausentes, que é fácil de não notar.
+
+Os itens do menu e o botão superior direito de cada contexto vivem em
+`config/navegacao.js`, e o menu é **filtrado pelo perfil ativo**. A regra é a
+mesma do guard: item **sem** `perfis` aparece para qualquer sessão, inclusive
+`perfil === null`. Isso é load-bearing, não descuido — os cinco itens de `/user/*`
+não declaram `perfis` porque `/user/*` é alcançável por visitante não
+autenticado, e "completar" a lista com os três perfis esvaziaria o menu de quem
+chega sem sessão.
+
+O filtro é **defesa em profundidade, não correção visível**: o guard já redireciona
+o colaborador antes de o shell renderizar, então ninguém chegava a ver os links
+mortos. O que muda é que agora isso é estruturalmente impossível, e o shell pode
+ser reusado sem reintroduzir o problema.
+
+**Não há item exclusivo de `ADMINISTRADOR`.** As seis telas de `/admin/*` servem
+igual a gestor e administrador — a única distinção do projeto é *dentro* da tela
+de usuários (quais perfis um gestor pode criar, e em qual regional), e mora em
+`components/admin/UserDialog.vue`. Se um dia surgir uma tela exclusiva, o lugar de
+dizer isso é o `perfis` daquele item em `config/navegacao.js`, além do
+`meta.perfis` da rota.
+
 ### Store de autenticação
 
 `stores/auth.js` guarda **`token` e `perfil`**, os dois espelhados no
@@ -1029,6 +1068,30 @@ O guard do router lê o `perfil` desde o P0.5, via `homeDoPerfil` e a lista em
 `meta.perfis` (detalhes em *Rotas*, acima). Continua sendo conveniência de
 interface; a regra real é do backend, que valida perfil e regional no serviço
 desde o S2a.
+
+Os consumidores de `perfil` no frontend são **três**: o guard, o
+`components/admin/UserDialog.vue` (que estreita o que um gestor pode criar) e,
+desde o P0.6, o `layouts/AppShell.vue`, que filtra o menu. O `AppShell` trata
+`null` como "mostra tudo que não tem restrição", igual ao guard.
+
+**`logout(router)` navega antes de limpar, e a ordem é invariante, não estilo.**
+Corrigido no P0.6a. Limpando primeiro, o menu do `AppShell` — que é computed
+sobre `perfil` desde o P0.6 — recalculava para vazio com a tela administrativa
+ainda montada, e os itens sumiam por um frame. A action é `async`, faz
+`await router.push('/login')` e só então zera store e `localStorage`, num
+`finally` para que uma navegação que falhe ainda encerre a sessão. Inverter é
+seguro porque `/login` não tem `meta.perfis` e o guard para no primeiro `if`
+sem ler `perfil` nem `token`. **Não reordene de volta.**
+
+`logout` tem **um único consumidor**, `layouts/AppShell.vue`. Quem tem três é
+`aplicarSessao` (login, ativação e recuperação) — não confundir os dois.
+`services/authService.js` também exporta um `logout()`, que é **código morto e
+quebrado**: mexe em `this.token`/`this.user` do próprio objeto de serviço, não da
+store, e remove uma chave `user` que ninguém grava. Ninguém o chama.
+
+`homeDoPerfil` é usado por `Login.vue`, `AtivacaoConta.vue` e
+`RedefinirSenha.vue`. O `Login.vue` empurrava `/admin/dashboard` fixo até o P0.6 —
+um colaborador ia para o painel e só então era ricocheteado pelo guard.
 
 ### Camada HTTP
 
@@ -1121,11 +1184,21 @@ Problemas reais já encontrados. Consultar antes de investigar comportamento est
 
 6. **`src/assets/base.css` nunca é importado.** Resíduo do scaffold do Vue; editá-lo
    não tem efeito. O arquivo carregado é `main.css`.
-7. **`AdminLayout.vue` e `DefaultLayout.vue` são ~95% duplicados**, divergindo apenas
-   no array `menuItems` e no botão superior direito. Alterações no shell precisam ser
-   aplicadas nos dois.
-8. O botão "Admin" do `DefaultLayout` chama `handleLogout` — o rótulo não descreve a
-   ação. Comportamento existente, preservado deliberadamente.
+7. **A duplicação entre `AdminLayout.vue` e `DefaultLayout.vue` acabou no P0.6.** Eram
+   ~95% iguais e toda alteração de casca precisava ser feita nos dois. Hoje o shell é
+   `layouts/AppShell.vue` e os dois são wrappers que só escolhem o contexto — detalhes
+   em §7, *A casca dos dois layouts*. Duas armadilhas que nasceram daí:
+
+   - **Wrapper não pode ter bloco `<style>`**, senão os seletores da casca sem
+     `:deep()` param de resolver (a transição de largura do drawer e o hover dos
+     itens desaparecem, silenciosamente).
+   - **Não acrescentar `perfis` aos itens de `/user/*`** em `config/navegacao.js`.
+     Parece completude e esvazia o menu do visitante não autenticado, que tem
+     `perfil === null`.
+8. O botão "Admin" do contexto de usuário chama `handleLogout` — o rótulo não descreve
+   a ação. Comportamento existente, preservado deliberadamente. Desde o P0.6 o rótulo
+   mora em `config/navegacao.js`, em `NAVEGACAO.user.botao`, com um comentário no lugar
+   pedindo para não "corrigir" só o texto.
 
 ### Ambiente
 
@@ -1395,14 +1468,29 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   Enquanto isso, a verificação é manual: rodar as próprias instruções do repository no
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
-- `npx eslint src` reporta **13 erros pré-existentes**: nomes de componente de
-  palavra única (`Map`, `Login`, `Reports`, `Occurrences`) e variáveis não usadas
-  (`unwatchMobile`, `response`, `error`, `deletarPosto`). Não são regressões; usar
-  essa contagem como linha de base.
+- `npx eslint src` reporta **11 erros pré-existentes**. Não são regressões; usar essa
+  contagem como linha de base. A lista completa, que antes estava incompleta neste
+  documento:
+
+  | Regra | Onde |
+  |---|---|
+  | `vue/multi-word-component-names` (5) | `Footer`, `Map`, `Reports`, `Login`, `Occurrences` |
+  | `no-unused-vars` (6) | `props` (PostoCard), `err` (PostoDialog), `err` (VehicleDialog), `response` e `error` (OccurrenceForm), `deletarPosto` (StationManagement) |
 
   Eram **15** até o S5, que removeu dois ao reescrever os arquivos onde estavam: o
   import não usado de `apiPublic` em `services/userService.js` e o `catch (err)` vazio
   de `UserDialog.vue`, que agora lê o erro para discriminar o código de negócio.
+
+  Caíram de **13 para 11 no P0.6**, e a queda **não é correção de regressão nem de
+  outro erro**: era o mesmo `unwatchMobile` duplicado nos dois layouts, valendo 2 dos
+  13. Um sumiu por construção, ao unificar a casca; o outro foi apagado de propósito.
+  Era um `computed` que ninguém lia — e `computed` é lazy, então o
+  `adjustLayoutForScreenSize()` de dentro dele **nunca rodou nenhuma vez**. Era uma
+  tentativa malfeita de `watch`, e apagá-la é comprovadamente sem efeito em tempo de
+  execução. Consequência a saber: atravessar os 960px redimensionando a janela não
+  reabre nem fecha o drawer, e nunca reabriu. Se esse comportamento for desejado, é
+  `watch(mobile, adjustLayoutForScreenSize)` no `AppShell` — e é mudança de
+  comportamento, com tarefa própria.
 - CI do frontend: build em PR e deploy no Render em push na `main`.
 
 ### Ao trabalhar neste projeto
