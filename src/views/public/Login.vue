@@ -44,6 +44,10 @@
                 </v-btn>
               </v-form>
 
+              <div class="text-center mt-4">
+                <router-link to="/esqueci-senha" class="user-link">Esqueci minha senha</router-link>
+              </div>
+
               <div class="text-center mt-6">
                 <p class="text-body-2 text-medium-emphasis mb-2">Não é administrador?</p>
                 <router-link to="/user/dashboardUser" class="user-link">
@@ -77,7 +81,12 @@ const credentials = ref({
 const handleLogin = async () => {
   try {
     await authStore.login(credentials.value)
-    router.push('/admin/dashboard')
+    // `homeDoPerfil`, e não `/admin/dashboard` fixo: um colaborador era mandado
+    // para o painel e só então ricocheteado pelo guard até a própria home. Mesmo
+    // padrão de `AtivacaoConta.vue` e `RedefinirSenha.vue`. Segue `push` e não
+    // `replace` — aquelas usam `replace` para tirar o token do histórico, o que
+    // não se aplica aqui.
+    router.push(authStore.homeDoPerfil)
   } catch (err) {
     errorMessage.value = err
   }

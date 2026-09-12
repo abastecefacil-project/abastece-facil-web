@@ -108,6 +108,10 @@ handlers e os itens de menu.
 > e no botão superior direito. Toda a lógica de drawer/rail/resize está duplicada.
 > A unificação **não** foi feita por representar reestruturação, fora do escopo
 > desta etapa. Fica registrada como oportunidade de melhoria.
+>
+> **Feito depois, no P0.6:** a casca foi extraída para `layouts/AppShell.vue` e os
+> dois arquivos viraram wrappers que só escolhem o contexto do menu. O registro
+> acima fica como estava, por descrever o estado da época desta refatoração.
 
 ### Componentes compartilhados
 

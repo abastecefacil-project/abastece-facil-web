@@ -9,10 +9,15 @@
     </div>
 
     <!-- Barra de Pesquisa, Filtros e Novo Usuário -->
+    <!-- Sem opção "Todos": GET /api/users exige o parâmetro active. -->
     <SearchFilterBar
       v-model:search-query="searchQuery"
       v-model:status-filter="statusFilter"
-      search-label="Buscar por nome ou cidade"
+      search-label="Buscar por nome"
+      :filter-options="[
+        { label: 'Ativos', value: 'ativo' },
+        { label: 'Inativos', value: 'inativo' },
+      ]"
       action-label="NOVO USUÁRIO"
       action-icon="mdi-plus"
       @action="openDialog"
@@ -22,7 +27,11 @@
     <div class="usuarios-grid">
       <v-row>
         <v-col v-for="user in users" :key="user.id" cols="12" md="6" lg="6" xl="4">
-          <UserCard :user="user" @edit="editarUsuario" @delete="abrirModalExclusao" />
+          <UserCard
+            :user="user"
+            @delete="abrirModalExclusao"
+            @reenviar-ativacao="abrirModalReenvio"
+          />
         </v-col>
       </v-row>
     </div>
@@ -44,17 +53,26 @@
       </div>
     </div>
 
-    <!-- Dialog para Adicionar/Editar Usuário -->
-    <UserDialog
-      v-model="dialog"
-      :is-editing="isEditing"
-      :user="formUsuario"
-      @save="salvarUsuario"
-      @close="closeDialog"
-    />
+    <!-- Dialog para Adicionar Usuário -->
+    <UserDialog v-model="dialog" @save="salvarUsuario" @close="closeDialog" />
+
+    <ConfirmDialog v-model="modalExclusao" @confirm="confirmarExclusao" />
+
     <ConfirmDialog
-      v-model="modalExclusao"
-      @confirm="confirmarExclusao"
+      v-model="modalReenvio"
+      title="Reenviar ativação"
+      :message="mensagemConfirmacaoReenvio"
+      confirm-text="Reenviar"
+      confirm-tone="primary"
+      :loading="reenviando"
+      @confirm="confirmarReenvio"
+    />
+
+    <BaseStatusModal
+      v-model="feedbackDialog"
+      :type="feedbackTipo"
+      :title="feedbackTitulo"
+      :message="feedbackMensagem"
     />
   </div>
 
@@ -69,21 +87,21 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import UserCard from '@/components/admin/UserCard.vue'
 import UserDialog from '@/components/admin/UserDialog.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
 import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import { watchDebounced } from '@vueuse/core'
-import { deleteUser, getUsers } from '@/services/userService'
+import { deleteUser, getUsers, reenviarAtivacao } from '@/services/userService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
+import BaseStatusModal from '@/components/app/BaseStatusModal.vue'
 
 // Estados reativos
 const dialog = ref(false)
-const isEditing = ref(false)
 const searchQuery = ref('')
-const statusFilter = ref('todos')
+const statusFilter = ref('ativo')
 const users = ref([])
 const loading = ref(false)
 const currentPage = ref(0)
@@ -91,6 +109,25 @@ const totalPages = ref(0)
 const currentPageUi = ref(1)
 const modalExclusao = ref(false)
 const usuarioParaExcluir = ref(null)
+
+// Reenvio de ativação
+const modalReenvio = ref(false)
+const usuarioParaReenviar = ref(null)
+const reenviando = ref(false)
+
+// Feedback de sucesso/erro do reenvio
+const feedbackDialog = ref(false)
+const feedbackTipo = ref('success')
+const feedbackTitulo = ref('')
+const feedbackMensagem = ref('')
+
+const MENSAGENS_ERRO_REENVIO = {
+  SENHA_JA_DEFINIDA:
+    'Esse usuário já definiu a senha. O reenvio só vale para contas aguardando ativação.',
+  PERFIL_NAO_PERMITIDO: 'Você não tem permissão para reenviar o convite desse usuário.',
+  REGIONAL_NAO_PERMITIDA: 'Você só pode reenviar convite de usuários da sua própria regional.',
+  NOT_FOUND: 'Usuário não encontrado. Atualize a listagem e tente de novo.',
+}
 
 watch(currentPageUi, (newPage) => {
   currentPage.value = newPage - 1
@@ -108,22 +145,24 @@ async function loadingUsers(page = 0) {
   loading.value = true
   try {
     const name = searchQuery.value || undefined
-    let active
-
-    if (statusFilter.value === 'ativos') active = true
-    else if (statusFilter.value === 'inativos') active = false
-    else active = undefined
+    const active = statusFilter.value !== 'inativo'
 
     const response = await getUsers(page, name, active)
     const data = response.data
-    
+
+    // isActive e senhaDefinida alimentam o estado da conta no card.
+    // conviteEnviado não é lido aqui: em GET ele vem sempre null.
     users.value = data.content.map((user) => ({
       id: user.id,
       name: user.name,
       email: user.email,
-      // status: user.active
+      isActive: user.isActive,
+      senhaDefinida: user.senhaDefinida,
+      perfil: user.perfil,
+      regional: user.regional,
     }))
     currentPage.value = data.number
+    currentPageUi.value = data.number + 1
     totalPages.value = data.totalPages
   } catch (error) {
     console.error('Erro ao carregar usuários:', error)
@@ -132,53 +171,24 @@ async function loadingUsers(page = 0) {
   }
 }
 
-// Objeto para armazenar os dados do formulário
-const formUsuario = ref({
-  id: null,
-  name: '',
-  email: '',
-  // status: 'ativo',
-})
-
 // Funções
 const openDialog = () => {
-  isEditing.value = false
-  resetForm()
   dialog.value = true
 }
 
 const closeDialog = () => {
   dialog.value = false
-  resetForm()
-}
-
-const resetForm = () => {
-  formUsuario.value = {
-    id: null,
-    nome: '',
-    email: '',
-    senha: '',
-    status: 'ativo',
-  }
-}
-
-const editarUsuario = (usuario) => {
-  isEditing.value = true
-  formUsuario.value = { ...usuario }
-  dialog.value = true
 }
 
 const salvarUsuario = async () => {
   try {
     await loadingUsers()
-    closeDialog()
   } catch (err) {
     console.error('Erro ao salvar usuário:', err)
   }
 
   closeDialog()
 }
-
 
 const abrirModalExclusao = (id) => {
   usuarioParaExcluir.value = id
@@ -196,7 +206,64 @@ const confirmarExclusao = async () => {
     await loadingUsers()
     fecharModalExclusao()
   } catch (err) {
-    console.error('Erro ao deletar Veiculo:', err)
+    console.error('Erro ao deletar usuário:', err)
+  }
+}
+
+// === Reenvio do convite de ativação ===
+const mensagemConfirmacaoReenvio = computed(() =>
+  usuarioParaReenviar.value
+    ? `Enviar um novo link de ativação para ${usuarioParaReenviar.value.email}? O link anterior deixa de valer.`
+    : '',
+)
+
+const abrirModalReenvio = (usuario) => {
+  usuarioParaReenviar.value = usuario
+  modalReenvio.value = true
+}
+
+const mostrarFeedback = (tipo, titulo, mensagem) => {
+  feedbackTipo.value = tipo
+  feedbackTitulo.value = titulo
+  feedbackMensagem.value = mensagem
+  feedbackDialog.value = true
+}
+
+function mensagemDeErroReenvio(err) {
+  const corpo = err?.response?.data
+  const codigo = corpo?.error
+
+  if (codigo && MENSAGENS_ERRO_REENVIO[codigo]) return MENSAGENS_ERRO_REENVIO[codigo]
+  if (corpo?.message) return corpo.message
+  return 'Não foi possível reenviar o convite. Tente novamente.'
+}
+
+const confirmarReenvio = async () => {
+  if (!usuarioParaReenviar.value) return
+
+  const email = usuarioParaReenviar.value.email
+  reenviando.value = true
+  try {
+    const response = await reenviarAtivacao(usuarioParaReenviar.value.id)
+
+    // Mesmo contrato do cadastro: só `false` significa que o e-mail não saiu.
+    if (response.data?.conviteEnviado === false) {
+      mostrarFeedback(
+        'warning',
+        'Convite não enviado',
+        'O link foi gerado, mas o e-mail não saiu. Tente reenviar em alguns minutos.',
+      )
+    } else {
+      mostrarFeedback('success', 'Convite reenviado', `Um novo link de ativação foi enviado para ${email}.`)
+    }
+
+    await loadingUsers(currentPage.value)
+  } catch (err) {
+    mostrarFeedback('error', 'Erro!', mensagemDeErroReenvio(err))
+  } finally {
+    reenviando.value = false
+    modalReenvio.value = false
+    usuarioParaReenviar.value = null
   }
 }
 
