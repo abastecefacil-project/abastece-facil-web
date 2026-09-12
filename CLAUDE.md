@@ -1084,10 +1084,11 @@ seguro porque `/login` não tem `meta.perfis` e o guard para no primeiro `if`
 sem ler `perfil` nem `token`. **Não reordene de volta.**
 
 `logout` tem **um único consumidor**, `layouts/AppShell.vue`. Quem tem três é
-`aplicarSessao` (login, ativação e recuperação) — não confundir os dois.
-`services/authService.js` também exporta um `logout()`, que é **código morto e
-quebrado**: mexe em `this.token`/`this.user` do próprio objeto de serviço, não da
-store, e remove uma chave `user` que ninguém grava. Ninguém o chama.
+`aplicarSessao` (login, ativação e recuperação) — não confundir os dois. E a
+sessão só é encerrada num lugar: `services/authService.js` tinha um `logout()`
+órfão, resíduo de quando a lógica de sessão morava no serviço, e ele foi removido
+depois do P0.6a. Hoje o `authService` é só transporte — seis métodos, um por
+endpoint de `/api/auth/**`, nenhum deles com estado próprio.
 
 `homeDoPerfil` é usado por `Login.vue`, `AtivacaoConta.vue` e
 `RedefinirSenha.vue`. O `Login.vue` empurrava `/admin/dashboard` fixo até o P0.6 —
