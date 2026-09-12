@@ -93,6 +93,19 @@
         <router-view />
       </v-container>
     </v-main>
+
+    <!-- Vale para os dois contextos, porque o shell é um só: o botão "Sair" do
+         admin e o botão "Admin" do contexto de usuário passam pelo mesmo
+         `handleLogout`. Tom `primary`, e não o vermelho padrão, porque sair não
+         destrói nada — mesma escolha do reenvio de convite no S5. -->
+    <ConfirmDialog
+      v-model="modalSaida"
+      title="Confirmar saída"
+      message="Tem certeza que deseja sair?"
+      confirm-text="Sair"
+      confirm-tone="primary"
+      @confirm="confirmarSaida"
+    />
   </v-layout>
 </template>
 
@@ -102,6 +115,7 @@ import '@/assets/main.css'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
 import { NAVEGACAO, itensVisiveis } from '@/config/navegacao'
+import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
 
 // Qual conjunto de menu e qual botão superior usar. Os dois únicos call sites
 // são os wrappers `AdminLayout.vue` e `DefaultLayout.vue`, que o router
@@ -120,7 +134,21 @@ const route = useRoute()
 
 const botao = computed(() => NAVEGACAO[props.contexto].botao)
 
+const modalSaida = ref(false)
+
+// O clique no botão só abre a confirmação — quem encerra a sessão é o
+// `confirmarSaida`. O nome continua `handleLogout` porque é o handler do botão
+// de sair, que nos dois contextos é o mesmo: no contexto `user` ele tem rótulo
+// "Admin" e desloga do mesmo jeito (§9, item 8 do CLAUDE.md).
 const handleLogout = () => {
+  modalSaida.value = true
+}
+
+// Não fecha o diálogo depois: a navegação desmonta o `AppShell` inteiro, e o
+// diálogo vai junto. Também não passa `loading` ao `ConfirmDialog` — diferente
+// do reenvio de convite, aqui não há ida ao servidor para esperar, só navegação
+// e limpeza de `localStorage`.
+const confirmarSaida = () => {
   authStore.logout(router)
 }
 
