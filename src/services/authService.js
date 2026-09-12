@@ -50,13 +50,6 @@ const authService = {
     const response = await apiPublic.post('/api/auth/recuperacao/confirmar', { token, senha })
     return response.data
   },
-
-  logout() {
-    this.token = null
-    this.user = null
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-  },
 }
 
 export default authService
