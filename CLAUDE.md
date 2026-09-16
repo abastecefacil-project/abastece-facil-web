@@ -92,7 +92,7 @@ Integrações externas: **ViaCEP** (consulta de endereço por CEP) e
 | Mapa | Leaflet + leaflet.markercluster + OpenStreetMap |
 | Fonte | Manrope |
 | Porta (dev) | 5173 |
-| Deploy | Render, via GitHub Actions em push na `main` |
+| Deploy | Docker Compose na VPS |
 
 ---
 
@@ -1541,7 +1541,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   reabre nem fecha o drawer, e nunca reabriu. Se esse comportamento for desejado, é
   `watch(mobile, adjustLayoutForScreenSize)` no `AppShell` — e é mudança de
   comportamento, com tarefa própria.
-- CI do frontend: build em PR e deploy no Render em push na `main`.
+- CI do frontend: build em PR via GitHub Actions.
 
 ### Ao trabalhar neste projeto
 
