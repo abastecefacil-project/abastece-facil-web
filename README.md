@@ -1,14 +1,14 @@
 # frontend-abastece-facil
 
 Sistema web para consulta e gerenciamento dos postos conveniados da **FIESC / UNISENAI Joinville**.  
-Repositório oficial: [Evolve-Cap/abastece-facil-frontend](https://github.com/Abastece-Facil/front-abastece-facil)
+Repositório oficial: [abastecefacil-project/abastece-facil-web](https://github.com/abastecefacil-project/abastece-facil-web)
 
 ---
 
 ## Requisitos
 
-- [Node.js](https://nodejs.org/) **v20.X** ou **>=22.12.0**   
-- [npm](https://www.npmjs.com/) **v11+**
+- [Node.js](https://nodejs.org/) **v20.X**
+- npm incluído na instalação do Node.js
 
 Recomenda-se o uso de [nvm](https://github.com/nvm-sh/nvm) para gerenciar versões do Node.
 
@@ -32,7 +32,8 @@ O projeto requer variáveis configuradas em um arquivo `.env` na raiz.
 Exemplo:
 
 ```env
-# URL base da API Backend (Spring Boot)
+# URL base usada pelo frontend; o Vite encaminha /api para a API local
+VITE_API_BASE_URL=/api
 VITE_API_PROXY_TARGET="http://localhost:8081"
 ```
 
