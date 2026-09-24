@@ -5,7 +5,7 @@
 <script setup>
 import "leaflet/dist/leaflet.css";
 import * as L from "leaflet";
-import { ref, onMounted, onUnmounted, watch, createApp, nextTick  } from "vue";
+import { ref, reactive, onMounted, onUnmounted, watch, createApp, nextTick  } from "vue";
 import "leaflet.markercluster/dist/leaflet.markercluster.js";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
@@ -17,6 +17,10 @@ const props = defineProps({
   user: {
     type: Object,
     required: true,
+  },
+  route: {
+    type: Object,
+    default: null,
   },
 });
 
@@ -35,6 +39,11 @@ const pendingUserMarker = ref(null);
 const mapContainer = ref(null);
 const initialMap = ref(null);
 let markersLayer;
+let userMarkerLayer = null;
+let allStations = [];
+let routeLayer = null;
+let hasInitialPosition = false;
+const routeContext = reactive({ value: null });
 
 function createPopupContent(props = {}) {
   const container = document.createElement("div");
@@ -51,6 +60,98 @@ async function getGasStations() {
   } catch (err) {console.log("Erro ao buscar postos", err)}
 }
 
+function createRoutePopupContent(station) {
+  return createPopupContent({
+    station: {
+      id: station.id,
+      lat: station.latitude,
+      lon: station.longitude,
+      name: station.name,
+      address: station.address,
+      city: station.city,
+      state: station.state,
+      phone: station.phone,
+      businessHours: station.businessHours,
+    },
+    onStartRoute: () => emit('start-route', station),
+    routeContext,
+  });
+}
+
+const emit = defineEmits(['start-route', 'show-route', 'popup-open', 'popup-close']);
+
+function renderStations(stations) {
+  if (!markersLayer) return;
+
+  markersLayer.clearLayers();
+  stations.forEach((station) => {
+    const marker = L.marker([station.latitude, station.longitude], { icon: stationIcon });
+    marker.bindPopup(createRoutePopupContent(station), {
+      maxWidth: 300,
+      minWidth: 200,
+      className: 'station-popup',
+    });
+    marker.on('click', () => emit('show-route', station));
+    marker.on('popupopen', () => emit('popup-open'));
+    marker.on('popupclose', () => emit('popup-close'));
+    markersLayer.addLayer(marker);
+  });
+}
+
+function distanceToSegment(point, start, end) {
+  const latitudeScale = 111.32;
+  const longitudeScale = 111.32 * Math.cos((point[0] * Math.PI) / 180);
+  const px = point[1] * longitudeScale;
+  const py = point[0] * latitudeScale;
+  const ax = start[1] * longitudeScale;
+  const ay = start[0] * latitudeScale;
+  const bx = end[1] * longitudeScale;
+  const by = end[0] * latitudeScale;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lengthSquared = dx * dx + dy * dy;
+  const projection = lengthSquared === 0
+    ? 0
+    : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
+  return Math.hypot(px - (ax + projection * dx), py - (ay + projection * dy));
+}
+
+function stationIsNearRoute(station, geometry) {
+  const point = [Number(station.latitude), Number(station.longitude)];
+  return geometry.some((coordinate, index) => (
+    index > 0 && distanceToSegment(point, geometry[index - 1], coordinate) <= 5
+  ));
+}
+
+function drawRoute(route) {
+  if (!initialMap.value || !route?.geometry?.coordinates?.length) return;
+
+  if (routeLayer) initialMap.value.removeLayer(routeLayer);
+  routeLayer = L.geoJSON(route.geometry, {
+    style: { color: '#1976d2', weight: 5, opacity: 0.8 },
+  }).addTo(initialMap.value);
+
+  const geometry = route.geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]);
+  if (!route.preserveView) {
+    renderStations(allStations.filter((station) => stationIsNearRoute(station, geometry)));
+    initialMap.value.fitBounds(routeLayer.getBounds(), { padding: [40, 40] });
+  }
+}
+
+watch(() => props.route, (route) => {
+  routeContext.value = route;
+  if (route) {
+    drawRoute(route);
+    return;
+  }
+
+  if (routeLayer && initialMap.value) {
+    initialMap.value.removeLayer(routeLayer);
+    routeLayer = null;
+    renderStations(allStations);
+  }
+}, { deep: true });
+
 let stationIcon = L.icon({
   iconUrl: "https://cdn-icons-png.freepik.com/512/6395/6395463.png",
   iconSize: [38, 42],
@@ -60,10 +161,15 @@ let stationIcon = L.icon({
 
 onMounted(async () => {
   const data = await getGasStations();
+  allStations = data || [];
   initialMap.value = L.map(mapContainer.value, {
     zoomAnimation: false,
     fadeAnimation: true,
+    zoomControl: false,
+    attributionControl: false,
   }).setView([-26.3015486, -48.8513479], 12);
+
+  L.control.attribution({ position: "bottomleft" }).addTo(initialMap.value);
 
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
@@ -77,17 +183,9 @@ onMounted(async () => {
   });
   initialMap.value.addLayer(markersLayer);
 
-  data.forEach((loc, index) => {
-    const marker = L.marker([loc.latitude, loc.longitude], { icon: stationIcon });
+  renderStations(allStations);
 
-    const popupContent = createPopupContent({
-      station: { id: index, lat: loc.latitude, lon: loc.longitude, name: loc.name, address: loc.address, city: loc.city, state: loc.state, phone: loc.phone, businessHours: loc.businessHours },
-    });
-
-    marker.bindPopup(popupContent, { maxWidth: 300, minWidth: 200,  className: "station-popup" });
-
-    markersLayer.addLayer(marker);
-  });
+  if (props.route) drawRoute(props.route);
 
   if (pendingUserMarker.value) {
     addUserMarker(pendingUserMarker.value);
@@ -119,18 +217,16 @@ watch(
 function addUserMarker(user) {
   if (!markersLayer || !initialMap.value) return
 
-  // Remove marcador anterior do usuário
-  markersLayer.eachLayer((layer) => {
-    if (layer.getPopup?.().getContent?.() === "Você está aqui") {
-      markersLayer.removeLayer(layer)
-    }
-  })
+  if (userMarkerLayer) initialMap.value.removeLayer(userMarkerLayer)
 
-  const userMarker = L.marker([user.lat, user.lon], {
+  userMarkerLayer = L.marker([user.lat, user.lon], {
   }).bindPopup("Você está aqui")
-  markersLayer.addLayer(userMarker)
+  userMarkerLayer.addTo(initialMap.value)
 
-  initialMap.value.flyTo([user.lat, user.lon], 15, { duration: 1.2 })
+  if (!hasInitialPosition) {
+    initialMap.value.flyTo([user.lat, user.lon], 15, { duration: 1.2 })
+    hasInitialPosition = true
+  }
 
 }
 

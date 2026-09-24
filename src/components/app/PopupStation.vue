@@ -27,15 +27,19 @@
       </div>
     </div>
 
+    <div v-if="routeContext?.value" class="route-info">
+      <span>{{ formatDistance(routeContext.value.distance) }}</span>
+      <span>{{ formatDuration(routeContext.value.duration) }}</span>
+    </div>
+
     <v-btn
       color="primary"
       variant="flat"
-      :href="googleMapsUrl"
-      target="_blank"
+      @click="startRoute"
       prepend-icon="mdi-map-marker-path"
       class="map-button"
     >
-      Ver rota
+      Iniciar navegação
     </v-btn>
 </template>
 
@@ -47,6 +51,14 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  onStartRoute: {
+    type: Function,
+    default: null,
+  },
+  routeContext: {
+    type: Object,
+    default: null,
+  },
 })
 
 const { lat, lon, name, city, state, address, phone, businessHours } = props.station
@@ -55,6 +67,25 @@ const googleMapsUrl = computed(() => {
   if (!lat || !lon) return '#'
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`
 })
+
+function startRoute() {
+  if (props.onStartRoute) {
+    props.onStartRoute(props.station)
+    return
+  }
+
+  window.open(googleMapsUrl.value, '_blank', 'noopener,noreferrer')
+}
+
+function formatDistance(meters) {
+  return `${(meters / 1000).toFixed(1).replace('.', ',')} km`
+}
+
+function formatDuration(seconds) {
+  const minutes = Math.round(seconds / 60)
+  if (minutes < 60) return `${minutes} min`
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}min`
+}
 </script>
 
 <style scoped>
@@ -77,6 +108,18 @@ const googleMapsUrl = computed(() => {
 
 .station-info {
   margin-bottom: 12px;
+}
+
+.route-info {
+  display: flex;
+  gap: 8px;
+  margin: -4px 0 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .info-line {
