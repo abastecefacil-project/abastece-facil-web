@@ -48,12 +48,6 @@
                 <router-link to="/esqueci-senha" class="user-link">Esqueci minha senha</router-link>
               </div>
 
-              <div class="text-center mt-6">
-                <p class="text-body-2 text-medium-emphasis mb-2">Não é administrador?</p>
-                <router-link to="/user/dashboardUser" class="user-link">
-                  Acessar como Usuário
-                </router-link>
-              </div>
             </v-card-text>
           </v-card>
         </v-col>
@@ -191,7 +185,7 @@ const rules = {
   margin-bottom: 4px;
 }
 
-/* Link para dashboard de usuário */
+/* Link para recuperação de senha */
 .user-link {
   color: var(--primary);
   text-decoration: none;

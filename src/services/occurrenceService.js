@@ -1,7 +1,7 @@
-import { apiPublic, apiPrivate } from "./apiClient"
+import { apiPrivate } from "./apiClient"
 
 export async function createOccurrences(occurrencesData) {
-    return await apiPublic.post('/api/public/incident', occurrencesData);
+    return await apiPrivate.post('/api/public/incident', occurrencesData);
 }
 
 export async function getOccurrences(page = 0, title) {

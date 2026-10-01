@@ -11,7 +11,7 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import PopupStation from "@/components/app/PopupStation.vue";
 import vuetify from "@/plugins/vuetify";
-import { apiPublic } from "@/services/apiClient";
+import { apiPrivate } from "@/services/apiClient";
 
 const props = defineProps({
   user: {
@@ -55,7 +55,7 @@ function createPopupContent(props = {}) {
 
 async function getGasStations() {
   try {
-    const response = await apiPublic.get("/api/public/gas-stations/filter?page=0&size=100&active=true")
+    const response = await apiPrivate.get("/api/public/gas-stations/filter?page=0&size=100&active=true")
     return response.data.content
   } catch (err) {console.log("Erro ao buscar postos", err)}
 }

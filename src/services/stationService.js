@@ -1,4 +1,4 @@
-import { apiPublic, apiPrivate } from "./apiClient";
+import { apiPrivate } from "./apiClient";
 
 export async function getAddressByCep(cep){
     return await apiPrivate.get('/api/cep/info', {
@@ -11,7 +11,7 @@ export async function createStation(stationData) {
 }
 
 export async function getStations(page = 0, search, active) {
-    return await apiPublic.get('/api/public/gas-stations/filter', {
+    return await apiPrivate.get('/api/public/gas-stations/filter', {
         params: { search, active, page },
     })
 }
@@ -28,7 +28,7 @@ export async function getStationDashboard() {
     let active = true;
     let page = 0;
     let size = 1;
-    return await apiPublic.get('/api/public/gas-stations/filter', {
+    return await apiPrivate.get('/api/public/gas-stations/filter', {
         params: { active, page, size },
     })
 }
