@@ -5,7 +5,7 @@ const PERFIS = ['COLABORADOR', 'GESTOR_FROTA', 'ADMINISTRADOR']
 
 // Para onde cada perfil vai depois de autenticar. Colaborador usa o layout de
 // usuário; gestor e administrador, o painel. Perfil desconhecido ou ausente
-// cai na área pública, que é o que qualquer visitante já enxerga.
+// cai na área de usuário, que também exige login.
 const HOME_POR_PERFIL = {
   COLABORADOR: '/user/dashboardUser',
   GESTOR_FROTA: '/admin/dashboard',

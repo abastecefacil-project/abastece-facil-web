@@ -92,6 +92,7 @@ const router = createRouter({
     {
       path: '/user',
       component: DefaultLayout,
+      meta: { requiresAuth: true },
       children: [
         {
           path: 'postos',
@@ -139,12 +140,12 @@ router.beforeEach((to, from, next) => {
   // aberta a qualquer sessão.
   const perfisPermitidos = to.meta.perfis
 
-  if (!perfisPermitidos) {
-    return next()
+  if ((to.meta.requiresAuth || perfisPermitidos) && !auth.isAuthenticated) {
+    return next('/login')
   }
 
-  if (!auth.isAuthenticated) {
-    return next('/login')
+  if (!perfisPermitidos) {
+    return next()
   }
 
   // Autenticado sem permissão não volta para o login: a sessão é válida, só não
