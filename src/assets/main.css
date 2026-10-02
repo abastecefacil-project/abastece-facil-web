@@ -69,7 +69,6 @@ body,
 .v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__notch::before,
 .v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__notch::after,
 .v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__end {
-  opacity: 1;
   border-color: var(--color-border-strong);
 }
 
