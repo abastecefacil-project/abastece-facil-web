@@ -21,8 +21,23 @@
           :text="erroApi"
         />
 
+        <v-alert
+          v-if="aviso"
+          :type="aviso.tipo"
+          variant="tonal"
+          density="compact"
+          class="mb-4"
+          :text="aviso.texto"
+        />
+
+        <!-- Retomada: antes de oferecer a seleção, confere se já há importação rodando. -->
+        <div v-if="etapa === 'carregando'" class="carregando">
+          <v-progress-circular indeterminate color="primary" size="28" width="3" />
+          <span class="texto-apoio">Verificando se há importação em andamento…</span>
+        </div>
+
         <!-- Etapa 1: seleção do arquivo -->
-        <template v-if="etapa === 'selecao'">
+        <template v-else-if="etapa === 'selecao'">
           <p class="texto-apoio mb-4">
             Envie a planilha .xlsx de postos credenciados, com até 10 MB. Nada é gravado nesta
             etapa: primeiro você confere a prévia do que vai mudar.
@@ -43,33 +58,23 @@
         </template>
 
         <!-- Etapa 2: prévia -->
-        <template v-else-if="previa">
+        <template v-else-if="etapa === 'previa' && previa">
           <p class="texto-apoio mb-4">
             {{ arquivo?.name }} · {{ totaisLeitura }}
           </p>
 
-          <div class="contadores mb-4">
-            <div
-              v-for="contador in contadores"
-              :key="contador.rotulo"
-              class="contador"
-              :class="{ [`contador--${contador.destaque}`]: contador.destaque && contador.valor > 0 }"
-            >
-              <span class="contador-valor">{{ formatarNumero(contador.valor) }}</span>
-              <span class="contador-rotulo">{{ contador.rotulo }}</span>
-            </div>
-          </div>
+          <ImportacaoContadores :contadores="contadoresPrevia" class="mb-4" />
 
           <v-alert
-            v-if="alertaDesativacao"
-            :type="alertaDesativacao.tipo"
+            v-if="desativacaoPrevia"
+            :type="desativacaoPrevia.alta ? 'error' : 'warning'"
             variant="tonal"
             density="compact"
             class="mb-4"
-            :text="alertaDesativacao.texto"
+            :text="textoAlertaDesativacao"
           />
 
-          <v-expansion-panels v-if="haDetalhes" multiple variant="accordion">
+          <v-expansion-panels v-if="haDetalhesPrevia" multiple variant="accordion" class="mb-4">
             <v-expansion-panel v-for="grupo in gruposItens" :key="grupo.chave">
               <v-expansion-panel-title>
                 <span class="painel-titulo">{{ grupo.titulo }}</span>
@@ -96,35 +101,107 @@
               </v-expansion-panel-text>
             </v-expansion-panel>
 
-            <v-expansion-panel v-for="grupo in gruposOcorrencias" :key="grupo.chave">
-              <v-expansion-panel-title>
-                <span class="painel-titulo">{{ grupo.titulo }}</span>
-                <span class="painel-contagem">{{ formatarNumero(grupo.itens.length) }}</span>
-              </v-expansion-panel-title>
-              <v-expansion-panel-text>
-                <v-virtual-scroll :items="grupo.itens" max-height="320">
-                  <template #default="{ item }">
-                    <div class="linha-item">
-                      <span class="linha-meta">
-                        {{ rotuloLinha(item.linha) }} · CNPJ {{ item.cnpj || '—' }}
-                      </span>
-                      <span class="linha-mensagem">{{ item.mensagem }}</span>
-                    </div>
-                  </template>
-                </v-virtual-scroll>
-              </v-expansion-panel-text>
-            </v-expansion-panel>
+            <ImportacaoOcorrencias
+              v-for="grupo in gruposOcorrenciasPrevia"
+              :key="grupo.chave"
+              :titulo="grupo.titulo"
+              :ocorrencias="grupo.itens"
+            />
+          </v-expansion-panels>
+
+          <p class="tempo-estimado">
+            <v-icon icon="mdi-timer-outline" size="18" class="mr-1" />
+            {{ tempoEstimado }}
+          </p>
+        </template>
+
+        <!-- Etapa 3: progresso -->
+        <template v-else-if="etapa === 'progresso' && importacao">
+          <div class="progresso-cabecalho">
+            <span class="progresso-texto">{{ textoProcessados }}</span>
+            <span v-if="totalImportacao > 0" class="progresso-percentual">{{ percentual }}%</span>
+          </div>
+
+          <v-progress-linear
+            :model-value="percentual"
+            :indeterminate="totalImportacao === 0 && !acompanhamentoParado"
+            color="primary"
+            height="10"
+            rounded
+            class="mb-3"
+          />
+
+          <p v-if="!acompanhamentoParado" class="texto-apoio">{{ textoRestante }}</p>
+
+          <p v-if="semResposta && !acompanhamentoParado" class="aviso-discreto">
+            <v-icon icon="mdi-wifi-strength-alert-outline" size="16" class="mr-1" />
+            Sem resposta do servidor, tentando novamente…
+          </p>
+
+          <v-alert
+            v-if="erroAcompanhamento"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mt-3"
+            :text="erroAcompanhamento"
+          />
+
+          <p v-if="!acompanhamentoParado" class="texto-apoio mt-4">
+            A importação continua no servidor. Você pode fechar esta janela e acompanhar depois.
+          </p>
+        </template>
+
+        <!-- Etapa 4: relatório -->
+        <template v-else-if="etapa === 'resultado' && importacao">
+          <template v-if="falhou">
+            <v-alert
+              type="error"
+              variant="tonal"
+              density="compact"
+              class="mb-4"
+              :text="importacao.mensagem || MENSAGEM_FALHA_PADRAO"
+            />
+            <h3 class="secao-titulo">O que já foi feito</h3>
+          </template>
+          <v-alert
+            v-else
+            type="success"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+            text="Importação concluída."
+          />
+
+          <ImportacaoContadores :contadores="contadoresResultado" class="mb-4" />
+
+          <v-expansion-panels v-if="gruposOcorrenciasResultado.length" multiple variant="accordion">
+            <ImportacaoOcorrencias
+              v-for="grupo in gruposOcorrenciasResultado"
+              :key="grupo.chave"
+              :titulo="grupo.titulo"
+              :ocorrencias="grupo.itens"
+            />
           </v-expansion-panels>
         </template>
       </v-card-text>
 
       <v-card-actions class="dialog-actions acoes-importacao">
-        <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="cancelar">
-          Cancelar
-        </v-btn>
+        <template v-if="etapa === 'progresso' && !acompanhamentoParado">
+          <!-- Fechar só encerra o polling: nada é cancelado no servidor, e reabrir
+               o dialog retoma o acompanhamento pelo GET /import/atual. -->
+          <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="fechar">
+            Fechar e acompanhar depois
+          </v-btn>
+        </template>
 
-        <template v-if="etapa === 'selecao'">
+        <template v-else>
+          <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="fechar">
+            {{ rotuloFechar }}
+          </v-btn>
+
           <v-btn
+            v-if="etapa === 'selecao'"
             class="btn-dialog btn-dialog--confirmar"
             variant="flat"
             :loading="analisando"
@@ -133,33 +210,81 @@
           >
             Analisar planilha
           </v-btn>
-        </template>
 
-        <template v-else>
-          <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="trocarArquivo">
-            Trocar arquivo
+          <template v-if="etapa === 'previa'">
+            <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="novaImportacao">
+              Trocar arquivo
+            </v-btn>
+            <v-btn
+              class="btn-dialog btn-dialog--confirmar"
+              variant="flat"
+              :disabled="!previa"
+              @click="confirmacaoAberta = true"
+            >
+              Confirmar importação
+            </v-btn>
+          </template>
+
+          <v-btn
+            v-if="podeTentarNovamente"
+            class="btn-dialog btn-dialog--confirmar"
+            variant="flat"
+            @click="tentarNovamente"
+          >
+            Tentar novamente
           </v-btn>
-          <!-- Sem ação por enquanto: confirmar e executar a importação é a etapa
-               seguinte, que reenvia o mesmo `arquivo` guardado aqui. -->
-          <v-btn class="btn-dialog btn-dialog--confirmar" variant="flat" :disabled="!previa">
-            Confirmar importação
+
+          <v-btn
+            v-if="podeNovaImportacao"
+            class="btn-dialog btn-dialog--confirmar"
+            variant="flat"
+            @click="novaImportacao"
+          >
+            Nova importação
           </v-btn>
         </template>
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <ConfirmDialog
+    v-model="confirmacaoAberta"
+    title="Confirmar importação"
+    :message="mensagemConfirmacao"
+    confirm-text="Importar"
+    :confirm-tone="desativacaoPrevia ? 'danger' : 'primary'"
+    :loading="iniciando"
+    @confirm="confirmarImportacao"
+  />
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
-import { previewImport } from '@/services/stationService'
+import { computed, onUnmounted, ref, watch } from 'vue'
+import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
+import ImportacaoContadores from './ImportacaoContadores.vue'
+import ImportacaoOcorrencias from './ImportacaoOcorrencias.vue'
+import {
+  getCurrentImport,
+  getImportStatus,
+  previewImport,
+  startImport,
+} from '@/services/stationService'
 import { escolherNomeExibicao } from '@/utils/posto'
+import {
+  contarGeocodificacoes,
+  descreverDesativacao,
+  descreverTempoEstimado,
+  descreverTempoRestante,
+  formatarNumero,
+} from '@/utils/importacaoPostos'
 
 const props = defineProps({
   modelValue: Boolean,
 })
 
-const emit = defineEmits(['update:modelValue'])
+// importacao-finalizada: houve gravação (concluída, falhou ou interrompida) e a
+// lista de postos da tela está desatualizada.
+const emit = defineEmits(['update:modelValue', 'importacao-finalizada'])
 
 const TIPOS_ACEITOS = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
@@ -168,11 +293,23 @@ const TIPOS_ACEITOS = '.xlsx,application/vnd.openxmlformats-officedocument.sprea
 // responder um 413 legível.
 const TAMANHO_MAXIMO_BYTES = 10 * 1024 * 1024
 
-const MENSAGEM_ERRO_PADRAO = 'Não foi possível analisar a planilha. Tente novamente.'
+const INTERVALO_POLLING_MS = 3000
+const MAXIMO_FALHAS_SEGUIDAS = 5
+// Falhas que costumam passar sozinhas: proxy sem upstream, API reiniciando.
+const STATUS_TRANSITORIOS = [502, 503, 504]
+
+const MENSAGEM_ERRO_PADRAO = 'Não foi possível concluir a operação. Tente novamente.'
 const MENSAGEM_SEM_RESPOSTA =
   'Não foi possível enviar a planilha. Verifique a conexão e se o arquivo tem até 10 MB.'
 const MENSAGEM_ACESSO_NEGADO =
   'Acesso negado. Sua sessão pode ter expirado: entre novamente e tente de novo.'
+const MENSAGEM_FALHA_PADRAO = 'A importação falhou no servidor.'
+const MENSAGEM_INTERROMPIDA =
+  'A importação foi interrompida: o servidor foi reiniciado. O que já foi gravado permanece. Envie a planilha novamente para concluir.'
+const MENSAGEM_SEM_RESPOSTA_REPETIDA =
+  'O servidor não respondeu em 5 tentativas seguidas. A importação pode continuar rodando lá; tente novamente em instantes.'
+const MENSAGEM_OUTRA_TERMINOU =
+  'A importação que estava em andamento acabou de terminar. Confira a lista de postos e, se precisar, envie a planilha de novo.'
 
 // Usado só quando o backend não traz `message`: a dele vem em pt-BR, é segura
 // para exibir e é mais específica (diz qual coluna falta, por exemplo).
@@ -183,35 +320,46 @@ const MENSAGENS_POR_ERRO = {
   ARQUIVO_MUITO_GRANDE: 'O arquivo passa do limite de 10 MB da importação.',
   PLANILHA_SEM_POSTOS_NO_ESCOPO: 'A planilha não tem nenhum posto dentro do escopo da importação.',
   PERFIL_NAO_PERMITIDO: 'Apenas administradores podem importar a planilha de postos.',
+  IMPORTACAO_EM_ANDAMENTO: 'Já existe uma importação em andamento.',
+  IMPORTACAO_NAO_ENCONTRADA: MENSAGEM_INTERROMPIDA,
 }
 
-const formatoNumero = new Intl.NumberFormat('pt-BR')
-const formatoPercentual = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 })
-
-const etapa = ref('selecao')
+// === Estado ===
+// etapa: carregando → selecao → previa → progresso → resultado
+const etapa = ref('carregando')
 const selecao = ref(null)
 const arquivo = ref(null)
 const erroArquivo = ref('')
 const erroApi = ref('')
+const aviso = ref(null)
 const analisando = ref(false)
 const previa = ref(null)
 
-// Identifica a análise em andamento: uma resposta que chega depois de Cancelar
-// ou Trocar arquivo pertence a uma requisição antiga e é descartada.
+const confirmacaoAberta = ref(false)
+const iniciando = ref(false)
+
+const importacao = ref(null)
+// { processados, instante = Date.now() } por resposta do polling, só desta
+// sessão de acompanhamento: o tempo restante sai do relógio do navegador.
+const amostras = ref([])
+const semResposta = ref(false)
+// null enquanto acompanha; 'interrompida' (404), 'falhas' (rede), 'sessao'
+// (403) ou 'erro' quando o polling parou.
+const acompanhamentoParado = ref(null)
+const erroAcompanhamento = ref('')
+
+let falhasSeguidas = 0
+let gravacoesNotificadas = false
+let timerPolling = null
+
+// Identifica a operação corrente. Qualquer resposta — prévia, início ou
+// polling — que chegue com um número antigo pertence a um estado que o usuário
+// já abandonou (fechou, trocou de arquivo) e é descartada.
 let requisicaoAtual = 0
 
-function formatarNumero(valor) {
-  return formatoNumero.format(valor ?? 0)
-}
-
+// === Prévia ===
 function nomeDoItem(item) {
   return escolherNomeExibicao(item.nomeFantasia, item.nome)
-}
-
-// linha = 0 é a convenção do backend para "sem linha na planilha" — caso dos
-// postos a desativar, que existem só no banco.
-function rotuloLinha(linha) {
-  return linha > 0 ? `Linha ${linha}` : '—'
 }
 
 function validarArquivo(valor) {
@@ -236,7 +384,7 @@ const totaisLeitura = computed(() => {
   return `${formatarNumero(lidas)} ${rotulo}, ${formatarNumero(escopo)} no escopo`
 })
 
-const contadores = computed(() => {
+const contadoresPrevia = computed(() => {
   const p = previa.value ?? {}
   return [
     { rotulo: 'Inserir', valor: p.inserir?.length ?? 0 },
@@ -248,29 +396,25 @@ const contadores = computed(() => {
   ]
 })
 
-// Desativar tira o posto do mapa. Metade ou mais da base sumindo de uma vez
-// costuma ser planilha incompleta, não descredenciamento em massa.
-const alertaDesativacao = computed(() => {
-  const desativar = previa.value?.desativar?.length ?? 0
-  if (desativar === 0) return null
+const desativacaoPrevia = computed(() =>
+  descreverDesativacao(previa.value?.desativar?.length ?? 0, previa.value?.totalAtivosNoBanco ?? 0),
+)
 
-  const ativos = previa.value.totalAtivosNoBanco ?? 0
-  const proporcao = ativos > 0 ? (desativar / ativos) * 100 : 100
-  const percentual = `${formatoPercentual.format(proporcao)}%`
-  const [desativados, deixarao] = desativar === 1
-    ? ['será desativado', 'deixará']
-    : ['serão desativados', 'deixarão']
-  const base =
-    `${formatarNumero(desativar)} de ${formatarNumero(ativos)} postos ativos ${desativados} ` +
-    `(${percentual}) e ${deixarao} de aparecer no mapa.`
+const SUFIXO_DESATIVACAO_ALTA = 'A proporção é alta: confira se a planilha está completa antes de confirmar.'
 
-  if (proporcao >= 50) {
-    return {
-      tipo: 'error',
-      texto: `${base} A proporção é alta: confira se a planilha está completa antes de confirmar.`,
-    }
-  }
-  return { tipo: 'warning', texto: base }
+const textoAlertaDesativacao = computed(() => {
+  const d = desativacaoPrevia.value
+  if (!d) return ''
+  return d.alta ? `${d.texto} ${SUFIXO_DESATIVACAO_ALTA}` : d.texto
+})
+
+const tempoEstimado = computed(() => descreverTempoEstimado(contarGeocodificacoes(previa.value)))
+
+const mensagemConfirmacao = computed(() => {
+  const partes = [`${tempoEstimado.value}.`]
+  if (desativacaoPrevia.value) partes.push(`Atenção: ${textoAlertaDesativacao.value}`)
+  partes.push('A importação continua no servidor mesmo se você fechar esta janela.')
+  return partes.join(' ')
 })
 
 const gruposItens = computed(() => {
@@ -284,19 +428,74 @@ const gruposItens = computed(() => {
   ].filter((grupo) => grupo.itens.length > 0)
 })
 
-const gruposOcorrencias = computed(() => {
-  const p = previa.value
-  if (!p) return []
+function gruposDeOcorrencias(origem) {
+  if (!origem) return []
   return [
-    { chave: 'erros', titulo: 'Erros', itens: p.erros ?? [] },
-    { chave: 'avisos', titulo: 'Avisos', itens: p.avisos ?? [] },
+    { chave: 'erros', titulo: 'Erros', itens: origem.erros ?? [] },
+    { chave: 'avisos', titulo: 'Avisos', itens: origem.avisos ?? [] },
   ].filter((grupo) => grupo.itens.length > 0)
-})
+}
 
-const haDetalhes = computed(
-  () => gruposItens.value.length > 0 || gruposOcorrencias.value.length > 0,
+const gruposOcorrenciasPrevia = computed(() => gruposDeOcorrencias(previa.value))
+
+const haDetalhesPrevia = computed(
+  () => gruposItens.value.length > 0 || gruposOcorrenciasPrevia.value.length > 0,
 )
 
+// === Progresso ===
+const totalImportacao = computed(() => importacao.value?.total ?? 0)
+const processadosImportacao = computed(() => importacao.value?.processados ?? 0)
+
+const percentual = computed(() =>
+  totalImportacao.value > 0
+    ? Math.min(100, Math.round((processadosImportacao.value / totalImportacao.value) * 100))
+    : 0,
+)
+
+const textoProcessados = computed(() =>
+  totalImportacao.value > 0
+    ? `${formatarNumero(processadosImportacao.value)} de ${formatarNumero(totalImportacao.value)} postos processados`
+    : 'Preparando a importação…',
+)
+
+const textoRestante = computed(() =>
+  descreverTempoRestante(amostras.value, totalImportacao.value, processadosImportacao.value),
+)
+
+// === Resultado ===
+const falhou = computed(() => importacao.value?.status === 'FALHOU')
+
+const contadoresResultado = computed(() => {
+  const r = importacao.value?.resumo ?? {}
+  return [
+    { rotulo: 'Inseridos', valor: r.inseridos ?? 0 },
+    { rotulo: 'Atualizados', valor: r.atualizados ?? 0 },
+    { rotulo: 'Reativados', valor: r.reativados ?? 0 },
+    { rotulo: 'Desativados', valor: r.desativados ?? 0, destaque: 'alerta' },
+    { rotulo: 'Sem alteração', valor: r.semAlteracao ?? 0 },
+    { rotulo: 'Erros', valor: r.erros?.length ?? 0, destaque: 'erro' },
+    { rotulo: 'Avisos', valor: r.avisos?.length ?? 0 },
+  ]
+})
+
+const gruposOcorrenciasResultado = computed(() => gruposDeOcorrencias(importacao.value?.resumo))
+
+// === Ações disponíveis ===
+const podeTentarNovamente = computed(
+  () => etapa.value === 'progresso' && ['falhas', 'erro'].includes(acompanhamentoParado.value),
+)
+
+const podeNovaImportacao = computed(
+  () =>
+    etapa.value === 'resultado' ||
+    (etapa.value === 'progresso' && acompanhamentoParado.value === 'interrompida'),
+)
+
+const rotuloFechar = computed(() =>
+  ['progresso', 'resultado'].includes(etapa.value) ? 'Fechar' : 'Cancelar',
+)
+
+// === Erros ===
 function mensagemDeErro(err) {
   const resposta = err?.response
   if (!resposta) return MENSAGEM_SEM_RESPOSTA
@@ -313,6 +512,76 @@ function mensagemDeErro(err) {
   if (resposta.status === 413) return MENSAGENS_POR_ERRO.ARQUIVO_MUITO_GRANDE
   if (resposta.status === 403) return MENSAGEM_ACESSO_NEGADO
   return MENSAGEM_ERRO_PADRAO
+}
+
+// === Ciclo de vida do acompanhamento ===
+function pararPolling() {
+  if (timerPolling !== null) {
+    clearTimeout(timerPolling)
+    timerPolling = null
+  }
+}
+
+// Encerra timer e invalida toda resposta pendente. Roda ao fechar, ao trocar de
+// arquivo, ao começar uma nova importação e ao desmontar a tela.
+function invalidarOperacoes() {
+  requisicaoAtual++
+  pararPolling()
+}
+
+function limpar() {
+  invalidarOperacoes()
+  etapa.value = 'selecao'
+  selecao.value = null
+  arquivo.value = null
+  erroArquivo.value = ''
+  erroApi.value = ''
+  aviso.value = null
+  analisando.value = false
+  previa.value = null
+  confirmacaoAberta.value = false
+  iniciando.value = false
+  importacao.value = null
+  amostras.value = []
+  semResposta.value = false
+  acompanhamentoParado.value = null
+  erroAcompanhamento.value = ''
+  falhasSeguidas = 0
+  gravacoesNotificadas = false
+}
+
+// Retomada: cobre fechar e reabrir, F5 e importação iniciada por outro
+// administrador. Só depois de saber que não há nada rodando é que a seleção
+// aparece.
+async function abrir() {
+  limpar()
+  etapa.value = 'carregando'
+  const requisicao = requisicaoAtual
+
+  try {
+    const atual = await getCurrentImport()
+    if (requisicao !== requisicaoAtual) return
+    if (atual?.status === 'EM_ANDAMENTO') acompanhar(atual)
+    else etapa.value = 'selecao'
+  } catch {
+    if (requisicao !== requisicaoAtual) return
+    // Seguir é seguro: se houver importação rodando, o envio cai no 409 e
+    // passa a acompanhá-la.
+    aviso.value = {
+      tipo: 'warning',
+      texto: 'Não foi possível verificar se já há uma importação em andamento. Se houver, ao enviar a planilha você passa a acompanhá-la.',
+    }
+    etapa.value = 'selecao'
+  }
+}
+
+function fechar() {
+  limpar()
+  emit('update:modelValue', false)
+}
+
+function novaImportacao() {
+  limpar()
 }
 
 async function analisar() {
@@ -339,33 +608,164 @@ async function analisar() {
   }
 }
 
-function limpar() {
-  requisicaoAtual++
-  etapa.value = 'selecao'
-  selecao.value = null
-  arquivo.value = null
-  erroArquivo.value = ''
+async function confirmarImportacao() {
   erroApi.value = ''
-  analisando.value = false
-  previa.value = null
+  iniciando.value = true
+  const requisicao = ++requisicaoAtual
+
+  try {
+    // O backend relê o arquivo e recalcula o plano: os erros da prévia podem
+    // voltar aqui, e são tratados igual.
+    const { data } = await startImport(arquivo.value)
+    if (requisicao !== requisicaoAtual) return
+    confirmacaoAberta.value = false
+    acompanhar({ id: data.id, status: 'EM_ANDAMENTO' }, 0)
+  } catch (err) {
+    if (requisicao !== requisicaoAtual) return
+    confirmacaoAberta.value = false
+    if (err?.response?.status === 409) await acompanharExistente(requisicao)
+    else erroApi.value = mensagemDeErro(err)
+  } finally {
+    if (requisicao === requisicaoAtual) iniciando.value = false
+  }
 }
 
-function trocarArquivo() {
-  limpar()
+async function acompanharExistente(requisicao) {
+  try {
+    const atual = await getCurrentImport()
+    if (requisicao !== requisicaoAtual) return
+    if (atual?.status === 'EM_ANDAMENTO') {
+      aviso.value = {
+        tipo: 'info',
+        texto: 'Já havia uma importação em andamento; acompanhando a existente.',
+      }
+      acompanhar(atual)
+    } else {
+      erroApi.value = MENSAGEM_OUTRA_TERMINOU
+    }
+  } catch (err) {
+    if (requisicao !== requisicaoAtual) return
+    erroApi.value = mensagemDeErro(err)
+  }
 }
 
-function cancelar() {
-  limpar()
-  emit('update:modelValue', false)
+// === Polling ===
+function acompanhar(status, primeiraConsultaEmMs = INTERVALO_POLLING_MS) {
+  importacao.value = status
+  amostras.value = []
+  falhasSeguidas = 0
+  semResposta.value = false
+  acompanhamentoParado.value = null
+  erroAcompanhamento.value = ''
+  etapa.value = 'progresso'
+  registrarAmostra(status)
+  agendarConsulta(primeiraConsultaEmMs)
 }
 
-// Cada abertura começa do zero.
+function registrarAmostra(status) {
+  // O status montado a partir do 202 não traz `processados`: não é amostra.
+  if (typeof status.processados !== 'number') return
+  amostras.value.push({ processados: status.processados, instante: Date.now() })
+}
+
+// setTimeout encadeado, nunca setInterval: a próxima consulta só é agendada
+// depois que a anterior respondeu, então não há requisições sobrepostas.
+function agendarConsulta(ms = INTERVALO_POLLING_MS) {
+  pararPolling()
+  const requisicao = requisicaoAtual
+  timerPolling = setTimeout(() => consultarStatus(requisicao), ms)
+}
+
+async function consultarStatus(requisicao) {
+  timerPolling = null
+  if (requisicao !== requisicaoAtual) return
+
+  try {
+    const { data } = await getImportStatus(importacao.value.id)
+    if (requisicao !== requisicaoAtual) return
+    falhasSeguidas = 0
+    semResposta.value = false
+    aplicarStatus(data)
+  } catch (err) {
+    if (requisicao !== requisicaoAtual) return
+    tratarFalhaConsulta(err)
+  }
+}
+
+function aplicarStatus(status) {
+  importacao.value = status
+  if (status.status === 'EM_ANDAMENTO') {
+    registrarAmostra(status)
+    agendarConsulta()
+    return
+  }
+  // CONCLUIDA ou FALHOU: nos dois casos houve gravação.
+  etapa.value = 'resultado'
+  notificarGravacoes()
+}
+
+function notificarGravacoes() {
+  if (gravacoesNotificadas) return
+  gravacoesNotificadas = true
+  emit('importacao-finalizada')
+}
+
+function tratarFalhaConsulta(err) {
+  const status = err?.response?.status
+
+  // O registro da importação vive em memória no backend: 404 é servidor
+  // reiniciado (ou mais de 24 h). O que já foi gravado continua gravado.
+  if (status === 404) {
+    pararAcompanhamento('interrompida', MENSAGEM_INTERROMPIDA)
+    notificarGravacoes()
+    return
+  }
+
+  if (!err?.response || STATUS_TRANSITORIOS.includes(status)) {
+    falhasSeguidas++
+    if (falhasSeguidas >= MAXIMO_FALHAS_SEGUIDAS) {
+      pararAcompanhamento('falhas', MENSAGEM_SEM_RESPOSTA_REPETIDA)
+      return
+    }
+    semResposta.value = true
+    agendarConsulta()
+    return
+  }
+
+  // Sessão expirada não se resolve tentando de novo.
+  if (status === 403) {
+    pararAcompanhamento('sessao', mensagemDeErro(err))
+    return
+  }
+
+  pararAcompanhamento('erro', mensagemDeErro(err))
+}
+
+function pararAcompanhamento(motivo, mensagem) {
+  pararPolling()
+  semResposta.value = false
+  acompanhamentoParado.value = motivo
+  erroAcompanhamento.value = mensagem
+}
+
+function tentarNovamente() {
+  falhasSeguidas = 0
+  acompanhamentoParado.value = null
+  erroAcompanhamento.value = ''
+  agendarConsulta(0)
+}
+
+// Cada abertura começa do zero e confere se há importação a retomar; fechar
+// por qualquer caminho encerra o polling.
 watch(
   () => props.modelValue,
   (aberto) => {
-    if (aberto) limpar()
+    if (aberto) abrir()
+    else invalidarOperacoes()
   },
 )
+
+onUnmounted(invalidarOperacoes)
 </script>
 
 <style scoped>
@@ -382,52 +782,14 @@ watch(
   line-height: 1.5;
 }
 
-/* Contadores */
-.contadores {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 10px;
-}
-
-.contador {
+.carregando {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  align-items: center;
+  gap: 12px;
+  padding: 24px 0;
 }
 
-.contador-valor {
-  font-size: 1.375rem;
-  font-weight: 700;
-  color: var(--color-text);
-  line-height: 1.2;
-}
-
-.contador-rotulo {
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-}
-
-.contador--alerta {
-  border-color: var(--color-warning);
-}
-
-.contador--alerta .contador-valor {
-  color: var(--color-warning);
-}
-
-.contador--erro {
-  border-color: rgb(var(--v-theme-error));
-}
-
-.contador--erro .contador-valor {
-  color: rgb(var(--v-theme-error));
-}
-
-/* Painéis */
+/* Prévia */
 .painel-titulo {
   font-weight: 600;
   color: var(--color-text);
@@ -468,8 +830,47 @@ watch(
   color: var(--color-primary);
 }
 
-.linha-mensagem {
-  font-size: 0.8125rem;
+.tempo-estimado {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  font-weight: 600;
   color: var(--color-text);
+}
+
+/* Progresso */
+.progresso-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.progresso-texto {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.progresso-percentual {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.aviso-discreto {
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  color: var(--color-warning);
+}
+
+/* Resultado */
+.secao-titulo {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 12px;
 }
 </style>

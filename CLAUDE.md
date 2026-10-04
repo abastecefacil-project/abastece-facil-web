@@ -950,12 +950,12 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (11)  user/ (8)  app/ (7 compartilhados)  public/ (2)
+├── components/  admin/ (13)  user/ (8)  app/ (7 compartilhados)  public/ (2)
 ├── config/      navegacao.js
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, posto.js
+├── utils/       mascaras.js, posto.js, importacaoPostos.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1156,26 +1156,68 @@ idêntico ao anterior, e as outras telas que usam o componente não mudam. O
 estilo do botão mora na view (`.importar-btn`), porque conteúdo de slot carrega
 o `data-v` do pai.
 
-O fluxo tem duas etapas no mesmo dialog:
+O dialog é uma máquina de etapas: `carregando` → `selecao` → `previa` →
+`progresso` → `resultado`.
 
+- **Carregando (retomada).** Toda abertura chama `getCurrentImport()` antes de
+  qualquer coisa. Se houver importação `EM_ANDAMENTO`, o dialog vai direto ao
+  progresso dela. Isso cobre fechar e reabrir, F5 e importação iniciada por outro
+  administrador. Se a consulta falhar, segue para a seleção com um aviso, e é
+  seguro: o envio cairia no 409.
 - **Seleção.** Valida `.xlsx` e o teto de **10 MB** antes de enviar, igual ao
   `client_max_body_size` do nginx. A checagem no front não é enfeite: muito acima
   do limite o servidor pode resetar a conexão em vez de responder 413.
 - **Prévia.** `previewImport` (`stationService`) não grava nada. A tela mostra os
   contadores, um alerta proporcional de desativação (`error` a partir de 50% dos
-  ativos, porque isso costuma ser planilha incompleta) e listas virtualizadas
-  (`v-virtual-scroll`): a carga real tem cerca de 1.176 itens em inserir. O nome
-  exibido usa `escolherNomeExibicao(nomeFantasia, nome)` de `utils/posto.js`,
-  porque as chaves do item diferem das do posto.
+  ativos, porque isso costuma ser planilha incompleta), listas virtualizadas
+  (`v-virtual-scroll`, porque a carga real tem cerca de 1.176 itens em inserir) e o
+  tempo estimado (geocodificações × 1,1 s). O nome exibido usa
+  `escolherNomeExibicao(nomeFantasia, nome)` de `utils/posto.js`, porque as chaves
+  do item diferem das do posto. O `File` fica guardado para ser reenviado no
+  `startImport`.
+- **Confirmação.** Usa o `ConfirmDialog` com `confirm-tone="danger"` quando há
+  desativação (o componente aceita `danger`/`primary`, não `perigo`). Se o envio
+  receber 409 `IMPORTACAO_EM_ANDAMENTO`, o dialog passa a acompanhar a importação
+  existente em vez de mostrar erro.
+- **Progresso.** Polling de `getImportStatus` a cada 3 s, com **`setTimeout`
+  encadeado, nunca `setInterval`**. O dialog pode ser fechado: fechar só encerra o
+  polling, nada é cancelado no servidor.
+- **Resultado.** Contadores do `resumo`, mais erros e avisos. Em `FALHOU`, a
+  `mensagem` do backend aparece seguida de "O que já foi feito". Nos dois desfechos,
+  e também no 404, o dialog emite `importacao-finalizada` uma única vez, e a view
+  recarrega a lista na página 0.
 
-Erros: vale a `message` do backend quando vier, depois o mapa
+**O tempo restante não usa `iniciadaEm`, e não deve passar a usar.** O campo é
+`LocalDateTime` no fuso do servidor, e em produção a JVM roda em UTC: comparar com
+o relógio do navegador erra por horas. O restante sai só de amostras
+`{ processados, Date.now() }` desta sessão de acompanhamento, com o ritmo medido
+entre a primeira e a última amostra (`utils/importacaoPostos.js`,
+`estimarSegundosRestantes`). Depois de um F5 as amostras recomeçam do zero, e
+isso é o correto.
+
+**Respostas atrasadas e timers.** O contador `requisicaoAtual` é incrementado ao
+fechar, ao trocar de arquivo, ao iniciar uma nova importação e no `onUnmounted`.
+Qualquer resposta (prévia, início ou polling) que chegue com um número antigo é
+descartada, e o mesmo ponto faz o `clearTimeout`.
+
+Falhas do polling:
+
+| Caso | Tratamento |
+|---|---|
+| 404 | Para: servidor reiniciado (o registro vive em memória). O que foi gravado permanece |
+| sem resposta, 502/503/504 | Aviso discreto e continua; para na 5ª falha seguida e oferece "Tentar novamente" |
+| 403 | Para com a mensagem de sessão expirada |
+| outros | Para com a mensagem do backend e oferece "Tentar novamente" |
+
+Erros de requisição: vale a `message` do backend quando vier, depois o mapa
 `MENSAGENS_POR_ERRO` e por fim a mensagem padrão. Os casos sem `ErrorResponse`
 são tratados à parte: o 413 do nginx chega em HTML, o 403 do Spring Security
 chega sem corpo e uma conexão resetada chega sem resposta.
 
-O `File` fica guardado no estado do dialog para ser reenviado na confirmação.
-**"Confirmar importação" ainda não tem ação**: confirmar, executar, acompanhar o
-progresso e mostrar o relatório são a etapa seguinte.
+Contadores e listas de erros e avisos são componentes compartilhados entre a
+prévia e o relatório: `ImportacaoContadores.vue` e `ImportacaoOcorrencias.vue`
+(este é um `v-expansion-panel` avulso e precisa de um `v-expansion-panels` no
+chamador).
 
 ### Mapa
 

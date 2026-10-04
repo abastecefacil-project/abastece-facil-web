@@ -76,7 +76,11 @@
       v-model="modalExclusao"
       @confirm="confirmarExclusao"
     />
-    <ImportacaoPostosDialog v-if="isAdministrador" v-model="dialogImportacao" />
+    <ImportacaoPostosDialog
+      v-if="isAdministrador"
+      v-model="dialogImportacao"
+      @importacao-finalizada="loadingStations(0)"
+    />
   </div>
 
   <PaginationBar
