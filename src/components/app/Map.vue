@@ -12,6 +12,7 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import PopupStation from "@/components/app/PopupStation.vue";
 import vuetify from "@/plugins/vuetify";
 import { apiPrivate } from "@/services/apiClient";
+import { nomeExibicaoPosto } from "@/utils/posto";
 
 const props = defineProps({
   user: {
@@ -66,7 +67,7 @@ function createRoutePopupContent(station) {
       id: station.id,
       lat: station.latitude,
       lon: station.longitude,
-      name: station.name,
+      name: nomeExibicaoPosto(station),
       address: station.address,
       city: station.city,
       state: station.state,

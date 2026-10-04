@@ -81,6 +81,7 @@ import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import { getStations, deleteStation } from '@/services/stationService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
+import { lerHorarioFuncionamento } from '@/utils/posto'
 
 // Estados reativos
 const dialog = ref(false)
@@ -121,23 +122,27 @@ async function loadingStations(page = 0) {
     const response = await getStations(page, search, active)
     const data = response.data
 
-    postos.value = response.data.content.map((posto) => ({
-      id: posto.id,
-      name: posto.name,
-      fantasyName: posto.fantasyName,
-      completeAddress: `${posto.address} - ${posto.district}, ${posto.city} - ${posto.state}`,
-      phone: posto.phone,
-      cnpj: posto.cnpj,
-      cep: posto.cep,
-      district: posto.district,
-      city: posto.city,
-      state: posto.state,
-      address: posto.address.split(',')[0],
-      number: posto.address.split(',')[1]?.trim() || '',
-      status: posto.isActive,
-      openTime: posto.businessHours.split('-')[0],
-      closeTime: posto.businessHours.split('-')[1]
-    }))
+    postos.value = response.data.content.map((posto) => {
+      const horario = lerHorarioFuncionamento(posto.businessHours)
+      return {
+        id: posto.id,
+        name: posto.name,
+        fantasyName: posto.fantasyName,
+        completeAddress: `${posto.address} - ${posto.district}, ${posto.city} - ${posto.state}`,
+        phone: posto.phone,
+        cnpj: posto.cnpj,
+        cep: posto.cep,
+        district: posto.district,
+        city: posto.city,
+        state: posto.state,
+        address: posto.address.split(',')[0],
+        number: posto.address.split(',')[1]?.trim() || '',
+        status: posto.isActive,
+        businessHours: posto.businessHours,
+        openTime: horario?.abertura ?? '',
+        closeTime: horario?.fechamento ?? '',
+      }
+    })
     currentPage.value = data.number
     totalPages.value = data.totalPages
 

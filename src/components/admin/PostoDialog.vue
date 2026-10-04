@@ -147,6 +147,7 @@
                 type="time"
                 variant="outlined"
                 density="comfortable"
+                :rules="[exigeParDeHorario('closeTime', 'abertura')]"
               ></v-text-field>
             </v-col>
             
@@ -162,6 +163,7 @@
                 type="time"
                 variant="outlined"
                 density="comfortable"
+                :rules="[exigeParDeHorario('openTime', 'fechamento')]"
               ></v-text-field>
             </v-col>
             
@@ -282,6 +284,21 @@ async function searchCep() {
   }
 }
 
+// Os dois horários vazios significam "sem horário" e viram null, o mesmo que
+// a importação por planilha grava quando o horário da origem é ambíguo.
+function montarHorario(abertura, fechamento) {
+  return abertura && fechamento ? `${abertura} - ${fechamento}` : null
+}
+
+// Preencher só um dos dois gravaria um horário que a leitura de
+// utils/posto.js considera inválido; os dois ou nenhum.
+function exigeParDeHorario(campoOposto, rotulo) {
+  return (v) =>
+    !!v ||
+    !localPosto.value[campoOposto] ||
+    `Informe também o horário de ${rotulo}`
+}
+
 //Cadastra Postos
 const handleSave = async () => {
   if (!form.value) return;
@@ -300,8 +317,8 @@ const handleSave = async () => {
       district: localPosto.value.district,
       city: localPosto.value.city,
       state: localPosto.value.state,
-      phone: localPosto.value.phone, 
-      businessHours: `${localPosto.value.openTime} - ${localPosto.value.closeTime}`,
+      phone: localPosto.value.phone,
+      businessHours: montarHorario(localPosto.value.openTime, localPosto.value.closeTime),
       isActive: localPosto.value.active
     };
 
@@ -329,10 +346,14 @@ const emit = defineEmits(['update:modelValue', 'save', 'close'])
 watch(
   () => props.posto,
   (newPosto) => {
+    // Em edição, posto sem horário abre com os campos vazios: completar com
+    // '00:00' faria um simples salvar gravar "00:00 - 00:00" por cima do NULL.
+    // A criação mantém o '00:00' de sempre.
+    const horarioPadrao = props.isEditing ? '' : '00:00'
     localPosto.value = {
       ...newPosto,
-      openTime: newPosto.openTime || '00:00',
-      closeTime: newPosto.closeTime || '00:00',
+      openTime: newPosto.openTime || horarioPadrao,
+      closeTime: newPosto.closeTime || horarioPadrao,
       active: newPosto.status ?? true
     }
   },

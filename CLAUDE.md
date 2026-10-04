@@ -10,7 +10,7 @@
 >
 > **Seções que interessam ao trabalho de frontend:** 1 (domínio), 5 (contrato da
 > API, essencial), 7 (estrutura), 8 (design system), 9 (armadilhas de CSS e
-> Vuetify, itens 1 a 8) e 10 (linha de base do eslint: 11 erros).
+> Vuetify, itens 1 a 8) e 10 (linha de base do eslint: 10 erros).
 >
 > **Seções que são referência de backend**, para entender o contrato mas não para
 > agir: 3 (execução), 4 (modelo de dados e migrations), 6 (regras de negócio) e o
@@ -955,7 +955,7 @@ src/
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js
+├── utils/       mascaras.js, posto.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1119,6 +1119,29 @@ chamam caminhos iniciados por `/api/...`, as requisições saem relativas e são
 capturadas pelo proxy do Vite (`vite.config.js`), que as encaminha ao backend.
 Preenchê-la com `http://localhost:8081` faz as chamadas contornarem o proxy e
 resultarem em erro de CORS.
+
+### Nome e horário do posto
+
+Postos importados por planilha têm `name` = razão social ("POSTO Z21 LTDA"),
+`fantasyName` possivelmente nulo e `businessHours` nulo na maioria dos casos. Por
+isso, **nunca leia esses campos direto para exibição**: use `utils/posto.js`.
+
+- `nomeExibicaoPosto(posto)` → `fantasyName` e, se vazio, `name`. É o título no
+  card admin, no card do usuário e no popup do mapa. O `GasStationModal` é exceção
+  deliberada: é a ficha e mostra os dois campos rotulados.
+- `lerHorarioFuncionamento(businessHours)` → `{ abertura, fechamento }` ou `null`.
+  Tolera espaços em volta do hífen (`"07:00  -  21:00"`, gravado pelo formulário
+  antigo) e nunca lança. `split('-')` direto quebrava a tela de postos inteira com
+  `null`.
+- `formatarHorarioFuncionamento` → texto normalizado ou `null`. O fallback é a
+  constante `HORARIO_NAO_INFORMADO` com a classe global `.horario-nao-informado`
+  (`main.css`): o mesmo visual nos três lugares, sem `text-grey-*` junto.
+
+No `PostoDialog`, os dois horários vazios enviam `businessHours: null`, preencher só
+um é barrado na validação, e em **edição** o posto sem horário abre com os campos
+vazios. Só a criação pré-preenche `00:00`.
+
+`nginx.conf` aceita corpo de até 10 MB em `/api/` por causa do upload da planilha.
 
 ### Mapa
 
@@ -1518,14 +1541,18 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   Enquanto isso, a verificação é manual: rodar as próprias instruções do repository no
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
-- `npx eslint src` reporta **11 erros pré-existentes**. Não são regressões; usar essa
+- `npx eslint src` reporta **10 erros pré-existentes**. Não são regressões; usar essa
   contagem como linha de base. A lista completa, que antes estava incompleta neste
   documento:
 
   | Regra | Onde |
   |---|---|
   | `vue/multi-word-component-names` (5) | `Footer`, `Map`, `Reports`, `Login`, `Occurrences` |
-  | `no-unused-vars` (6) | `props` (PostoCard), `err` (PostoDialog), `err` (VehicleDialog), `response` e `error` (OccurrenceForm), `deletarPosto` (StationManagement) |
+  | `no-unused-vars` (5) | `err` (PostoDialog), `err` (VehicleDialog), `response` e `error` (OccurrenceForm), `deletarPosto` (StationManagement) |
+
+  Caíram de **11 para 10** com o ajuste para postos importados por planilha: o `props`
+  do `PostoCard` passou a ser lido pelos `computed` de nome exibido e horário. Não foi
+  correção dirigida ao eslint.
 
   Eram **15** até o S5, que removeu dois ao reescrever os arquivos onde estavam: o
   import não usado de `apiPublic` em `services/userService.js` e o `catch (err)` vazio

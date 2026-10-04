@@ -21,9 +21,10 @@
         <span> Não Informado </span>
       </div>
 
-      <div v-if="businessHours" class="info-line">
+      <div class="info-line">
         <v-icon size="18" color="grey-darken-1" class="mr-1">mdi-clock-outline</v-icon>
-        <span>{{ businessHours }}</span>
+        <span v-if="horario">{{ horario }}</span>
+        <span v-else class="horario-nao-informado">{{ HORARIO_NAO_INFORMADO }}</span>
       </div>
     </div>
 
@@ -45,6 +46,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { HORARIO_NAO_INFORMADO, formatarHorarioFuncionamento } from '@/utils/posto'
 
 const props = defineProps({
   station: {
@@ -62,6 +64,7 @@ const props = defineProps({
 })
 
 const { lat, lon, name, city, state, address, phone, businessHours } = props.station
+const horario = formatarHorarioFuncionamento(businessHours)
 
 const googleMapsUrl = computed(() => {
   if (!lat || !lon) return '#'
