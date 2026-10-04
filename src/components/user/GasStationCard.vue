@@ -12,7 +12,7 @@
         <!-- Informações do Posto -->
         <div class="flex-grow-1 posto-content">
           <h3 class="posto-name">
-            {{ posto.name }}
+            {{ nome }}
           </h3>
 
           <div class="posto-info">
@@ -23,6 +23,12 @@
           <div class="posto-info">
             <v-icon icon="mdi-phone-outline" size="15" class="mr-2 posto-info-icon"></v-icon>
             <span>{{ posto.telefone }}</span>
+          </div>
+
+          <div class="posto-info">
+            <v-icon icon="mdi-clock-outline" size="15" class="mr-2 posto-info-icon"></v-icon>
+            <span v-if="horario">{{ horario }}</span>
+            <span v-else class="horario-nao-informado">{{ HORARIO_NAO_INFORMADO }}</span>
           </div>
         </div>
 
@@ -36,12 +42,22 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+import {
+  HORARIO_NAO_INFORMADO,
+  formatarHorarioFuncionamento,
+  nomeExibicaoPosto,
+} from '@/utils/posto'
+
+const props = defineProps({
   posto: {
     type: Object,
     required: true,
   },
 })
+
+const nome = computed(() => nomeExibicaoPosto(props.posto))
+const horario = computed(() => formatarHorarioFuncionamento(props.posto.businessHours))
 
 defineEmits(['view'])
 </script>

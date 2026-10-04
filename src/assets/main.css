@@ -157,6 +157,15 @@ body,
   padding: 16px 24px 24px !important;
 }
 
+/* Horário de posto ausente ou ilegível — o mesmo tratamento no card admin, no
+   card do usuário e no popup do mapa. Sem prefixo .v-application de propósito:
+   nenhuma regra do Vuetify disputa a classe, e o popup é uma app Vue à parte
+   (createApp em Map.vue). Não combine com text-grey-*, que é !important. */
+.horario-nao-informado {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
 @media (max-width: 768px) {
   .page-title {
     font-size: 1.5rem;

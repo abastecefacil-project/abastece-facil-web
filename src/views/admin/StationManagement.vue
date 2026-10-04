@@ -20,7 +20,23 @@
       action-label="NOVO POSTO"
       action-icon="mdi-plus"
       @action="openDialog"
-    />
+    >
+      <!-- Conveniência de tela: quem autoriza a importação é o backend
+           (403 PERFIL_NAO_PERMITIDO para quem não é administrador). -->
+      <template v-if="isAdministrador" #acoes-extras>
+        <v-btn
+          variant="outlined"
+          color="primary"
+          size="large"
+          prepend-icon="mdi-file-upload-outline"
+          rounded="lg"
+          class="importar-btn"
+          @click="dialogImportacao = true"
+        >
+          Importar planilha
+        </v-btn>
+      </template>
+    </SearchFilterBar>
 
     <!-- Lista de Postos em Cards -->
     <div class="postos-grid">
@@ -60,6 +76,11 @@
       v-model="modalExclusao"
       @confirm="confirmarExclusao"
     />
+    <ImportacaoPostosDialog
+      v-if="isAdministrador"
+      v-model="dialogImportacao"
+      @importacao-finalizada="loadingStations(0)"
+    />
   </div>
 
   <PaginationBar
@@ -72,7 +93,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import PostoCard from '../../components/admin/PostoCard.vue'
 import PostoDialog from '../../components/admin/PostoDialog.vue'
@@ -81,9 +102,19 @@ import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import { getStations, deleteStation } from '@/services/stationService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
+import { lerHorarioFuncionamento } from '@/utils/posto'
+import ImportacaoPostosDialog from '@/components/admin/ImportacaoPostosDialog.vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+
+// Importar planilha é só para ADMINISTRADOR; o gestor de frota vê o resto da
+// tela normalmente. Mesmo critério do UserDialog.
+const isAdministrador = computed(() => authStore.perfil === 'ADMINISTRADOR')
 
 // Estados reativos
 const dialog = ref(false)
+const dialogImportacao = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('todos')
@@ -121,23 +152,27 @@ async function loadingStations(page = 0) {
     const response = await getStations(page, search, active)
     const data = response.data
 
-    postos.value = response.data.content.map((posto) => ({
-      id: posto.id,
-      name: posto.name,
-      fantasyName: posto.fantasyName,
-      completeAddress: `${posto.address} - ${posto.district}, ${posto.city} - ${posto.state}`,
-      phone: posto.phone,
-      cnpj: posto.cnpj,
-      cep: posto.cep,
-      district: posto.district,
-      city: posto.city,
-      state: posto.state,
-      address: posto.address.split(',')[0],
-      number: posto.address.split(',')[1]?.trim() || '',
-      status: posto.isActive,
-      openTime: posto.businessHours.split('-')[0],
-      closeTime: posto.businessHours.split('-')[1]
-    }))
+    postos.value = response.data.content.map((posto) => {
+      const horario = lerHorarioFuncionamento(posto.businessHours)
+      return {
+        id: posto.id,
+        name: posto.name,
+        fantasyName: posto.fantasyName,
+        completeAddress: `${posto.address} - ${posto.district}, ${posto.city} - ${posto.state}`,
+        phone: posto.phone,
+        cnpj: posto.cnpj,
+        cep: posto.cep,
+        district: posto.district,
+        city: posto.city,
+        state: posto.state,
+        address: posto.address.split(',')[0],
+        number: posto.address.split(',')[1]?.trim() || '',
+        status: posto.isActive,
+        businessHours: posto.businessHours,
+        openTime: horario?.abertura ?? '',
+        closeTime: horario?.fechamento ?? '',
+      }
+    })
     currentPage.value = data.number
     totalPages.value = data.totalPages
 
@@ -271,6 +306,17 @@ onMounted(() => {
 
 .postos-grid {
   margin-top: 8px;
+}
+
+/* Botão passado pelo slot acoes-extras do SearchFilterBar: o conteúdo do slot
+   carrega o data-v desta view, então o estilo scoped daqui o alcança. Mesma
+   altura e tipografia do botão principal (.new-item-btn). */
+.importar-btn {
+  flex-shrink: 0;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  height: 46px;
 }
 
 .empty-state {

@@ -39,6 +39,10 @@
       </v-menu>
     </div>
 
+    <!-- Ações extras, à esquerda da principal. Sem wrapper de propósito: sem
+         conteúdo no slot o DOM fica idêntico ao de antes nas outras telas. -->
+    <slot name="acoes-extras" />
+
     <!-- Botão de ação -->
     <v-btn
       v-if="actionLabel"

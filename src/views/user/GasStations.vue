@@ -59,6 +59,7 @@ import SearchFilterBar from '@/components/app/SearchFilterBar.vue'
 import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import { getStations } from '@/services/stationService'
+import { nomeExibicaoPosto } from '@/utils/posto'
 
 // Estados reativos
 const loading = ref(false)
@@ -98,6 +99,7 @@ async function carregaPostos(page = 0) {
       state: posto.state,
       address: posto.address.split(',')[0],
       number: posto.address.split(',')[1]?.trim() || '',
+      businessHours: posto.businessHours,
     }))
     currentPage.value = data.number
     totalPages.value = data.totalPages
@@ -118,15 +120,18 @@ const filteredPostos = computed(() => {
     filtered = filtered.filter(
       (posto) =>
         posto.name.toLowerCase().includes(query) ||
+        posto.fantasyName?.toLowerCase().includes(query) ||
         posto.completeAddress.toLowerCase().includes(query) ||
-        posto.telefone.includes(query) ||
+        posto.telefone?.includes(query) ||
         posto.cnpj.includes(query),
     )
   }
 
   // Ordenação A-Z
   if (statusFilter.value === 'az') {
-    filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name))
+    filtered = [...filtered].sort((a, b) =>
+      nomeExibicaoPosto(a).localeCompare(nomeExibicaoPosto(b)),
+    )
   }
 
   return filtered

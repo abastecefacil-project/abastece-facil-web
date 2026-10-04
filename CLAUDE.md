@@ -10,7 +10,7 @@
 >
 > **Seções que interessam ao trabalho de frontend:** 1 (domínio), 5 (contrato da
 > API, essencial), 7 (estrutura), 8 (design system), 9 (armadilhas de CSS e
-> Vuetify, itens 1 a 8) e 10 (linha de base do eslint: 11 erros).
+> Vuetify, itens 1 a 8) e 10 (linha de base do eslint: 10 erros).
 >
 > **Seções que são referência de backend**, para entender o contrato mas não para
 > agir: 3 (execução), 4 (modelo de dados e migrations), 6 (regras de negócio) e o
@@ -950,12 +950,12 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (10)  user/ (8)  app/ (7 compartilhados)  public/ (2)
+├── components/  admin/ (13)  user/ (8)  app/ (7 compartilhados)  public/ (2)
 ├── config/      navegacao.js
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js
+├── utils/       mascaras.js, posto.js, importacaoPostos.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1119,6 +1119,105 @@ chamam caminhos iniciados por `/api/...`, as requisições saem relativas e são
 capturadas pelo proxy do Vite (`vite.config.js`), que as encaminha ao backend.
 Preenchê-la com `http://localhost:8081` faz as chamadas contornarem o proxy e
 resultarem em erro de CORS.
+
+### Nome e horário do posto
+
+Postos importados por planilha têm `name` = razão social ("POSTO Z21 LTDA"),
+`fantasyName` possivelmente nulo e `businessHours` nulo na maioria dos casos. Por
+isso, **nunca leia esses campos direto para exibição**: use `utils/posto.js`.
+
+- `nomeExibicaoPosto(posto)` → `fantasyName` e, se vazio, `name`. É o título no
+  card admin, no card do usuário e no popup do mapa. O `GasStationModal` é exceção
+  deliberada: é a ficha e mostra os dois campos rotulados.
+- `lerHorarioFuncionamento(businessHours)` → `{ abertura, fechamento }` ou `null`.
+  Tolera espaços em volta do hífen (`"07:00  -  21:00"`, gravado pelo formulário
+  antigo) e nunca lança. `split('-')` direto quebrava a tela de postos inteira com
+  `null`.
+- `formatarHorarioFuncionamento` → texto normalizado ou `null`. O fallback é a
+  constante `HORARIO_NAO_INFORMADO` com a classe global `.horario-nao-informado`
+  (`main.css`): o mesmo visual nos três lugares, sem `text-grey-*` junto.
+
+No `PostoDialog`, os dois horários vazios enviam `businessHours: null`, preencher só
+um é barrado na validação, e em **edição** o posto sem horário abre com os campos
+vazios. Só a criação pré-preenche `00:00`.
+
+`nginx.conf` aceita corpo de até 10 MB em `/api/` por causa do upload da planilha.
+
+### Importação de postos por planilha
+
+Na tela `/admin/station`, o botão "Importar planilha" abre
+`components/admin/ImportacaoPostosDialog.vue`. Ele só aparece para
+`ADMINISTRADOR` (computed local, mesmo critério do `UserDialog`). Isso é
+conveniência de tela: o backend recusa os demais com 403 `PERFIL_NAO_PERMITIDO`.
+
+O botão entra pelo slot opcional **`acoes-extras` do `SearchFilterBar`**,
+renderizado sem wrapper antes da ação principal. Sem conteúdo no slot o DOM é
+idêntico ao anterior, e as outras telas que usam o componente não mudam. O
+estilo do botão mora na view (`.importar-btn`), porque conteúdo de slot carrega
+o `data-v` do pai.
+
+O dialog é uma máquina de etapas: `carregando` → `selecao` → `previa` →
+`progresso` → `resultado`.
+
+- **Carregando (retomada).** Toda abertura chama `getCurrentImport()` antes de
+  qualquer coisa. Se houver importação `EM_ANDAMENTO`, o dialog vai direto ao
+  progresso dela. Isso cobre fechar e reabrir, F5 e importação iniciada por outro
+  administrador. Se a consulta falhar, segue para a seleção com um aviso, e é
+  seguro: o envio cairia no 409.
+- **Seleção.** Valida `.xlsx` e o teto de **10 MB** antes de enviar, igual ao
+  `client_max_body_size` do nginx. A checagem no front não é enfeite: muito acima
+  do limite o servidor pode resetar a conexão em vez de responder 413.
+- **Prévia.** `previewImport` (`stationService`) não grava nada. A tela mostra os
+  contadores, um alerta proporcional de desativação (`error` a partir de 50% dos
+  ativos, porque isso costuma ser planilha incompleta), listas virtualizadas
+  (`v-virtual-scroll`, porque a carga real tem cerca de 1.176 itens em inserir) e o
+  tempo estimado (geocodificações × 1,1 s). O nome exibido usa
+  `escolherNomeExibicao(nomeFantasia, nome)` de `utils/posto.js`, porque as chaves
+  do item diferem das do posto. O `File` fica guardado para ser reenviado no
+  `startImport`.
+- **Confirmação.** Usa o `ConfirmDialog` com `confirm-tone="danger"` quando há
+  desativação (o componente aceita `danger`/`primary`, não `perigo`). Se o envio
+  receber 409 `IMPORTACAO_EM_ANDAMENTO`, o dialog passa a acompanhar a importação
+  existente em vez de mostrar erro.
+- **Progresso.** Polling de `getImportStatus` a cada 3 s, com **`setTimeout`
+  encadeado, nunca `setInterval`**. O dialog pode ser fechado: fechar só encerra o
+  polling, nada é cancelado no servidor.
+- **Resultado.** Contadores do `resumo`, mais erros e avisos. Em `FALHOU`, a
+  `mensagem` do backend aparece seguida de "O que já foi feito". Nos dois desfechos,
+  e também no 404, o dialog emite `importacao-finalizada` uma única vez, e a view
+  recarrega a lista na página 0.
+
+**O tempo restante não usa `iniciadaEm`, e não deve passar a usar.** O campo é
+`LocalDateTime` no fuso do servidor, e em produção a JVM roda em UTC: comparar com
+o relógio do navegador erra por horas. O restante sai só de amostras
+`{ processados, Date.now() }` desta sessão de acompanhamento, com o ritmo medido
+entre a primeira e a última amostra (`utils/importacaoPostos.js`,
+`estimarSegundosRestantes`). Depois de um F5 as amostras recomeçam do zero, e
+isso é o correto.
+
+**Respostas atrasadas e timers.** O contador `requisicaoAtual` é incrementado ao
+fechar, ao trocar de arquivo, ao iniciar uma nova importação e no `onUnmounted`.
+Qualquer resposta (prévia, início ou polling) que chegue com um número antigo é
+descartada, e o mesmo ponto faz o `clearTimeout`.
+
+Falhas do polling:
+
+| Caso | Tratamento |
+|---|---|
+| 404 | Para: servidor reiniciado (o registro vive em memória). O que foi gravado permanece |
+| sem resposta, 502/503/504 | Aviso discreto e continua; para na 5ª falha seguida e oferece "Tentar novamente" |
+| 403 | Para com a mensagem de sessão expirada |
+| outros | Para com a mensagem do backend e oferece "Tentar novamente" |
+
+Erros de requisição: vale a `message` do backend quando vier, depois o mapa
+`MENSAGENS_POR_ERRO` e por fim a mensagem padrão. Os casos sem `ErrorResponse`
+são tratados à parte: o 413 do nginx chega em HTML, o 403 do Spring Security
+chega sem corpo e uma conexão resetada chega sem resposta.
+
+Contadores e listas de erros e avisos são componentes compartilhados entre a
+prévia e o relatório: `ImportacaoContadores.vue` e `ImportacaoOcorrencias.vue`
+(este é um `v-expansion-panel` avulso e precisa de um `v-expansion-panels` no
+chamador).
 
 ### Mapa
 
@@ -1518,14 +1617,18 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   Enquanto isso, a verificação é manual: rodar as próprias instruções do repository no
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
-- `npx eslint src` reporta **11 erros pré-existentes**. Não são regressões; usar essa
+- `npx eslint src` reporta **10 erros pré-existentes**. Não são regressões; usar essa
   contagem como linha de base. A lista completa, que antes estava incompleta neste
   documento:
 
   | Regra | Onde |
   |---|---|
   | `vue/multi-word-component-names` (5) | `Footer`, `Map`, `Reports`, `Login`, `Occurrences` |
-  | `no-unused-vars` (6) | `props` (PostoCard), `err` (PostoDialog), `err` (VehicleDialog), `response` e `error` (OccurrenceForm), `deletarPosto` (StationManagement) |
+  | `no-unused-vars` (5) | `err` (PostoDialog), `err` (VehicleDialog), `response` e `error` (OccurrenceForm), `deletarPosto` (StationManagement) |
+
+  Caíram de **11 para 10** com o ajuste para postos importados por planilha: o `props`
+  do `PostoCard` passou a ser lido pelos `computed` de nome exibido e horário. Não foi
+  correção dirigida ao eslint.
 
   Eram **15** até o S5, que removeu dois ao reescrever os arquivos onde estavam: o
   import não usado de `apiPublic` em `services/userService.js` e o `catch (err)` vazio
