@@ -24,6 +24,14 @@ export async function deleteStation(id) {
     return await apiPrivate.delete(`/api/gas-stations/${id}`);
 }
 
+// Prévia da importação: o backend lê a planilha e devolve o que mudaria, sem
+// gravar nada. Sem Content-Type manual: com FormData o Axios gera o boundary.
+export async function previewImport(arquivo) {
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+    return await apiPrivate.post('/api/gas-stations/import/preview', formData);
+}
+
 export async function getStationDashboard() {
     let active = true;
     let page = 0;

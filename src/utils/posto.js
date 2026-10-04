@@ -17,10 +17,18 @@ const HORA_VALIDA = /^([01]\d|2[0-3]):[0-5]\d$/
  * Nome que identifica o posto na interface: o nome fantasia e, na falta dele,
  * a razão social. Os postos importados têm name = razão social
  * ("POSTO Z21 LTDA"), que ninguém reconhece na rua.
+ *
+ * Recebe os dois valores soltos porque as chaves variam: o posto usa
+ * fantasyName/name, o item da prévia de importação usa nomeFantasia/nome.
  */
+export function escolherNomeExibicao(nomeFantasia, razaoSocial) {
+  const fantasia = nomeFantasia?.trim()
+  return fantasia || razaoSocial || ''
+}
+
+/** Nome exibido de um posto da API (fantasyName/name). */
 export function nomeExibicaoPosto(posto) {
-  const fantasia = posto?.fantasyName?.trim()
-  return fantasia || posto?.name || ''
+  return escolherNomeExibicao(posto?.fantasyName, posto?.name)
 }
 
 /**

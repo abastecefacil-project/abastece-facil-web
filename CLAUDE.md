@@ -950,7 +950,7 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (10)  user/ (8)  app/ (7 compartilhados)  public/ (2)
+├── components/  admin/ (11)  user/ (8)  app/ (7 compartilhados)  public/ (2)
 ├── config/      navegacao.js
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
@@ -1142,6 +1142,40 @@ um é barrado na validação, e em **edição** o posto sem horário abre com os
 vazios. Só a criação pré-preenche `00:00`.
 
 `nginx.conf` aceita corpo de até 10 MB em `/api/` por causa do upload da planilha.
+
+### Importação de postos por planilha
+
+Na tela `/admin/station`, o botão "Importar planilha" abre
+`components/admin/ImportacaoPostosDialog.vue`. Ele só aparece para
+`ADMINISTRADOR` (computed local, mesmo critério do `UserDialog`). Isso é
+conveniência de tela: o backend recusa os demais com 403 `PERFIL_NAO_PERMITIDO`.
+
+O botão entra pelo slot opcional **`acoes-extras` do `SearchFilterBar`**,
+renderizado sem wrapper antes da ação principal. Sem conteúdo no slot o DOM é
+idêntico ao anterior, e as outras telas que usam o componente não mudam. O
+estilo do botão mora na view (`.importar-btn`), porque conteúdo de slot carrega
+o `data-v` do pai.
+
+O fluxo tem duas etapas no mesmo dialog:
+
+- **Seleção.** Valida `.xlsx` e o teto de **10 MB** antes de enviar, igual ao
+  `client_max_body_size` do nginx. A checagem no front não é enfeite: muito acima
+  do limite o servidor pode resetar a conexão em vez de responder 413.
+- **Prévia.** `previewImport` (`stationService`) não grava nada. A tela mostra os
+  contadores, um alerta proporcional de desativação (`error` a partir de 50% dos
+  ativos, porque isso costuma ser planilha incompleta) e listas virtualizadas
+  (`v-virtual-scroll`): a carga real tem cerca de 1.176 itens em inserir. O nome
+  exibido usa `escolherNomeExibicao(nomeFantasia, nome)` de `utils/posto.js`,
+  porque as chaves do item diferem das do posto.
+
+Erros: vale a `message` do backend quando vier, depois o mapa
+`MENSAGENS_POR_ERRO` e por fim a mensagem padrão. Os casos sem `ErrorResponse`
+são tratados à parte: o 413 do nginx chega em HTML, o 403 do Spring Security
+chega sem corpo e uma conexão resetada chega sem resposta.
+
+O `File` fica guardado no estado do dialog para ser reenviado na confirmação.
+**"Confirmar importação" ainda não tem ação**: confirmar, executar, acompanhar o
+progresso e mostrar o relatório são a etapa seguinte.
 
 ### Mapa
 
