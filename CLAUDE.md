@@ -1265,6 +1265,34 @@ O "Cancelando…" tem regra scoped própria (`.v-btn.btn-dialog--perigo.v-btn--d
 o Vuetify pinta o `flat` desabilitado com fundo de surface, e quem vence a disputa
 com `.btn-dialog--perigo` dependeria da ordem de injeção do CSS (§9, item 1).
 
+**Importação em andamento com o dialog fechado.** O botão "Importar planilha" da
+`StationManagement` vira "Realizando importação da planilha", com spinner (abaixo de
+1280px, "Importando…"). Continua clicável, porque o dialog retoma o progresso sozinho.
+
+- **Largura do botão.** O rótulo é um grid de uma célula com "Importar planilha"
+  invisível por baixo, então o botão nunca fica mais estreito que o original.
+- **Consulta da tela.** Na montagem, só para `ADMINISTRADOR`, a view chama
+  `getCurrentImport()`. A consulta se repete a cada 10 s, com `setTimeout`
+  encadeado, **só enquanto houver importação em andamento**: sem ela, nenhum timer
+  existe. Por isso, uma importação iniciada por outro administrador com a tela já
+  aberta só aparece na próxima montagem — limitação aceita.
+- **Sincronia com o dialog.** O dialog emite `importacao-em-andamento` de dentro de
+  `acompanhar()`, o que cobre início, 409 e retomada.
+  - **Dialog aberto:** a tela **suspende** a própria consulta (`clearTimeout` +
+    contador que descarta resposta em voo), e só o dialog consulta.
+  - **Dialog fechado com estado em andamento:** a tela consulta **na hora**. A
+    importação pode ter terminado com o dialog aberto sem que ele emitisse nada:
+    ele abre já sem importação e vai direto à seleção.
+- **Recarga única.** `aoFinalizarImportacao` roda numa única vez por desfecho:
+  - pelo evento `importacao-finalizada` do dialog;
+  - ou pela própria consulta, que só recarrega na **transição** de em andamento
+    para 204.
+
+  O evento já deixa o estado em `false`, então não sobra transição para uma
+  segunda recarga.
+- **Falhas da consulta.** Rede ou 5xx não mudam o botão e a consulta tenta no
+  próximo ciclo. 403 para a consulta. O `onUnmounted` limpa o timer.
+
 **O tempo restante não usa `iniciadaEm`, e não deve passar a usar.** O campo é
 `LocalDateTime` no fuso do servidor, e em produção a JVM roda em UTC: comparar com
 o relógio do navegador erra por horas. O restante sai só de amostras

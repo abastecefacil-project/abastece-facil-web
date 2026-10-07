@@ -33,16 +33,30 @@
       <!-- Conveniência de tela: quem autoriza a importação é o backend
            (403 PERFIL_NAO_PERMITIDO para quem não é administrador). -->
       <template v-if="isAdministrador" #acoes-extras>
+        <!-- Em andamento continua clicável: o dialog retoma o progresso sozinho. -->
         <v-btn
           variant="outlined"
           color="primary"
           size="large"
-          prepend-icon="mdi-file-upload-outline"
           rounded="lg"
           class="importar-btn"
+          :title="importacaoEmAndamento ? ROTULO_IMPORTANDO : undefined"
           @click="dialogImportacao = true"
         >
-          Importar planilha
+          <template #prepend>
+            <v-progress-circular v-if="importacaoEmAndamento" indeterminate size="18" width="2" />
+            <v-icon v-else icon="mdi-file-upload-outline" />
+          </template>
+          <!-- "Importar planilha" fica sempre na mesma célula do grid, invisível,
+               para o botão nunca ficar mais estreito que o original. -->
+          <span class="importar-rotulo">
+            <span class="importar-rotulo-referencia" aria-hidden="true">Importar planilha</span>
+            <span v-if="!importacaoEmAndamento">Importar planilha</span>
+            <template v-else>
+              <span class="importar-rotulo-longo">{{ ROTULO_IMPORTANDO }}</span>
+              <span class="importar-rotulo-curto">Importando…</span>
+            </template>
+          </span>
         </v-btn>
       </template>
     </SearchFilterBar>
@@ -88,7 +102,8 @@
     <ImportacaoPostosDialog
       v-if="isAdministrador"
       v-model="dialogImportacao"
-      @importacao-finalizada="aoFinalizarImportacao"
+      @importacao-em-andamento="importacaoEmAndamento = true"
+      @importacao-finalizada="aoFinalizarImportacaoPeloDialog"
     />
   </div>
 
@@ -102,14 +117,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import PostoCard from '../../components/admin/PostoCard.vue'
 import PostoDialog from '../../components/admin/PostoDialog.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
 import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
-import { getStations, deleteStation, countStations } from '@/services/stationService'
+import {
+  getStations,
+  deleteStation,
+  countStations,
+  getCurrentImport,
+} from '@/services/stationService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
 import { lerHorarioFuncionamento } from '@/utils/posto'
 import ImportacaoPostosDialog from '@/components/admin/ImportacaoPostosDialog.vue'
@@ -226,6 +246,75 @@ function aoFinalizarImportacao() {
   carregarIndicadores()
 }
 
+// === Importação em andamento, com o dialog fechado ===
+// Só para ADMINISTRADOR, e só enquanto houver importação: sem ela, nenhum timer
+// existe. Com o dialog aberto, quem consulta é ele; a tela suspende a própria
+// consulta e se sincroniza pelos eventos importacao-em-andamento e
+// importacao-finalizada.
+const ROTULO_IMPORTANDO = 'Realizando importação da planilha'
+const INTERVALO_IMPORTACAO_MS = 10000
+
+const importacaoEmAndamento = ref(false)
+let timerImportacao = null
+// Mesmo papel do requisicaoAtual do dialog: resposta com número antigo pertence
+// a uma consulta suspensa (dialog aberto, tela desmontada) e é descartada.
+let consultaImportacao = 0
+
+function suspenderConsultaImportacao() {
+  consultaImportacao++
+  if (timerImportacao !== null) {
+    clearTimeout(timerImportacao)
+    timerImportacao = null
+  }
+}
+
+// setTimeout encadeado, nunca setInterval: a próxima só é agendada depois da
+// resposta da anterior.
+function agendarConsultaImportacao() {
+  suspenderConsultaImportacao()
+  timerImportacao = setTimeout(verificarImportacao, INTERVALO_IMPORTACAO_MS)
+}
+
+async function verificarImportacao() {
+  timerImportacao = null
+  if (!isAdministrador.value || dialogImportacao.value) return
+  const consulta = ++consultaImportacao
+
+  try {
+    const atual = await getCurrentImport()
+    if (consulta !== consultaImportacao) return
+
+    if (atual?.status === 'EM_ANDAMENTO') {
+      importacaoEmAndamento.value = true
+      agendarConsultaImportacao()
+    } else if (importacaoEmAndamento.value) {
+      // Só a transição recarrega: a montagem sem importação não faz nada, e um
+      // desfecho já recebido do dialog deixou o estado em false.
+      importacaoEmAndamento.value = false
+      aoFinalizarImportacao()
+    }
+  } catch (err) {
+    if (consulta !== consultaImportacao) return
+    // Sessão expirada não se resolve tentando de novo.
+    if (err?.response?.status === 403) return
+    // Falha isolada (rede, 5xx): o estado não muda, tenta no próximo ciclo.
+    if (importacaoEmAndamento.value) agendarConsultaImportacao()
+  }
+}
+
+function aoFinalizarImportacaoPeloDialog() {
+  importacaoEmAndamento.value = false
+  aoFinalizarImportacao()
+}
+
+// Aberto: só o dialog consulta. Fechado com importação em andamento: consulta na
+// hora, porque ela pode ter terminado enquanto o dialog estava aberto sem que
+// ele emitisse nada (abriu já sem importação e foi direto para a seleção).
+watch(dialogImportacao, (aberto) => {
+  if (aberto) suspenderConsultaImportacao()
+  else if (importacaoEmAndamento.value) verificarImportacao()
+})
+
 const formPosto = ref({
   id: null,
   name: '',
@@ -315,7 +404,12 @@ const deletarPosto = async (id) => {
 onMounted(() => {
   loadingStations()
   carregarIndicadores()
+  // GESTOR_FROTA não vê o botão nem dispara a consulta (verificarImportacao
+  // confere o perfil antes de qualquer requisição).
+  verificarImportacao()
 })
+
+onUnmounted(suspenderConsultaImportacao)
 </script>
 
 <style scoped>
@@ -363,6 +457,37 @@ onMounted(() => {
   text-transform: none;
   letter-spacing: 0;
   height: 46px;
+}
+
+/* Rótulos empilhados na mesma célula: a largura é a do maior, e a referência
+   invisível garante no mínimo a do botão original. */
+.importar-rotulo {
+  display: inline-grid;
+}
+
+.importar-rotulo > span {
+  grid-area: 1 / 1;
+  text-align: center;
+}
+
+.importar-rotulo-referencia {
+  visibility: hidden;
+}
+
+.importar-rotulo-curto {
+  display: none;
+}
+
+/* Até 1280px a barra ainda fica numa linha só com o menu lateral aberto, e o
+   texto longo apertaria a busca e o "Novo posto". */
+@media (max-width: 1280px) {
+  .importar-rotulo-longo {
+    display: none;
+  }
+
+  .importar-rotulo-curto {
+    display: inline;
+  }
 }
 
 .empty-state {

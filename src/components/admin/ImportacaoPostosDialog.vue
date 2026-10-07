@@ -344,9 +344,11 @@ const props = defineProps({
   modelValue: Boolean,
 })
 
+// importacao-em-andamento: o dialog passou a acompanhar uma importação — iniciada
+// aqui, existente (409) ou retomada ao abrir. A tela usa para indicar no botão.
 // importacao-finalizada: houve gravação (concluída, falhou, cancelada ou
 // interrompida) e a lista de postos da tela está desatualizada.
-const emit = defineEmits(['update:modelValue', 'importacao-finalizada'])
+const emit = defineEmits(['update:modelValue', 'importacao-em-andamento', 'importacao-finalizada'])
 
 const TIPOS_ACEITOS = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
@@ -813,6 +815,8 @@ function acompanhar(status, primeiraConsultaEmMs = INTERVALO_POLLING_MS) {
   etapa.value = 'progresso'
   registrarAmostra(status)
   agendarConsulta(primeiraConsultaEmMs)
+  // Único ponto de entrada no acompanhamento: cobre início, 409 e retomada.
+  emit('importacao-em-andamento')
 }
 
 function registrarAmostra(status) {
