@@ -5,8 +5,12 @@
  * relatório do ImportacaoPostosDialog.
  */
 
-/** Segundos por posto enviado à geocodificação (limite de uso do Nominatim). */
-const SEGUNDOS_POR_GEOCODIFICACAO = 1.1
+/**
+ * Segundos por posto enviado à geocodificação. Medido na carga real: 1.128
+ * postos em ~32 min. É mais que o 1,1 s do limite de uso do Nominatim porque
+ * parte dos endereços precisa de uma segunda consulta.
+ */
+const SEGUNDOS_POR_GEOCODIFICACAO = 1.6
 
 /** A partir desta proporção de ativos desativados, o alerta vira erro. */
 const PROPORCAO_DESATIVACAO_ALTA = 50

@@ -55,6 +55,23 @@
             :disabled="analisando"
             :error-messages="erroArquivo ? [erroArquivo] : []"
           />
+
+          <!-- Só o que o navegador sabe de fato: o envio, medido, e a espera pela
+               resposta. O backend não informa etapas da análise, então nada é
+               simulado aqui. -->
+          <div v-if="analisando && faseAnalise" class="analise-status">
+            <span class="analise-texto">{{ textoFaseAnalise }}</span>
+            <v-progress-linear
+              :model-value="percentualEnvio ?? 0"
+              :indeterminate="faseAnalise === 'analise' || percentualEnvio === null"
+              color="primary"
+              height="6"
+              rounded
+            />
+            <span v-if="analiseDemorada" class="texto-apoio">
+              Planilhas grandes podem levar alguns segundos.
+            </span>
+          </div>
         </template>
 
         <!-- Etapa 2: prévia -->
@@ -112,6 +129,9 @@
           <p class="tempo-estimado">
             <v-icon icon="mdi-timer-outline" size="18" class="mr-1" />
             {{ tempoEstimado }}
+          </p>
+          <p class="texto-apoio">
+            A importação continua no servidor mesmo se você fechar esta janela.
           </p>
         </template>
 
@@ -219,7 +239,14 @@
         </template>
 
         <template v-else>
-          <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="fechar">
+          <!-- Travado durante o startImport: fechar ali descartaria o 202 e deixaria
+               uma importação rodando sem a tela saber. -->
+          <v-btn
+            class="btn-dialog btn-dialog--cancelar"
+            variant="outlined"
+            :disabled="iniciando"
+            @click="fechar"
+          >
             {{ rotuloFechar }}
           </v-btn>
 
@@ -235,14 +262,22 @@
           </v-btn>
 
           <template v-if="etapa === 'previa'">
-            <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="novaImportacao">
+            <v-btn
+              class="btn-dialog btn-dialog--cancelar"
+              variant="outlined"
+              :disabled="iniciando"
+              @click="novaImportacao"
+            >
               Trocar arquivo
             </v-btn>
+            <!-- Sem janela de confirmação: a prévia já mostra contadores, alerta de
+                 desativação e tempo, e a importação pode ser cancelada depois. -->
             <v-btn
               class="btn-dialog btn-dialog--confirmar"
               variant="flat"
-              :disabled="!previa"
-              @click="confirmacaoAberta = true"
+              :loading="iniciando"
+              :disabled="iniciando || !previa"
+              @click="confirmarImportacao"
             >
               Confirmar importação
             </v-btn>
@@ -269,16 +304,6 @@
       </v-card-actions>
     </v-card>
   </v-dialog>
-
-  <ConfirmDialog
-    v-model="confirmacaoAberta"
-    title="Confirmar importação"
-    :message="mensagemConfirmacao"
-    confirm-text="Importar"
-    :confirm-tone="desativacaoPrevia ? 'danger' : 'primary'"
-    :loading="iniciando"
-    @confirm="confirmarImportacao"
-  />
 
   <!-- "Voltar", e não o "Cancelar" padrão: os dois botões diriam cancelar com
        sentidos opostos. -->
@@ -330,6 +355,9 @@ const TIPOS_ACEITOS = '.xlsx,application/vnd.openxmlformats-officedocument.sprea
 // responder um 413 legível.
 const TAMANHO_MAXIMO_BYTES = 10 * 1024 * 1024
 
+// A partir daqui a espera pela prévia ganha a frase sobre planilhas grandes.
+const ANALISE_DEMORADA_MS = 5000
+
 const INTERVALO_POLLING_MS = 3000
 const MAXIMO_FALHAS_SEGUIDAS = 5
 // Falhas que costumam passar sozinhas: proxy sem upstream, API reiniciando.
@@ -379,9 +407,14 @@ const erroArquivo = ref('')
 const erroApi = ref('')
 const aviso = ref(null)
 const analisando = ref(false)
+// Durante a análise: 'envio' enquanto o upload sobe, 'analise' depois que ele
+// chega a 100% e a resposta ainda não veio. percentualEnvio é null quando o
+// navegador não informa o tamanho total.
+const faseAnalise = ref(null)
+const percentualEnvio = ref(0)
+const analiseDemorada = ref(false)
 const previa = ref(null)
 
-const confirmacaoAberta = ref(false)
 const iniciando = ref(false)
 
 const importacao = ref(null)
@@ -406,6 +439,7 @@ const erroCancelamento = ref('')
 let falhasSeguidas = 0
 let gravacoesNotificadas = false
 let timerPolling = null
+let timerAnaliseDemorada = null
 
 // Identifica a operação corrente. Qualquer resposta — prévia, início ou
 // polling — que chegue com um número antigo pertence a um estado que o usuário
@@ -465,11 +499,11 @@ const textoAlertaDesativacao = computed(() => {
 
 const tempoEstimado = computed(() => descreverTempoEstimado(contarGeocodificacoes(previa.value)))
 
-const mensagemConfirmacao = computed(() => {
-  const partes = [`${tempoEstimado.value}.`]
-  if (desativacaoPrevia.value) partes.push(`Atenção: ${textoAlertaDesativacao.value}`)
-  partes.push('A importação continua no servidor mesmo se você fechar esta janela.')
-  return partes.join(' ')
+const textoFaseAnalise = computed(() => {
+  if (faseAnalise.value === 'analise') return 'Analisando planilha…'
+  return percentualEnvio.value === null
+    ? 'Enviando planilha…'
+    : `Enviando planilha… ${percentualEnvio.value}%`
 })
 
 const gruposItens = computed(() => {
@@ -604,6 +638,7 @@ function pararPolling() {
 function invalidarOperacoes() {
   requisicaoAtual++
   pararPolling()
+  pararTimerAnalise()
 }
 
 function limpar() {
@@ -615,8 +650,10 @@ function limpar() {
   erroApi.value = ''
   aviso.value = null
   analisando.value = false
+  faseAnalise.value = null
+  percentualEnvio.value = 0
+  analiseDemorada.value = false
   previa.value = null
-  confirmacaoAberta.value = false
   iniciando.value = false
   importacao.value = null
   amostras.value = []
@@ -674,10 +711,24 @@ async function analisar() {
 
   erroApi.value = ''
   analisando.value = true
+  faseAnalise.value = 'envio'
+  percentualEnvio.value = 0
+  analiseDemorada.value = false
   const requisicao = ++requisicaoAtual
 
+  const aoEnviar = (evento) => {
+    // Cancelado no meio: o upload pode seguir notificando depois do descarte.
+    if (requisicao !== requisicaoAtual || faseAnalise.value !== 'envio') return
+    if (!evento.total) {
+      percentualEnvio.value = null
+      return
+    }
+    percentualEnvio.value = Math.min(100, Math.round((evento.loaded / evento.total) * 100))
+    if (evento.loaded >= evento.total) iniciarFaseAnalise(requisicao)
+  }
+
   try {
-    const { data } = await previewImport(arquivo.value)
+    const { data } = await previewImport(arquivo.value, { onUploadProgress: aoEnviar })
     if (requisicao !== requisicaoAtual) return
     previa.value = data
     etapa.value = 'previa'
@@ -685,7 +736,30 @@ async function analisar() {
     if (requisicao !== requisicaoAtual) return
     erroApi.value = mensagemDeErro(err)
   } finally {
-    if (requisicao === requisicaoAtual) analisando.value = false
+    if (requisicao === requisicaoAtual) {
+      analisando.value = false
+      faseAnalise.value = null
+      analiseDemorada.value = false
+      pararTimerAnalise()
+    }
+  }
+}
+
+// O upload terminou e a resposta não veio: o servidor está lendo a planilha.
+// Os ~5 s contam daqui, que é quando a análise de fato começa.
+function iniciarFaseAnalise(requisicao) {
+  faseAnalise.value = 'analise'
+  pararTimerAnalise()
+  timerAnaliseDemorada = setTimeout(() => {
+    timerAnaliseDemorada = null
+    if (requisicao === requisicaoAtual) analiseDemorada.value = true
+  }, ANALISE_DEMORADA_MS)
+}
+
+function pararTimerAnalise() {
+  if (timerAnaliseDemorada !== null) {
+    clearTimeout(timerAnaliseDemorada)
+    timerAnaliseDemorada = null
   }
 }
 
@@ -699,11 +773,9 @@ async function confirmarImportacao() {
     // voltar aqui, e são tratados igual.
     const { data } = await startImport(arquivo.value)
     if (requisicao !== requisicaoAtual) return
-    confirmacaoAberta.value = false
     acompanhar({ id: data.id, status: 'EM_ANDAMENTO' }, 0)
   } catch (err) {
     if (requisicao !== requisicaoAtual) return
-    confirmacaoAberta.value = false
     if (err?.response?.status === 409) await acompanharExistente(requisicao)
     else erroApi.value = mensagemDeErro(err)
   } finally {
@@ -929,6 +1001,20 @@ onUnmounted(invalidarOperacoes)
   align-items: center;
   gap: 12px;
   padding: 24px 0;
+}
+
+/* Análise da planilha */
+.analise-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.analise-texto {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 /* Prévia */

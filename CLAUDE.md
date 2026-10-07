@@ -1167,18 +1167,37 @@ O dialog é uma máquina de etapas: `carregando` → `selecao` → `previa` →
 - **Seleção.** Valida `.xlsx` e o teto de **10 MB** antes de enviar, igual ao
   `client_max_body_size` do nginx. A checagem no front não é enfeite: muito acima
   do limite o servidor pode resetar a conexão em vez de responder 413.
-- **Prévia.** `previewImport` (`stationService`) não grava nada. A tela mostra os
-  contadores, um alerta proporcional de desativação (`error` a partir de 50% dos
-  ativos, porque isso costuma ser planilha incompleta), listas virtualizadas
-  (`v-virtual-scroll`, porque a carga real tem cerca de 1.176 itens em inserir) e o
-  tempo estimado (geocodificações × 1,1 s). O nome exibido usa
-  `escolherNomeExibicao(nomeFantasia, nome)` de `utils/posto.js`, porque as chaves
-  do item diferem das do posto. O `File` fica guardado para ser reenviado no
-  `startImport`.
-- **Confirmação.** Usa o `ConfirmDialog` com `confirm-tone="danger"` quando há
-  desativação (o componente aceita `danger`/`primary`, não `perigo`). Se o envio
-  receber 409 `IMPORTACAO_EM_ANDAMENTO`, o dialog passa a acompanhar a importação
-  existente em vez de mostrar erro.
+
+  Durante a análise, o corpo do dialog mostra só o que o navegador sabe de fato:
+  - **Envio:** "Enviando planilha… X%", a partir do `onUploadProgress` do Axios, que
+    o `previewImport` recebe como segundo parâmetro opcional.
+  - **Espera:** com o upload em 100% e sem resposta ainda, "Analisando planilha…"
+    com barra indeterminada.
+  - **Espera longa:** passados 5 s desde o fim do upload, a frase sobre planilhas
+    grandes. O timer é limpo por `invalidarOperacoes`.
+
+  **Não simule etapas que o backend não informa** ("Lendo linhas…" e afins).
+- **Prévia.** `previewImport` (`stationService`) não grava nada. A tela mostra:
+  - os contadores;
+  - um alerta proporcional de desativação (`error` a partir de 50% dos ativos,
+    porque isso costuma ser planilha incompleta);
+  - listas virtualizadas (`v-virtual-scroll`, porque a carga real tem cerca de
+    1.176 itens em inserir);
+  - o tempo estimado (geocodificações × **1,6 s**, medido na carga real de 1.128
+    postos em ~32 min; o 1,1 s anterior prometia 21 minutos);
+  - o aviso de que a importação continua no servidor mesmo com a janela fechada.
+
+  O nome exibido usa `escolherNomeExibicao(nomeFantasia, nome)` de
+  `utils/posto.js`, porque as chaves do item diferem das do posto. O `File` fica
+  guardado para ser reenviado no `startImport`.
+- **Início.** "Confirmar importação" chama o `startImport` **direto, sem
+  ConfirmDialog**:
+  - a prévia já mostra tudo que a janela repetia, e a importação pode ser
+    cancelada, com as desativações rodando por último;
+  - durante o envio o botão fica em loading, e "Trocar arquivo" e "Cancelar" ficam
+    travados, porque fechar ali descartaria o 202 com a importação já rodando;
+  - se o envio receber 409 `IMPORTACAO_EM_ANDAMENTO`, o dialog passa a acompanhar
+    a importação existente em vez de mostrar erro.
 - **Progresso.** Polling de `getImportStatus` a cada 3 s, com **`setTimeout`
   encadeado, nunca `setInterval`**. O dialog pode ser fechado: **fechar** só encerra
   o polling, nada é cancelado no servidor. Cancelar de fato é o botão "Cancelar
@@ -1611,8 +1630,15 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   global de exceções. São testes com mock, não sobem banco nem contexto Spring completo
   (`ApiAbastecefacilApplicationTests` perdeu o `@SpringBootTest` e hoje é um
   `contextLoads()` vazio). Rodar `./mvnw clean test` ao final de qualquer alteração no
-  backend: a contagem tem que continuar 241, ou subir junto com os testes novos. O
-  frontend não tem testes.
+  backend: a contagem tem que continuar 241, ou subir junto com os testes novos.
+
+  **Testes do frontend:**
+  - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
+    `package.json`.
+  - São dois arquivos: `auth-routing.test.js` (guard do router) e
+    `importacao-postos.test.js` (`utils/importacaoPostos.js`).
+  - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
+    com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
 
   **Não existe teste de controller** — zero `MockMvc`, `@WebMvcTest` ou `@SpringBootTest`
   no repositório. Foi exatamente por isso que o `@Valid` mal posicionado do `updateUser`
