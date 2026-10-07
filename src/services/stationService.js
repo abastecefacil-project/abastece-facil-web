@@ -44,6 +44,12 @@ export async function getImportStatus(id) {
     return await apiPrivate.get(`/api/gas-stations/import/${id}`);
 }
 
+// Pede o cancelamento. O 202 traz o status naquele instante, ainda EM_ANDAMENTO:
+// a parada real (até ~11 s depois) chega pelo getImportStatus.
+export async function cancelImport(id) {
+    return await apiPrivate.post(`/api/gas-stations/import/${id}/cancelamento`);
+}
+
 // Importação EM_ANDAMENTO, se houver. Devolve o corpo, e null no 204 — é o que
 // o dialog usa para decidir entre retomar o acompanhamento e abrir a seleção.
 export async function getCurrentImport() {

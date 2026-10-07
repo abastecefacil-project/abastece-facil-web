@@ -1180,12 +1180,44 @@ O dialog é uma máquina de etapas: `carregando` → `selecao` → `previa` →
   receber 409 `IMPORTACAO_EM_ANDAMENTO`, o dialog passa a acompanhar a importação
   existente em vez de mostrar erro.
 - **Progresso.** Polling de `getImportStatus` a cada 3 s, com **`setTimeout`
-  encadeado, nunca `setInterval`**. O dialog pode ser fechado: fechar só encerra o
-  polling, nada é cancelado no servidor.
-- **Resultado.** Contadores do `resumo`, mais erros e avisos. Em `FALHOU`, a
-  `mensagem` do backend aparece seguida de "O que já foi feito". Nos dois desfechos,
-  e também no 404, o dialog emite `importacao-finalizada` uma única vez, e a view
-  recarrega a lista na página 0.
+  encadeado, nunca `setInterval`**. O dialog pode ser fechado: **fechar** só encerra
+  o polling, nada é cancelado no servidor. Cancelar de fato é o botão "Cancelar
+  importação" (ver *Cancelamento*, abaixo).
+- **Resultado.** Contadores do `resumo`, mais erros e avisos. Em `FALHOU` (alerta
+  `error`) e `CANCELADA` (alerta `warning`), a `mensagem` do backend aparece seguida
+  de "O que já foi feito". Nos três desfechos, e também no 404, o dialog emite
+  `importacao-finalizada` uma única vez, e a view recarrega a lista na página 0.
+
+**Cancelamento.** `cancelImport(id)` faz `POST /api/gas-stations/import/{id}/cancelamento`,
+precedido de um `ConfirmDialog` `danger` com `cancel-text="Voltar"`, porque o
+"Cancelar" padrão daria aos dois botões o mesmo verbo com sentidos opostos.
+
+- **O pedido não para a importação na hora.** O item em andamento termina, até
+  cerca de 11 s, e o GET continua `EM_ANDAMENTO` nesse intervalo. O status do
+  backend **não tem campo de cancelamento solicitado**, então esse estado é só do
+  front, em `pedidoCancelamento = { id, resultado }`. É ele que troca o botão por
+  "Cancelando…" desabilitado e mostra o aviso abaixo da barra.
+- **O estado não é persistido, de propósito.** Fechar ou recarregar o perde, o
+  progresso volta ao normal e o desfecho chega pelo polling de qualquer forma.
+- **`resultado` registra o que o POST respondeu:** `'aceito'` no 202 e `'tardio'`
+  no 409 `IMPORTACAO_NAO_EM_ANDAMENTO`, que não é erro. Ele só importa quando o
+  desfecho é `CONCLUIDA`, e escolhe o `v-alert` `info` acima do relatório:
+  - **aceito:** o pedido chegou durante a desativação final, que não é
+    interrompível;
+  - **tardio:** a importação já tinha terminado.
+
+  Em `FALHOU` e `CANCELADA` o `resultado` não muda nada.
+- **O polling segue intocado em todos os casos**, até qualquer desfecho final. O
+  pedido não incrementa `requisicaoAtual`, porque isso descartaria a consulta já
+  agendada. Ele também não antecipa consulta: se houver uma em voo, agendar outra
+  abriria duas cadeias de polling.
+- **404 no POST:** mesmo tratamento do 404 do polling.
+- **Outras falhas no POST** (rede, 403, 5xx): mostram um alerta e devolvem o botão,
+  sem parar o polling.
+
+O "Cancelando…" tem regra scoped própria (`.v-btn.btn-dialog--perigo.v-btn--disabled`):
+o Vuetify pinta o `flat` desabilitado com fundo de surface, e quem vence a disputa
+com `.btn-dialog--perigo` dependeria da ordem de injeção do CSS (§9, item 1).
 
 **O tempo restante não usa `iniciadaEm`, e não deve passar a usar.** O campo é
 `LocalDateTime` no fuso do servidor, e em produção a JVM roda em UTC: comparar com
@@ -1197,7 +1229,7 @@ isso é o correto.
 
 **Respostas atrasadas e timers.** O contador `requisicaoAtual` é incrementado ao
 fechar, ao trocar de arquivo, ao iniciar uma nova importação e no `onUnmounted`.
-Qualquer resposta (prévia, início ou polling) que chegue com um número antigo é
+Qualquer resposta (prévia, início, polling ou cancelamento) que chegue com um número antigo é
 descartada, e o mesmo ponto faz o `clearTimeout`.
 
 Falhas do polling:
