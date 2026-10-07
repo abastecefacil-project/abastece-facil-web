@@ -7,6 +7,15 @@
         <p class="page-subtitle">Gerenciar postos de combustível</p>
       </div>
     </div>
+
+    <!-- Base inteira: busca, filtro e paginação não alteram estes números. -->
+    <IndicadoresPostos
+      :total="indicadores.total"
+      :ativos="indicadores.ativos"
+      :inativos="indicadores.inativos"
+      :carregando="carregandoIndicadores"
+    />
+
     <!-- Barra de Pesquisa, Filtros e Novo Posto -->
     <SearchFilterBar
       v-model:search-query="searchQuery"
@@ -79,7 +88,7 @@
     <ImportacaoPostosDialog
       v-if="isAdministrador"
       v-model="dialogImportacao"
-      @importacao-finalizada="loadingStations(0)"
+      @importacao-finalizada="aoFinalizarImportacao"
     />
   </div>
 
@@ -100,10 +109,11 @@ import PostoDialog from '../../components/admin/PostoDialog.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
 import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
-import { getStations, deleteStation } from '@/services/stationService'
+import { getStations, deleteStation, countStations } from '@/services/stationService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
 import { lerHorarioFuncionamento } from '@/utils/posto'
 import ImportacaoPostosDialog from '@/components/admin/ImportacaoPostosDialog.vue'
+import IndicadoresPostos from '@/components/admin/IndicadoresPostos.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -125,6 +135,13 @@ const totalPages = ref(0)
 const currentPageUi = ref(1)
 const modalExclusao = ref(false)
 const postoParaExcluir = ref(null)
+
+// null = sem número ainda (skeleton) ou consulta que falhou ("—").
+const indicadores = ref({ total: null, ativos: null, inativos: null })
+const carregandoIndicadores = ref(false)
+// Duas recargas sobrepostas (excluir e logo em seguida fim de importação, por
+// exemplo): só a resposta da mais recente vale.
+let consultaIndicadores = 0
 
 watch(currentPage, (newVal) => {
   currentPageUi.value = newVal + 1
@@ -183,6 +200,32 @@ async function loadingStations(page = 0) {
   }
 }
 
+// Recarregado só quando os dados mudam (criar, editar, excluir, importar), nunca
+// por busca ou paginação. is_active é NOT NULL, então ativos + inativos é o
+// total exato. Numa recarga os números antigos ficam até os novos chegarem.
+async function carregarIndicadores() {
+  const consulta = ++consultaIndicadores
+  carregandoIndicadores.value = true
+
+  const [ativos, inativos] = await Promise.allSettled([countStations(true), countStations(false)])
+  if (consulta !== consultaIndicadores) return
+
+  const valor = (resultado) => (resultado.status === 'fulfilled' ? resultado.value : null)
+  const qtdAtivos = valor(ativos)
+  const qtdInativos = valor(inativos)
+  indicadores.value = {
+    ativos: qtdAtivos,
+    inativos: qtdInativos,
+    total: qtdAtivos !== null && qtdInativos !== null ? qtdAtivos + qtdInativos : null,
+  }
+  carregandoIndicadores.value = false
+}
+
+function aoFinalizarImportacao() {
+  loadingStations(0)
+  carregarIndicadores()
+}
+
 const formPosto = ref({
   id: null,
   name: '',
@@ -235,6 +278,7 @@ const editarPosto = (posto) => {
 
 const salvarPosto = async () => {
   try {
+    carregarIndicadores()
     await loadingStations()
     closeDialog()
   } catch (err) {
@@ -256,6 +300,7 @@ const fecharModalExclusao = () => {
 const confirmarExclusao = async () => {
   try {
     await deleteStation(postoParaExcluir.value)
+    carregarIndicadores()
     await loadingStations()
     fecharModalExclusao()
   } catch (err) {
@@ -269,6 +314,7 @@ const deletarPosto = async (id) => {
 
 onMounted(() => {
   loadingStations()
+  carregarIndicadores()
 })
 </script>
 

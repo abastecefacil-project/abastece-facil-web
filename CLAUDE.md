@@ -950,7 +950,7 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (13)  user/ (8)  app/ (7 compartilhados)  public/ (2)
+├── components/  admin/ (15)  user/ (8)  app/ (8 compartilhados)  public/ (2)
 ├── config/      navegacao.js
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
@@ -1142,6 +1142,33 @@ um é barrado na validação, e em **edição** o posto sem horário abre com os
 vazios. Só a criação pré-preenche `00:00`.
 
 `nginx.conf` aceita corpo de até 10 MB em `/api/` por causa do upload da planilha.
+
+### Indicadores da tela de postos
+
+Entre o cabeçalho e a barra de busca de `/admin/station`,
+`components/admin/IndicadoresPostos.vue` mostra Total, Ativos e Inativos da
+**base inteira**.
+
+**De onde vêm os números.** Não há endpoint de contagem. `countStations(active)`
+(`stationService`) chama o próprio `/filter` com `page=0&size=1` e lê o
+`totalElements`:
+- são duas consultas, uma para ativos e outra para inativos;
+- o total é a soma das duas, o que é exato porque `gas_stations.is_active` é
+  `NOT NULL`;
+- `size=1` não distorce a contagem, porque o repository tem `countQuery` próprio.
+
+**Quando recarregam.**
+- Recarregam só quando os dados mudam: na montagem, ao salvar (criar ou editar,
+  inclusive desativar pela edição), ao excluir e no `importacao-finalizada`.
+- **Busca, filtro e paginação não os recalculam, de propósito.** Não passe a
+  chamar `carregarIndicadores` do `watchDebounced`.
+- Respostas sobrepostas são descartadas por contador.
+- Numa recarga, os números antigos ficam na tela até os novos chegarem.
+
+**Estados sem número.** O skeleton aparece só na primeira carga. Consulta que
+falha vira "—", e o total só aparece se as duas derem certo.
+
+A cor semântica fica só no ícone, com `success` e `error` do tema do Vuetify (§8).
 
 ### Importação de postos por planilha
 

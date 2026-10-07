@@ -16,6 +16,15 @@ export async function getStations(page = 0, search, active) {
     })
 }
 
+// Quantidade de postos, ativos ou inativos, sem trazer a lista: page 0 com
+// size 1 basta para o totalElements. Busca e paginação da tela não entram.
+export async function countStations(active) {
+    const { data } = await apiPrivate.get('/api/public/gas-stations/filter', {
+        params: { active, page: 0, size: 1 },
+    });
+    return data.totalElements;
+}
+
 export async function updateStation(id, body) {
     return await apiPrivate.put(`/api/gas-stations/${id}`, body);
 }
