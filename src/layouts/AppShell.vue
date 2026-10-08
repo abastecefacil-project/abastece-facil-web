@@ -16,16 +16,6 @@
 
       <v-spacer></v-spacer>
 
-      <!-- Indicador, não botão: só diz com qual perfil a sessão está. Perfil
-           nulo ou desconhecido não mostra nada, nunca um rótulo padrão. -->
-      <template v-if="rotuloPerfil">
-        <span class="perfil-indicador">
-          <v-icon :icon="iconeDoPerfil" size="18" />
-          <span>{{ rotuloPerfil }}</span>
-        </span>
-        <span class="header-divider header-divider--acoes"></span>
-      </template>
-
       <!-- No mobile só o ícone, para caber ao lado do logo e do menu. -->
       <v-btn
         v-if="mobile"
@@ -92,9 +82,28 @@
         </v-list-item>
       </v-list>
 
-      <!-- Botão para expandir quando em modo rail (apenas desktop) -->
-      <template v-if="rail && !mobile" v-slot:append>
-        <div class="pa-2">
+      <!-- Rodapé do menu: indicador de perfil e, recolhido, o botão de expandir
+           abaixo dele. -->
+      <template v-if="rotuloPerfil || (rail && !mobile)" v-slot:append>
+        <!-- Indicador, não botão: só diz com qual perfil a sessão está. Mesma
+             estrutura dos itens do menu, para herdar alinhamento e tipografia
+             também no modo rail; sem `to` nem `@click`, o Vuetify não o trata
+             como clicável. Perfil nulo ou desconhecido não mostra nada. -->
+        <v-list v-if="rotuloPerfil" nav density="compact" class="drawer-list perfil-rodape">
+          <v-list-item
+            :prepend-icon="iconeDoPerfil"
+            :title="rail && !mobile ? '' : rotuloPerfil"
+            class="perfil-item"
+            rounded="md"
+          >
+            <template v-if="rail && !mobile" v-slot:append>
+              <v-tooltip activator="parent" location="end" :text="rotuloPerfil"></v-tooltip>
+            </template>
+          </v-list-item>
+        </v-list>
+
+        <!-- Botão para expandir quando em modo rail (apenas desktop) -->
+        <div v-if="rail && !mobile" class="pa-2">
           <v-btn
             icon="mdi-chevron-right"
             variant="text"
@@ -264,22 +273,6 @@ const currentSection = computed(() => {
   margin: 0 16px;
 }
 
-/* Entre o indicador de perfil e o "Sair": mais próximo que o divisor da
-   seção, porque os dois formam um grupo só. */
-.header-divider--acoes {
-  margin: 0 8px;
-}
-
-.perfil-indicador {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.875rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 .header-section {
   color: rgba(255, 255, 255, 0.85);
   font-size: 0.875rem;
@@ -317,6 +310,18 @@ const currentSection = computed(() => {
 
 :deep(.v-navigation-drawer__content) {
   overflow-y: auto;
+}
+
+/* Rodapé do menu: indicador de perfil. Mesma cor e peso do item inativo, mas
+   sem o hover do .drawer-item — não é navegação. */
+.perfil-rodape {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.perfil-item {
+  min-height: 42px;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 500;
 }
 
 /* Hover discreto */

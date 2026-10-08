@@ -1041,22 +1041,35 @@ não declaram `perfis` porque `/user/*` aceita qualquer sessão autenticada,
 inclusive a de perfil nulo (anterior ao P0.5a ou adulterada), e "completar" a
 lista com os três perfis esvaziaria o menu dessa sessão.
 
-**O canto superior direito tem duas peças, nos dois contextos:** um indicador de
-perfil, que não é clicável, e o botão "Sair".
+**O cabeçalho tem só o botão "Sair", e o perfil da sessão fica no rodapé do menu
+lateral**, nos dois contextos. O indicador já esteve no cabeçalho, ao lado do
+"Sair", e saiu de lá por não ter ficado bom visualmente.
 
-- O indicador mostra ícone e rótulo curto do perfil da sessão: "Admin"
-  (`mdi-account-cog`), "Gestor" (`mdi-account-tie`) ou "Colaborador"
-  (`mdi-account`). São computeds sobre `authStore.perfil`, então trocar de usuário
-  atualiza sem recarregar.
+- **Cabeçalho:** o botão é `NAVEGACAO.<contexto>.botao`, hoje "Sair" com
+  `mdi-logout` nos dois. Abaixo de 960px fica só o ícone, com `aria-label`.
+- **Rodapé do menu** (slot `append` do `v-navigation-drawer`), de cima para baixo:
+  linha divisória discreta, indicador de perfil e, só com o menu recolhido, o
+  botão `>` de expandir. O indicador fica **acima** do `>` de propósito, porque o
+  `>` já ocupava o fundo antes.
+- O indicador mostra ícone e rótulo curto: "Admin" (`mdi-account-cog`), "Gestor"
+  (`mdi-account-tie`) ou "Colaborador" (`mdi-account`). Recolhido, mostra só o
+  ícone, com o rótulo em `v-tooltip`, igual aos itens do menu. No celular aparece
+  no rodapé do menu temporário.
+- **É um `v-list-item` dentro de um `v-list` com a classe `drawer-list`**, a mesma
+  estrutura dos itens. É isso que garante alinhamento e tipografia iguais,
+  inclusive recolhido. Não é clicável: sem `to` nem `@click`, o Vuetify não o
+  trata como link, e a classe é `perfil-item`, não `drawer-item`, para não herdar
+  o hover. O clique do drawer recolhido, que o expande, vale ali como em qualquer
+  área vazia do menu.
+- São computeds sobre `authStore.perfil`, então trocar de usuário atualiza sem
+  recarregar.
 - **Perfil nulo ou desconhecido não mostra indicador**, e não há rótulo padrão. Um
   "Usuário" genérico não diria nada a quem está logado, e esconderia o único sinal
   visível de sessão antiga ou adulterada.
 - Os rótulos vêm de **`utils/perfil.js`**, o único lugar que traduz o enum para
-  texto: `rotuloCurtoPerfil` para o cabeçalho, `rotuloPerfil` ("Gestor de Frota",
+  texto: `rotuloCurtoPerfil` para o indicador, `rotuloPerfil` ("Gestor de Frota",
   "Administrador") para o select do `UserDialog`, e `iconePerfil`. Não recrie esse
   mapeamento em componente.
-- O botão é `NAVEGACAO.<contexto>.botao`, hoje "Sair" com `mdi-logout` nos dois.
-  Abaixo de 960px fica só o ícone, com `aria-label`.
 
 O filtro é **defesa em profundidade, não correção visível**: o guard já redireciona
 o colaborador antes de o shell renderizar, então ninguém chegava a ver os links
@@ -1096,8 +1109,8 @@ Os consumidores de `perfil` no frontend são o guard, o
 `components/admin/UserDialog.vue` (que estreita o que um gestor pode criar), o
 `views/admin/StationManagement.vue` (importação só para administrador) e o
 `layouts/AppShell.vue`, que filtra o menu desde o P0.6 e mostra o indicador de
-perfil no cabeçalho. O `AppShell` trata `null` como "mostra tudo que não tem
-restrição" no menu, igual ao guard, e como "nenhum indicador" no cabeçalho.
+perfil no rodapé do menu. O `AppShell` trata `null` como "mostra tudo que não tem
+restrição" no menu, igual ao guard, e como "nenhum indicador" no rodapé.
 
 **`logout(router)` navega antes de limpar, e a ordem é invariante, não estilo.**
 Corrigido no P0.6a. Limpando primeiro, o menu do `AppShell` — que é computed
