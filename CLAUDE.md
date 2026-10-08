@@ -955,7 +955,7 @@ src/
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, posto.js, importacaoPostos.js
+├── utils/       mascaras.js, posto.js, importacaoPostos.js, paginacao.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1327,15 +1327,45 @@ chamador).
 
 ### Mapa
 
-`components/app/Map.vue` inicializa o Leaflet, busca os postos com
-`apiPublic.get('/api/public/gas-stations/filter?page=0&size=100&active=true')` e
-monta cada popup criando **uma aplicação Vue por marcador**
-(`createApp(PopupStation)`).
+`views/admin/StationMap.vue` carrega os postos e cuida da geolocalização do
+navegador. `components/app/Map.vue` só apresenta: recebe os postos pela prop
+`stations`, inicializa o Leaflet e monta cada popup criando **uma aplicação Vue
+por marcador** (`createApp(PopupStation)`).
 
-`views/admin/StationMap.vue` envolve o mapa e cuida da geolocalização do navegador.
 O componente `Map` só é montado quando a geolocalização retorna com sucesso
 (`v-if="loadedMarker"`) — **negar a permissão de localização impede o mapa de
-renderizar**, exibindo um aviso no lugar.
+renderizar**, exibindo um aviso no lugar. A carga dos postos não espera por isso:
+começa no `onMounted` do `StationMap`, junto com a geolocalização.
+
+**O mapa precisa da base inteira.** Até a importação por planilha ele pedia
+`size=100` uma vez e lia só `content`. Como o `/filter` ordena por
+`created_at DESC`, com ~970 postos ele mostrava só os 100 mais recentes, e os de
+Joinville, os primeiros importados, sumiam do mapa. O filtro de postos a até 5 km
+do trajeto (`drawRoute`) herdava o corte, porque só filtra o que foi carregado.
+
+- **`listarTodosPostosAtivos()`** (`stationService`) percorre o `/filter` com
+  `active=true` e `size=500`, **em sequência**, até o `totalPages` da última
+  resposta. Com a base atual são 2 requisições. A lógica é pura e mora em
+  `utils/paginacao.js` (`buscarTodasAsPaginas`), para ser testável com
+  `node --test`, já que o `apiClient` lê `import.meta.env`.
+- **Não lança.** Uma página que falha encerra a carga, e a função devolve o que
+  chegou com `completo: false`. As telas mostram o parcial com o aviso "Não foi
+  possível carregar todos os postos. Recarregue a página.".
+- Itens repetidos são descartados por `id`: um posto inserido entre duas páginas
+  empurra outro para a seguinte. A omissão inversa é possível nessa janela e é
+  aceita, porque a próxima visita corrige.
+- **Os marcadores são criados uma vez**, depois de todas as páginas: o
+  `StationMap` só atribui o array ao terminar, e o `watch` de `stations` no `Map`
+  chama `renderStations` (ou o filtro de trajeto, se já houver rota). Enquanto
+  isso, um selo "Carregando postos…" aparece no canto inferior direito.
+- O clustering (`markerClusterGroup`) é o que já existia. Não houve mudança nele.
+
+A lista de postos do usuário (`views/user/GasStations.vue`) usa a mesma função,
+pelo mesmo motivo: busca e ordenação A-Z são feitas no navegador e, sobre uma
+página de 10 do servidor, a busca só enxergava aqueles 10. Ela carrega tudo uma
+vez e **pagina no navegador**, 10 por página, voltando à primeira a cada busca.
+O contador acima da grade sai de `descreverQuantidadePostos` (`utils/posto.js`).
+A lista do admin continua com paginação e busca no servidor.
 
 ---
 
@@ -1690,8 +1720,9 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São dois arquivos: `auth-routing.test.js` (guard do router) e
-    `importacao-postos.test.js` (`utils/importacaoPostos.js`).
+  - São três arquivos: `auth-routing.test.js` (guard do router),
+    `importacao-postos.test.js` (`utils/importacaoPostos.js`) e
+    `paginacao.test.js` (`utils/paginacao.js` e o contador de postos).
   - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
     com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
 

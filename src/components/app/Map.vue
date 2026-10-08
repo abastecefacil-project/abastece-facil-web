@@ -11,7 +11,6 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import PopupStation from "@/components/app/PopupStation.vue";
 import vuetify from "@/plugins/vuetify";
-import { apiPrivate } from "@/services/apiClient";
 import { nomeExibicaoPosto } from "@/utils/posto";
 
 const props = defineProps({
@@ -22,6 +21,12 @@ const props = defineProps({
   route: {
     type: Object,
     default: null,
+  },
+  // Carregados pelo StationMap, já com todas as páginas. O array chega uma vez
+  // só, e os marcadores são criados a partir dele de uma vez.
+  stations: {
+    type: Array,
+    default: () => [],
   },
 });
 
@@ -53,13 +58,6 @@ function createPopupContent(props = {}) {
   app.mount(container);
   return container;
 };
-
-async function getGasStations() {
-  try {
-    const response = await apiPrivate.get("/api/public/gas-stations/filter?page=0&size=100&active=true")
-    return response.data.content
-  } catch (err) {console.log("Erro ao buscar postos", err)}
-}
 
 function createRoutePopupContent(station) {
   return createPopupContent({
@@ -160,9 +158,19 @@ let stationIcon = L.icon({
   popupAnchor: [0, -42],
 });
 
+// Com rota traçada, os postos que chegam passam pelo filtro de trajeto em vez
+// de aparecerem todos.
+watch(() => props.stations, (stations) => {
+  allStations = stations || [];
+  if (props.route && !props.route.preserveView) {
+    drawRoute(props.route);
+    return;
+  }
+  renderStations(allStations);
+});
+
 onMounted(async () => {
-  const data = await getGasStations();
-  allStations = data || [];
+  allStations = props.stations || [];
   initialMap.value = L.map(mapContainer.value, {
     zoomAnimation: false,
     fadeAnimation: true,

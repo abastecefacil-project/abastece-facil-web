@@ -5,6 +5,7 @@
         v-if="loadedMarker"
         :user="userMarker"
         :route="route"
+        :stations="postos"
         @show-route="showStationRoute"
         @start-route="navigateToStation"
         @popup-open="popupOpen = true"
@@ -79,6 +80,15 @@
         </div>
       </div>
 
+      <div v-if="loadedMarker && carregandoPostos" class="postos-status" role="status">
+        <v-progress-circular indeterminate color="primary" size="16" width="2" />
+        <span>Carregando postos…</span>
+      </div>
+      <div v-else-if="loadedMarker && cargaIncompleta" class="postos-status postos-status--aviso" role="alert">
+        <v-icon icon="mdi-alert-outline" size="18" class="postos-status-icon" />
+        <span>Não foi possível carregar todos os postos. Recarregue a página.</span>
+      </div>
+
       <div v-if="!loadedMarker && errorMarker" class="message-overlay">
         <v-icon icon="mdi-map-marker-off-outline" size="28" class="message-icon"></v-icon>
         <p>Para utilizar o recurso de Mapa verifique a permissão de localização!</p>
@@ -94,6 +104,7 @@
 <script setup>
 import Map from '@/components/app/Map.vue'
 import { onMounted, reactive, ref, computed, watch, onUnmounted } from 'vue'
+import { listarTodosPostosAtivos } from '@/services/stationService'
 
 const userMarker = reactive({ lat: 0, lon: 0 })
 const loadedMarker = ref(false)
@@ -109,6 +120,9 @@ const showRouteForm = ref(true)
 const popupOpen = ref(false)
 const suggestions = reactive({ origin: [], destination: [] })
 const isMobile = computed(() => window.innerWidth <= 768)
+const postos = ref([])
+const carregandoPostos = ref(true)
+const cargaIncompleta = ref(false)
 
 let isMounted = true
 let watchPositionId = null
@@ -116,8 +130,19 @@ let lastReroutePosition = null
 const suggestionTimers = { origin: null, destination: null }
 const suppressSuggestions = { origin: false, destination: false }
 
+// Todas as páginas antes de entregar ao Map, que cria os marcadores de uma vez.
+// Começa junto com a geolocalização, sem esperar o mapa ser montado.
+async function carregarPostos() {
+  const { postos: carregados, completo } = await listarTodosPostosAtivos()
+  if (!isMounted) return
+  postos.value = carregados
+  cargaIncompleta.value = !completo
+  carregandoPostos.value = false
+}
+
 onMounted(() => {
   isMounted = true
+  carregarPostos()
   if (isMobile.value) {
     document.body.style.overflow = 'hidden'
     document.documentElement.style.overflow = 'hidden'
@@ -530,6 +555,34 @@ watch(loadedMarker, (val) => {
   cursor: pointer;
 }
 .route-actions button:hover { background: rgb(25 118 210 / 8%); }
+
+.postos-status {
+  position: absolute;
+  z-index: 600;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(360px, calc(100% - 32px));
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.postos-status--aviso {
+  color: var(--color-text);
+}
+
+.postos-status-icon {
+  flex-shrink: 0;
+  color: var(--color-warning);
+}
 
 :deep(.leaflet-container) {
   width: 100%;

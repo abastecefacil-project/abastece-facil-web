@@ -1,4 +1,9 @@
 import { apiPrivate } from "./apiClient";
+import { buscarTodasAsPaginas } from "@/utils/paginacao";
+
+// Páginas de listarTodosPostosAtivos. Com ~970 postos são 2 requisições; o
+// teto do Spring é 2000.
+const TAMANHO_PAGINA_COMPLETA = 500;
 
 export async function getAddressByCep(cep){
     return await apiPrivate.get('/api/cep/info', {
@@ -23,6 +28,20 @@ export async function countStations(active) {
         params: { active, page: 0, size: 1 },
     });
     return data.totalElements;
+}
+
+// Todos os postos ativos, percorrendo as páginas do /filter em sequência. Para
+// telas que precisam da base inteira (mapa, filtro de trajeto, lista do
+// usuário). Não lança: falha em uma página devolve o que chegou, com
+// completo = false, e a tela avisa que a lista está incompleta.
+export async function listarTodosPostosAtivos() {
+    const { itens, completo } = await buscarTodasAsPaginas(async (page) => {
+        const { data } = await apiPrivate.get('/api/public/gas-stations/filter', {
+            params: { active: true, page, size: TAMANHO_PAGINA_COMPLETA },
+        });
+        return data;
+    });
+    return { postos: itens, completo };
 }
 
 export async function updateStation(id, body) {
