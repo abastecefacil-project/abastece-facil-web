@@ -208,6 +208,10 @@ async function loadingStations(page = 0) {
         businessHours: posto.businessHours,
         openTime: horario?.abertura ?? '',
         closeTime: horario?.fechamento ?? '',
+        // Strings, como a API devolve. O PostoDialog abre a edição com elas,
+        // mas só as reenvia se o administrador mexer nos campos.
+        latitude: posto.latitude ?? '',
+        longitude: posto.longitude ?? '',
       }
     })
     currentPage.value = data.number
@@ -328,6 +332,8 @@ const formPosto = ref({
   status: '',
   openTime: '',
   closeTime: '',
+  latitude: '',
+  longitude: '',
 })
 
 // Funções
@@ -356,6 +362,8 @@ const resetForm = () => {
     status: '',
     openTime: '',
     closeTime: '',
+    latitude: '',
+    longitude: '',
   }
 }
 

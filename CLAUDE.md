@@ -10,7 +10,7 @@
 >
 > **Seções que interessam ao trabalho de frontend:** 1 (domínio), 5 (contrato da
 > API, essencial), 7 (estrutura), 8 (design system), 9 (armadilhas de CSS e
-> Vuetify, itens 1 a 8) e 10 (linha de base do eslint: 10 erros).
+> Vuetify, itens 1 a 8) e 10 (linha de base do eslint: 9 erros).
 >
 > **Seções que são referência de backend**, para entender o contrato mas não para
 > agir: 3 (execução), 4 (modelo de dados e migrations), 6 (regras de negócio) e o
@@ -955,7 +955,7 @@ src/
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, importacaoPostos.js, paginacao.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1179,6 +1179,76 @@ um é barrado na validação, e em **edição** o posto sem horário abre com os
 vazios. Só a criação pré-preenche `00:00`.
 
 `nginx.conf` aceita corpo de até 10 MB em `/api/` por causa do upload da planilha.
+
+### Coordenadas no cadastro de posto
+
+O `PostoDialog` tem a seção recolhível "Localização no mapa", com latitude e
+longitude **opcionais**. Ela existe para o posto que o backend não localiza pelo
+endereço: na carga real, 208 postos da planilha ficaram nessa situação e não
+podiam ser cadastrados. A seção fica entre o endereço e os horários, e abre
+recolhida, inclusive na edição.
+
+**Contrato de envio, e o motivo dele.** Com as duas coordenadas no corpo, o
+backend as usa sem geocodificar, **mesmo que o endereço tenha mudado**. Por isso,
+na edição, elas só vão quando o administrador as digitou ou colou. Nos demais
+casos vão `null`, e o backend mantém as coordenadas se endereço, cidade e UF não
+mudaram, ou geocodifica se mudaram. Se o formulário reenviasse as que carregou,
+mudar o endereço nunca mais moveria o marcador.
+
+| Situação | `latitude` / `longitude` enviadas |
+|---|---|
+| criação sem preencher | `null` (o backend geocodifica) |
+| criação preenchida | os valores |
+| edição sem tocar nos campos | `null` |
+| edição com campos alterados | os valores |
+| edição com os dois campos limpos | `null` |
+
+- **"Alterou" é uma flag de interação** (`coordenadasAlteradas`), e não uma
+  comparação com o valor carregado. Ela é ligada pelo `@update:model-value` dos
+  dois campos, que só dispara com ação do usuário, e pela colagem de um par.
+  Redigitar o mesmo valor conta como alteração, e é o jeito de fixar o marcador
+  enquanto se muda o endereço.
+- A flag, a mensagem de erro e a seção aberta são zeradas no `watch` de
+  `props.posto`, o mesmo que reconstrói o `localPosto`.
+- Para a edição abrir com as coordenadas, o `StationManagement` repassa
+  `latitude` e `longitude` no mapeamento da lista, como strings, que é como a API
+  devolve.
+- As coordenadas vão como **string numérica**, normalizada com ponto decimal. O
+  backend aceita, e assim o valor não passa por ponto flutuante no navegador.
+
+**`v-expansion-panel-text eager` é obrigatório.** Sem `eager`, os campos de um
+painel recolhido não são montados e o `v-form` não os valida: um par inválido,
+preenchido e depois recolhido, passaria. Se o formulário não valida por causa de
+uma coordenada, a seção abre.
+
+**Colar o par.** Colar `-26.3045, -48.8487`, que é o formato que o Google Maps
+copia, em qualquer um dos dois campos preenche os dois. Também são aceitos
+`-26.3045,-48.8487` e `-26,3045; -48,8487`. Um número sozinho com vírgula decimal
+(`-26,3045`) nunca é tomado por par, e é colado normalmente. A seção tem ainda um
+link "Buscar no Google Maps" com o endereço montado do formulário.
+
+**Erros ao salvar.** Dois casos vão para a seção, e não para o modal genérico. Em
+ambos, a seção abre, a mensagem do backend aparece num `v-alert` e o foco vai
+para a latitude:
+
+- `COORDINATES_NOT_FOUND`: o backend não localizou o endereço. Acontece na
+  criação e na edição com endereço alterado.
+- `BAD_REQUEST` de validação que menciona latitude ou longitude. O backend junta
+  as mensagens de todos os campos num texto só (`"Erro de validação: …"`), sem
+  dizer qual campo falhou, então o texto é o único sinal. Os demais campos o
+  `v-form` barra antes do envio.
+
+Qualquer outro erro continua no modal genérico.
+
+Toda a lógica pura está em `utils/coordenadas.js`, coberta por
+`tests/coordenadas.test.js`:
+- `interpretarParCoordenadas`;
+- `normalizarCoordenada`;
+- `validarCoordenada`, com as faixas -90 a 90 e -180 a 180, que são as do
+  backend;
+- `coordenadasParaEnvio`;
+- `urlBuscaGoogleMaps`;
+- `mensagemErroCoordenadas`.
 
 ### Indicadores da tela de postos
 
@@ -1757,10 +1827,11 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São quatro arquivos: `auth-routing.test.js` (guard do router),
+  - São cinco arquivos: `auth-routing.test.js` (guard do router),
     `importacao-postos.test.js` (`utils/importacaoPostos.js`),
-    `paginacao.test.js` (`utils/paginacao.js` e o contador de postos) e
-    `perfil.test.js` (`utils/perfil.js`).
+    `paginacao.test.js` (`utils/paginacao.js` e o contador de postos),
+    `perfil.test.js` (`utils/perfil.js`) e `coordenadas.test.js`
+    (`utils/coordenadas.js`).
   - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
     com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
 
@@ -1799,14 +1870,18 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   Enquanto isso, a verificação é manual: rodar as próprias instruções do repository no
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
-- `npx eslint src` reporta **10 erros pré-existentes**. Não são regressões; usar essa
+- `npx eslint src` reporta **9 erros pré-existentes**. Não são regressões; usar essa
   contagem como linha de base. A lista completa, que antes estava incompleta neste
   documento:
 
   | Regra | Onde |
   |---|---|
   | `vue/multi-word-component-names` (5) | `Footer`, `Map`, `Reports`, `Login`, `Occurrences` |
-  | `no-unused-vars` (5) | `err` (PostoDialog), `err` (VehicleDialog), `response` e `error` (OccurrenceForm), `deletarPosto` (StationManagement) |
+  | `no-unused-vars` (4) | `err` (VehicleDialog), `response` e `error` (OccurrenceForm), `deletarPosto` (StationManagement) |
+
+  Caíram de **10 para 9** com as coordenadas no cadastro de posto: o `catch (err)`
+  do `PostoDialog` passou a ler o erro para separar `COORDINATES_NOT_FOUND` do modal
+  genérico. Também não foi correção dirigida ao eslint.
 
   Caíram de **11 para 10** com o ajuste para postos importados por planilha: o `props`
   do `PostoCard` passou a ser lido pelos `computed` de nome exibido e horário. Não foi

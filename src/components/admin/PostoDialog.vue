@@ -134,6 +134,82 @@
               ></v-text-field>
             </v-col>
 
+          <!-- Localização no mapa: só para o posto que o backend não localiza
+               pelo endereço. `eager` mantém os campos montados com a seção
+               recolhida, senão o v-form não os validaria. -->
+            <v-col cols="12">
+              <v-expansion-panels v-model="secaoCoordenadas" flat class="secao-coordenadas">
+                <v-expansion-panel value="coordenadas">
+                  <v-expansion-panel-title class="secao-coordenadas-titulo">
+                    <v-icon icon="mdi-map-marker-outline" size="18" class="secao-coordenadas-icone" />
+                    Localização no mapa
+                  </v-expansion-panel-title>
+                  <v-expansion-panel-text eager>
+                    <p class="coordenadas-ajuda">
+                      Preencha só se o endereço não for localizado automaticamente.
+                    </p>
+                    <p class="coordenadas-ajuda">
+                      <a
+                        v-if="urlGoogleMaps"
+                        :href="urlGoogleMaps"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="coordenadas-link"
+                      >
+                        Buscar no Google Maps
+                        <v-icon icon="mdi-open-in-new" size="14" />
+                      </a>
+                      <span v-else>Preencha o endereço para buscar no Google Maps.</span>
+                      No mapa, clique com o botão direito sobre o posto e copie as coordenadas.
+                    </p>
+
+                    <v-alert
+                      v-if="erroCoordenadas"
+                      type="error"
+                      variant="tonal"
+                      density="compact"
+                      class="coordenadas-erro"
+                    >
+                      {{ erroCoordenadas }}
+                    </v-alert>
+
+                    <v-row dense>
+                      <v-col cols="12" sm="6">
+                        <v-text-field
+                          ref="campoLatitude"
+                          v-model="localPosto.latitude"
+                          class="small-input"
+                          label="Latitude"
+                          placeholder="-26.3045"
+                          inputmode="decimal"
+                          variant="outlined"
+                          density="comfortable"
+                          :rules="[regraLatitude]"
+                          @update:model-value="aoEditarCoordenada"
+                          @paste="colarCoordenadas"
+                        ></v-text-field>
+                      </v-col>
+                      <v-col cols="12" sm="6">
+                        <v-text-field
+                          ref="campoLongitude"
+                          v-model="localPosto.longitude"
+                          class="small-input"
+                          label="Longitude"
+                          placeholder="-48.8487"
+                          inputmode="decimal"
+                          variant="outlined"
+                          density="comfortable"
+                          :rules="[regraLongitude]"
+                          @update:model-value="aoEditarCoordenada"
+                          @paste="colarCoordenadas"
+                        ></v-text-field>
+                      </v-col>
+                    </v-row>
+                  </v-expansion-panel-text>
+                </v-expansion-panel>
+              </v-expansion-panels>
+            </v-col>
+
           <!-- Horário de Funcionamento e Switch de Ativação -->
             <v-col 
               :cols="isEditing ? 6 : 6"
@@ -233,9 +309,16 @@
 
 <script setup>
 import BaseStatusModal from '../app/BaseStatusModal.vue';
-import { ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { createStation, updateStation, getAddressByCep } from '@/services/stationService';
 import { formatarTelefone } from '@/utils/mascaras'
+import {
+  coordenadasParaEnvio,
+  interpretarParCoordenadas,
+  mensagemErroCoordenadas,
+  urlBuscaGoogleMaps,
+  validarCoordenada,
+} from '@/utils/coordenadas'
 
 const isLoading = ref(false);
 const successDialog = ref(false)
@@ -290,6 +373,63 @@ function montarHorario(abertura, fechamento) {
   return abertura && fechamento ? `${abertura} - ${fechamento}` : null
 }
 
+// --- Localização no mapa ---------------------------------------------------
+// Contrato com o backend: na edição, latitude e longitude só vão no corpo se o
+// administrador as digitou ou colou. Reenviar as carregadas faria o backend
+// usá-las mesmo com o endereço mudado, e o marcador nunca mais acompanharia o
+// endereço. Por isso a flag é de interação, e não comparação de valor:
+// redigitar o mesmo valor também conta, e fixa o marcador onde está.
+const secaoCoordenadas = ref(null)
+const coordenadasAlteradas = ref(false)
+const erroCoordenadas = ref('')
+const campoLatitude = ref(null)
+const campoLongitude = ref(null)
+
+const regraLatitude = (v) => validarCoordenada(v, localPosto.value.longitude, 'latitude')
+const regraLongitude = (v) => validarCoordenada(v, localPosto.value.latitude, 'longitude')
+
+const urlGoogleMaps = computed(() => urlBuscaGoogleMaps(localPosto.value))
+
+// A regra "as duas ou nenhuma" depende do campo oposto: corrigir um precisa
+// limpar o erro que ficou no outro. Só revalida quem está mostrando erro, para
+// não acusar um campo em que a pessoa ainda nem chegou.
+function revalidarSeComErro(campo) {
+  if (campo.value?.isValid === false) campo.value.validate()
+}
+
+// Disparado só por ação do usuário: o v-model sozinho não emite
+// update:model-value quando o valor muda por código.
+function aoEditarCoordenada() {
+  coordenadasAlteradas.value = true
+  erroCoordenadas.value = ''
+  nextTick(() => {
+    revalidarSeComErro(campoLatitude)
+    revalidarSeComErro(campoLongitude)
+  })
+}
+
+// "-26.3045, -48.8487", como o Google Maps copia, preenche os dois campos a
+// partir de qualquer um deles. O que não for par é colado normalmente.
+function colarCoordenadas(event) {
+  const par = interpretarParCoordenadas(event.clipboardData?.getData('text'))
+  if (!par) return
+  event.preventDefault()
+  localPosto.value.latitude = par.latitude
+  localPosto.value.longitude = par.longitude
+  aoEditarCoordenada()
+  nextTick(() => {
+    campoLatitude.value?.validate()
+    campoLongitude.value?.validate()
+  })
+}
+
+async function mostrarErroCoordenadas(mensagem) {
+  erroCoordenadas.value = mensagem
+  secaoCoordenadas.value = 'coordenadas'
+  await nextTick()
+  campoLatitude.value?.focus()
+}
+
 // Preencher só um dos dois gravaria um horário que a leitura de
 // utils/posto.js considera inválido; os dois ou nenhum.
 function exigeParDeHorario(campoOposto, rotulo) {
@@ -303,7 +443,14 @@ function exigeParDeHorario(campoOposto, rotulo) {
 const handleSave = async () => {
   if (!form.value) return;
   const { valid } = await form.value.validate();
-  if (!valid) return;
+  if (!valid) {
+    // Com a seção recolhida, o erro de coordenada ficaria escondido.
+    const coordenadasInvalidas =
+      regraLatitude(localPosto.value.latitude) !== true ||
+      regraLongitude(localPosto.value.longitude) !== true
+    if (coordenadasInvalidas) secaoCoordenadas.value = 'coordenadas'
+    return;
+  }
 
    isLoading.value = true;
 
@@ -319,7 +466,13 @@ const handleSave = async () => {
       state: localPosto.value.state,
       phone: localPosto.value.phone,
       businessHours: montarHorario(localPosto.value.openTime, localPosto.value.closeTime),
-      isActive: localPosto.value.active
+      isActive: localPosto.value.active,
+      ...coordenadasParaEnvio({
+        latitude: localPosto.value.latitude,
+        longitude: localPosto.value.longitude,
+        editando: props.isEditing,
+        alteradas: coordenadasAlteradas.value,
+      }),
     };
 
     let response;
@@ -335,7 +488,11 @@ const handleSave = async () => {
     emit('update:modelValue', false);
 
   } catch (err) {
-      errorDialog.value = true 
+    // Endereço não localizado ou coordenada recusada: a orientação vai para a
+    // seção de localização, onde a pessoa resolve. O resto, modal genérico.
+    const mensagem = mensagemErroCoordenadas(err?.response?.data)
+    if (mensagem) mostrarErroCoordenadas(mensagem)
+    else errorDialog.value = true
   }  finally {
     isLoading.value = false;
   }
@@ -354,8 +511,15 @@ watch(
       ...newPosto,
       openTime: newPosto.openTime || horarioPadrao,
       closeTime: newPosto.closeTime || horarioPadrao,
-      active: newPosto.status ?? true
+      active: newPosto.status ?? true,
+      latitude: newPosto.latitude ?? '',
+      longitude: newPosto.longitude ?? '',
     }
+    // Posto novo no dialog: nada foi digitado ainda, e o erro e a seção
+    // aberta eram do posto anterior.
+    coordenadasAlteradas.value = false
+    erroCoordenadas.value = ''
+    secaoCoordenadas.value = null
   },
   { deep: true },
 )
@@ -417,6 +581,49 @@ const formatPhone = (event) => {
 .activation-card-compact.active-card {
   border-color: #4CAF50 !important;
   background-color: rgba(76, 175, 80, 0.08) !important;
+}
+
+/* Localização no mapa */
+.secao-coordenadas {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.secao-coordenadas-titulo {
+  min-height: 48px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.secao-coordenadas-icone {
+  margin-right: 8px;
+  color: var(--color-primary);
+}
+
+.coordenadas-ajuda {
+  margin: 0 0 8px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.coordenadas-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.coordenadas-link:hover {
+  text-decoration: underline;
+}
+
+.coordenadas-erro {
+  margin-bottom: 12px;
 }
 
 .activation-card-compact :deep(.v-switch) {
