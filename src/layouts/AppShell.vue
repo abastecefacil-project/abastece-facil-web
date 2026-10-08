@@ -16,7 +16,26 @@
 
       <v-spacer></v-spacer>
 
-      <v-btn :prepend-icon="botao.icon" variant="text" color="white" @click="handleLogout">
+      <!-- Indicador, não botão: só diz com qual perfil a sessão está. Perfil
+           nulo ou desconhecido não mostra nada, nunca um rótulo padrão. -->
+      <template v-if="rotuloPerfil">
+        <span class="perfil-indicador">
+          <v-icon :icon="iconeDoPerfil" size="18" />
+          <span>{{ rotuloPerfil }}</span>
+        </span>
+        <span class="header-divider header-divider--acoes"></span>
+      </template>
+
+      <!-- No mobile só o ícone, para caber ao lado do logo e do menu. -->
+      <v-btn
+        v-if="mobile"
+        :icon="botao.icon"
+        :aria-label="botao.title"
+        variant="text"
+        color="white"
+        @click="handleLogout"
+      ></v-btn>
+      <v-btn v-else :prepend-icon="botao.icon" variant="text" color="white" @click="handleLogout">
         {{ botao.title }}
       </v-btn>
     </v-app-bar>
@@ -94,9 +113,8 @@
       </v-container>
     </v-main>
 
-    <!-- Vale para os dois contextos, porque o shell é um só: o botão "Sair" do
-         admin e o botão "Admin" do contexto de usuário passam pelo mesmo
-         `handleLogout`. Tom `primary`, e não o vermelho padrão, porque sair não
+    <!-- Vale para os dois contextos, porque o shell é um só: o botão "Sair" dos
+         dois passa pelo mesmo `handleLogout`. Tom `primary`, e não o vermelho padrão, porque sair não
          destrói nada — mesma escolha do reenvio de convite no S5. -->
     <ConfirmDialog
       v-model="modalSaida"
@@ -115,6 +133,7 @@ import '@/assets/main.css'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
 import { NAVEGACAO, itensVisiveis } from '@/config/navegacao'
+import { iconePerfil, rotuloCurtoPerfil } from '@/utils/perfil'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
 
 // Qual conjunto de menu e qual botão superior usar. Os dois únicos call sites
@@ -134,12 +153,15 @@ const route = useRoute()
 
 const botao = computed(() => NAVEGACAO[props.contexto].botao)
 
+// Reativos sobre `authStore.perfil`: `aplicarSessao` grava o perfil novo no
+// login e `logout` zera, então trocar de usuário atualiza sem recarregar.
+const rotuloPerfil = computed(() => rotuloCurtoPerfil(authStore.perfil))
+const iconeDoPerfil = computed(() => iconePerfil(authStore.perfil))
+
 const modalSaida = ref(false)
 
 // O clique no botão só abre a confirmação — quem encerra a sessão é o
-// `confirmarSaida`. O nome continua `handleLogout` porque é o handler do botão
-// de sair, que nos dois contextos é o mesmo: no contexto `user` ele tem rótulo
-// "Admin" e desloga do mesmo jeito (§9, item 8 do CLAUDE.md).
+// `confirmarSaida`. É o handler do botão "Sair", igual nos dois contextos.
 const handleLogout = () => {
   modalSaida.value = true
 }
@@ -240,6 +262,22 @@ const currentSection = computed(() => {
   height: 20px;
   background-color: rgba(255, 255, 255, 0.22);
   margin: 0 16px;
+}
+
+/* Entre o indicador de perfil e o "Sair": mais próximo que o divisor da
+   seção, porque os dois formam um grupo só. */
+.header-divider--acoes {
+  margin: 0 8px;
+}
+
+.perfil-indicador {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .header-section {

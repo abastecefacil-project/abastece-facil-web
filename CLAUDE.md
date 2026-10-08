@@ -955,7 +955,7 @@ src/
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, posto.js, importacaoPostos.js, paginacao.js
+├── utils/       mascaras.js, perfil.js, posto.js, importacaoPostos.js, paginacao.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -985,11 +985,16 @@ consumidores. Atenção ao editar o `CartaoAcesso`: as classes `.acesso-*` usam
 `:deep()` porque conteúdo de `<slot>` carrega o `data-v` do **pai**, e um
 seletor escopado normal não alcançaria o que as views passam para dentro.
 
-O guard em `router/index.js` protege apenas `/admin/*`, e desde o P0.5 checa
-**token e perfil**. Ele não olha o path: lê `to.meta.perfis`, declarado uma vez
-no grupo `/admin` como `['ADMINISTRADOR', 'GESTOR_FROTA']` e herdado pelos seis
-filhos via merge de meta do vue-router. Rota sem `meta.perfis` passa direto, o
-que é o caso das públicas e de todo `/user/*`.
+O guard em `router/index.js` não olha o path: lê dois campos de `to.meta`,
+herdados pelos filhos via merge de meta do vue-router.
+
+- **`meta.requiresAuth`**, declarado no grupo `/user`: exige token e nada mais.
+  `/user/*` **não aceita visitante sem login** — qualquer perfil passa, inclusive
+  `null`.
+- **`meta.perfis`**, declarado no grupo `/admin` como
+  `['ADMINISTRADOR', 'GESTOR_FROTA']`: exige token **e** perfil, desde o P0.5.
+
+Rota sem nenhum dos dois passa direto, o que é o caso só das públicas.
 
 Os dois desvios são diferentes de propósito: **sem token vai para `/login`**;
 **com token e perfil insuficiente vai para `auth.homeDoPerfil`**, porque a sessão
@@ -1032,9 +1037,26 @@ Os itens do menu e o botão superior direito de cada contexto vivem em
 `config/navegacao.js`, e o menu é **filtrado pelo perfil ativo**. A regra é a
 mesma do guard: item **sem** `perfis` aparece para qualquer sessão, inclusive
 `perfil === null`. Isso é load-bearing, não descuido — os cinco itens de `/user/*`
-não declaram `perfis` porque `/user/*` é alcançável por visitante não
-autenticado, e "completar" a lista com os três perfis esvaziaria o menu de quem
-chega sem sessão.
+não declaram `perfis` porque `/user/*` aceita qualquer sessão autenticada,
+inclusive a de perfil nulo (anterior ao P0.5a ou adulterada), e "completar" a
+lista com os três perfis esvaziaria o menu dessa sessão.
+
+**O canto superior direito tem duas peças, nos dois contextos:** um indicador de
+perfil, que não é clicável, e o botão "Sair".
+
+- O indicador mostra ícone e rótulo curto do perfil da sessão: "Admin"
+  (`mdi-account-cog`), "Gestor" (`mdi-account-tie`) ou "Colaborador"
+  (`mdi-account`). São computeds sobre `authStore.perfil`, então trocar de usuário
+  atualiza sem recarregar.
+- **Perfil nulo ou desconhecido não mostra indicador**, e não há rótulo padrão. Um
+  "Usuário" genérico não diria nada a quem está logado, e esconderia o único sinal
+  visível de sessão antiga ou adulterada.
+- Os rótulos vêm de **`utils/perfil.js`**, o único lugar que traduz o enum para
+  texto: `rotuloCurtoPerfil` para o cabeçalho, `rotuloPerfil` ("Gestor de Frota",
+  "Administrador") para o select do `UserDialog`, e `iconePerfil`. Não recrie esse
+  mapeamento em componente.
+- O botão é `NAVEGACAO.<contexto>.botao`, hoje "Sair" com `mdi-logout` nos dois.
+  Abaixo de 960px fica só o ícone, com `aria-label`.
 
 O filtro é **defesa em profundidade, não correção visível**: o guard já redireciona
 o colaborador antes de o shell renderizar, então ninguém chegava a ver os links
@@ -1070,10 +1092,12 @@ O guard do router lê o `perfil` desde o P0.5, via `homeDoPerfil` e a lista em
 interface; a regra real é do backend, que valida perfil e regional no serviço
 desde o S2a.
 
-Os consumidores de `perfil` no frontend são **três**: o guard, o
-`components/admin/UserDialog.vue` (que estreita o que um gestor pode criar) e,
-desde o P0.6, o `layouts/AppShell.vue`, que filtra o menu. O `AppShell` trata
-`null` como "mostra tudo que não tem restrição", igual ao guard.
+Os consumidores de `perfil` no frontend são o guard, o
+`components/admin/UserDialog.vue` (que estreita o que um gestor pode criar), o
+`views/admin/StationManagement.vue` (importação só para administrador) e o
+`layouts/AppShell.vue`, que filtra o menu desde o P0.6 e mostra o indicador de
+perfil no cabeçalho. O `AppShell` trata `null` como "mostra tudo que não tem
+restrição" no menu, igual ao guard, e como "nenhum indicador" no cabeçalho.
 
 **`logout(router)` navega antes de limpar, e a ordem é invariante, não estilo.**
 Corrigido no P0.6a. Limpando primeiro, o menu do `AppShell` — que é computed
@@ -1454,12 +1478,12 @@ Problemas reais já encontrados. Consultar antes de investigar comportamento est
      `:deep()` param de resolver (a transição de largura do drawer e o hover dos
      itens desaparecem, silenciosamente).
    - **Não acrescentar `perfis` aos itens de `/user/*`** em `config/navegacao.js`.
-     Parece completude e esvazia o menu do visitante não autenticado, que tem
-     `perfil === null`.
-8. O botão "Admin" do contexto de usuário chama `handleLogout` — o rótulo não descreve
-   a ação. Comportamento existente, preservado deliberadamente. Desde o P0.6 o rótulo
-   mora em `config/navegacao.js`, em `NAVEGACAO.user.botao`, com um comentário no lugar
-   pedindo para não "corrigir" só o texto.
+     Parece completude e esvazia o menu da sessão autenticada com
+     `perfil === null`, que `/user/*` aceita.
+8. **Resolvido.** O botão superior direito do contexto de usuário dizia "Admin" e
+   saía do sistema, para qualquer perfil. Hoje ele diz "Sair", e o perfil da sessão
+   aparece num indicador à parte (§7, *A casca dos dois layouts*). Se o rótulo de
+   perfil parecer errado, o lugar é `utils/perfil.js`, não `config/navegacao.js`.
 
 8b. **Regra global prefixada com `.v-application` NÃO alcança conteúdo de diálogo.**
    O `VOverlay` do Vuetify teleporta o conteúdo do `v-dialog` para
@@ -1720,9 +1744,10 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São três arquivos: `auth-routing.test.js` (guard do router),
-    `importacao-postos.test.js` (`utils/importacaoPostos.js`) e
-    `paginacao.test.js` (`utils/paginacao.js` e o contador de postos).
+  - São quatro arquivos: `auth-routing.test.js` (guard do router),
+    `importacao-postos.test.js` (`utils/importacaoPostos.js`),
+    `paginacao.test.js` (`utils/paginacao.js` e o contador de postos) e
+    `perfil.test.js` (`utils/perfil.js`).
   - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
     com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
 

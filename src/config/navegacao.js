@@ -69,14 +69,14 @@ export const NAVEGACAO = {
   },
 
   user: {
-    // O rótulo diz "Admin" e a ação é sair. A discrepância é existente e
-    // preservada deliberadamente — ver §9, item 8 do CLAUDE.md. Não corrigir
-    // aqui: quem quiser mudar o rótulo muda o comportamento junto, num trabalho
-    // próprio.
-    botao: { title: 'Admin', icon: 'mdi-account-cog' },
-    // Nenhum item leva `perfis`, de propósito. `/user/*` é aberto a visitante
-    // não autenticado, porque o usuário final não faz login (§1 do CLAUDE.md),
-    // e restringir aqui esvaziaria o menu para quem tem `perfil` nulo.
+    // Até o rótulo de perfil existir, este botão dizia "Admin" e saía do
+    // sistema. Hoje ele diz o que faz; o perfil da sessão é um indicador à
+    // parte no `AppShell`, com texto vindo de `utils/perfil.js`.
+    botao: { title: 'Sair', icon: 'mdi-logout' },
+    // Nenhum item leva `perfis`, de propósito. `/user/*` exige login
+    // (`meta.requiresAuth` no router), mas aceita qualquer perfil, inclusive
+    // `null` — sessão anterior ao P0.5a ou valor adulterado que
+    // `normalizarPerfil` zerou. Restringir aqui esvaziaria o menu dessa sessão.
     itens: [
       { title: 'Home', icon: 'mdi-home', value: 'home', to: { name: 'UserDashboard' } },
       {
