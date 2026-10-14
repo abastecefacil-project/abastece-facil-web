@@ -156,6 +156,7 @@ import { createUser, getUsuarioAutenticado } from '@/services/userService'
 import { getRegionais } from '@/services/regionalService'
 import { formatarTelefone } from '@/utils/mascaras'
 import { useAuthStore } from '@/stores/auth'
+import { rotuloPerfil } from '@/utils/perfil'
 
 const props = defineProps({
   modelValue: Boolean,
@@ -164,12 +165,6 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'save', 'close'])
 
 const authStore = useAuthStore()
-
-const PERFIL_LABELS = {
-  COLABORADOR: 'Colaborador',
-  GESTOR_FROTA: 'Gestor de Frota',
-  ADMINISTRADOR: 'Administrador',
-}
 
 const MENSAGEM_ERRO_PADRAO = 'Não foi possível cadastrar o usuário. Tente novamente.'
 
@@ -222,7 +217,7 @@ const perfisDisponiveis = computed(() => {
   const permitidos = isAdministrador.value
     ? ['COLABORADOR', 'GESTOR_FROTA', 'ADMINISTRADOR']
     : ['COLABORADOR']
-  return permitidos.map((valor) => ({ title: PERFIL_LABELS[valor], value: valor }))
+  return permitidos.map((valor) => ({ title: rotuloPerfil(valor), value: valor }))
 })
 
 function opcaoRegional(regional) {

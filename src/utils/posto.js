@@ -55,3 +55,18 @@ export function formatarHorarioFuncionamento(businessHours) {
   const horario = lerHorarioFuncionamento(businessHours)
   return horario ? `${horario.abertura} - ${horario.fechamento}` : null
 }
+
+const formatoQuantidade = new Intl.NumberFormat('pt-BR')
+
+/**
+ * Contador da lista de postos: "968 postos" sem busca, "48 postos encontrados"
+ * com busca. Com busca e nenhum resultado, "Nenhum posto encontrado".
+ */
+export function descreverQuantidadePostos(quantidade, comBusca) {
+  if (comBusca && quantidade === 0) return 'Nenhum posto encontrado'
+
+  const numero = formatoQuantidade.format(quantidade)
+  const substantivo = quantidade === 1 ? 'posto' : 'postos'
+  if (!comBusca) return `${numero} ${substantivo}`
+  return `${numero} ${substantivo} ${quantidade === 1 ? 'encontrado' : 'encontrados'}`
+}

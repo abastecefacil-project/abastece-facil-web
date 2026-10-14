@@ -16,7 +16,16 @@
 
       <v-spacer></v-spacer>
 
-      <v-btn :prepend-icon="botao.icon" variant="text" color="white" @click="handleLogout">
+      <!-- No mobile só o ícone, para caber ao lado do logo e do menu. -->
+      <v-btn
+        v-if="mobile"
+        :icon="botao.icon"
+        :aria-label="botao.title"
+        variant="text"
+        color="white"
+        @click="handleLogout"
+      ></v-btn>
+      <v-btn v-else :prepend-icon="botao.icon" variant="text" color="white" @click="handleLogout">
         {{ botao.title }}
       </v-btn>
     </v-app-bar>
@@ -73,9 +82,28 @@
         </v-list-item>
       </v-list>
 
-      <!-- Botão para expandir quando em modo rail (apenas desktop) -->
-      <template v-if="rail && !mobile" v-slot:append>
-        <div class="pa-2">
+      <!-- Rodapé do menu: indicador de perfil e, recolhido, o botão de expandir
+           abaixo dele. -->
+      <template v-if="rotuloPerfil || (rail && !mobile)" v-slot:append>
+        <!-- Indicador, não botão: só diz com qual perfil a sessão está. Mesma
+             estrutura dos itens do menu, para herdar alinhamento e tipografia
+             também no modo rail; sem `to` nem `@click`, o Vuetify não o trata
+             como clicável. Perfil nulo ou desconhecido não mostra nada. -->
+        <v-list v-if="rotuloPerfil" nav density="compact" class="drawer-list perfil-rodape">
+          <v-list-item
+            :prepend-icon="iconeDoPerfil"
+            :title="rail && !mobile ? '' : rotuloPerfil"
+            class="perfil-item"
+            rounded="md"
+          >
+            <template v-if="rail && !mobile" v-slot:append>
+              <v-tooltip activator="parent" location="end" :text="rotuloPerfil"></v-tooltip>
+            </template>
+          </v-list-item>
+        </v-list>
+
+        <!-- Botão para expandir quando em modo rail (apenas desktop) -->
+        <div v-if="rail && !mobile" class="pa-2">
           <v-btn
             icon="mdi-chevron-right"
             variant="text"
@@ -94,9 +122,8 @@
       </v-container>
     </v-main>
 
-    <!-- Vale para os dois contextos, porque o shell é um só: o botão "Sair" do
-         admin e o botão "Admin" do contexto de usuário passam pelo mesmo
-         `handleLogout`. Tom `primary`, e não o vermelho padrão, porque sair não
+    <!-- Vale para os dois contextos, porque o shell é um só: o botão "Sair" dos
+         dois passa pelo mesmo `handleLogout`. Tom `primary`, e não o vermelho padrão, porque sair não
          destrói nada — mesma escolha do reenvio de convite no S5. -->
     <ConfirmDialog
       v-model="modalSaida"
@@ -115,6 +142,7 @@ import '@/assets/main.css'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
 import { NAVEGACAO, itensVisiveis } from '@/config/navegacao'
+import { iconePerfil, rotuloCurtoPerfil } from '@/utils/perfil'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
 
 // Qual conjunto de menu e qual botão superior usar. Os dois únicos call sites
@@ -134,12 +162,15 @@ const route = useRoute()
 
 const botao = computed(() => NAVEGACAO[props.contexto].botao)
 
+// Reativos sobre `authStore.perfil`: `aplicarSessao` grava o perfil novo no
+// login e `logout` zera, então trocar de usuário atualiza sem recarregar.
+const rotuloPerfil = computed(() => rotuloCurtoPerfil(authStore.perfil))
+const iconeDoPerfil = computed(() => iconePerfil(authStore.perfil))
+
 const modalSaida = ref(false)
 
 // O clique no botão só abre a confirmação — quem encerra a sessão é o
-// `confirmarSaida`. O nome continua `handleLogout` porque é o handler do botão
-// de sair, que nos dois contextos é o mesmo: no contexto `user` ele tem rótulo
-// "Admin" e desloga do mesmo jeito (§9, item 8 do CLAUDE.md).
+// `confirmarSaida`. É o handler do botão "Sair", igual nos dois contextos.
 const handleLogout = () => {
   modalSaida.value = true
 }
@@ -279,6 +310,18 @@ const currentSection = computed(() => {
 
 :deep(.v-navigation-drawer__content) {
   overflow-y: auto;
+}
+
+/* Rodapé do menu: indicador de perfil. Mesma cor e peso do item inativo, mas
+   sem o hover do .drawer-item — não é navegação. */
+.perfil-rodape {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.perfil-item {
+  min-height: 42px;
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 500;
 }
 
 /* Hover discreto */

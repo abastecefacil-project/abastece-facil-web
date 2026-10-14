@@ -55,6 +55,23 @@
             :disabled="analisando"
             :error-messages="erroArquivo ? [erroArquivo] : []"
           />
+
+          <!-- Só o que o navegador sabe de fato: o envio, medido, e a espera pela
+               resposta. O backend não informa etapas da análise, então nada é
+               simulado aqui. -->
+          <div v-if="analisando && faseAnalise" class="analise-status">
+            <span class="analise-texto">{{ textoFaseAnalise }}</span>
+            <v-progress-linear
+              :model-value="percentualEnvio ?? 0"
+              :indeterminate="faseAnalise === 'analise' || percentualEnvio === null"
+              color="primary"
+              height="6"
+              rounded
+            />
+            <span v-if="analiseDemorada" class="texto-apoio">
+              Planilhas grandes podem levar alguns segundos.
+            </span>
+          </div>
         </template>
 
         <!-- Etapa 2: prévia -->
@@ -113,6 +130,9 @@
             <v-icon icon="mdi-timer-outline" size="18" class="mr-1" />
             {{ tempoEstimado }}
           </p>
+          <p class="texto-apoio">
+            A importação continua no servidor mesmo se você fechar esta janela.
+          </p>
         </template>
 
         <!-- Etapa 3: progresso -->
@@ -132,6 +152,20 @@
           />
 
           <p v-if="!acompanhamentoParado" class="texto-apoio">{{ textoRestante }}</p>
+
+          <p v-if="cancelamentoSolicitado && !acompanhamentoParado" class="aviso-cancelamento">
+            <v-icon icon="mdi-stop-circle-outline" size="16" class="mr-1" />
+            Cancelamento solicitado. A importação para após o posto em andamento.
+          </p>
+
+          <v-alert
+            v-if="erroCancelamento && !acompanhamentoParado"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mt-3"
+            :text="erroCancelamento"
+          />
 
           <p v-if="semResposta && !acompanhamentoParado" class="aviso-discreto">
             <v-icon icon="mdi-wifi-strength-alert-outline" size="16" class="mr-1" />
@@ -154,24 +188,23 @@
 
         <!-- Etapa 4: relatório -->
         <template v-else-if="etapa === 'resultado' && importacao">
-          <template v-if="falhou">
-            <v-alert
-              type="error"
-              variant="tonal"
-              density="compact"
-              class="mb-4"
-              :text="importacao.mensagem || MENSAGEM_FALHA_PADRAO"
-            />
-            <h3 class="secao-titulo">O que já foi feito</h3>
-          </template>
           <v-alert
-            v-else
-            type="success"
+            v-if="avisoCancelamentoNaoAtendido"
+            type="info"
             variant="tonal"
             density="compact"
             class="mb-4"
-            text="Importação concluída."
+            :text="avisoCancelamentoNaoAtendido"
           />
+
+          <v-alert
+            :type="desfecho.tipo"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+            :text="desfecho.texto"
+          />
+          <h3 v-if="desfecho.parcial" class="secao-titulo">O que já foi feito</h3>
 
           <ImportacaoContadores :contadores="contadoresResultado" class="mb-4" />
 
@@ -189,14 +222,31 @@
       <v-card-actions class="dialog-actions acoes-importacao">
         <template v-if="etapa === 'progresso' && !acompanhamentoParado">
           <!-- Fechar só encerra o polling: nada é cancelado no servidor, e reabrir
-               o dialog retoma o acompanhamento pelo GET /import/atual. -->
+               o dialog retoma o acompanhamento pelo GET /import/atual. Cancelar de
+               fato é o outro botão. -->
           <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="fechar">
             Fechar e acompanhar depois
+          </v-btn>
+
+          <v-btn
+            class="btn-dialog btn-dialog--perigo"
+            variant="flat"
+            :disabled="cancelamentoSolicitado"
+            @click="abrirConfirmacaoCancelamento"
+          >
+            {{ cancelamentoSolicitado ? 'Cancelando…' : 'Cancelar importação' }}
           </v-btn>
         </template>
 
         <template v-else>
-          <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="fechar">
+          <!-- Travado durante o startImport: fechar ali descartaria o 202 e deixaria
+               uma importação rodando sem a tela saber. -->
+          <v-btn
+            class="btn-dialog btn-dialog--cancelar"
+            variant="outlined"
+            :disabled="iniciando"
+            @click="fechar"
+          >
             {{ rotuloFechar }}
           </v-btn>
 
@@ -212,14 +262,22 @@
           </v-btn>
 
           <template v-if="etapa === 'previa'">
-            <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="novaImportacao">
+            <v-btn
+              class="btn-dialog btn-dialog--cancelar"
+              variant="outlined"
+              :disabled="iniciando"
+              @click="novaImportacao"
+            >
               Trocar arquivo
             </v-btn>
+            <!-- Sem janela de confirmação: a prévia já mostra contadores, alerta de
+                 desativação e tempo, e a importação pode ser cancelada depois. -->
             <v-btn
               class="btn-dialog btn-dialog--confirmar"
               variant="flat"
-              :disabled="!previa"
-              @click="confirmacaoAberta = true"
+              :loading="iniciando"
+              :disabled="iniciando || !previa"
+              @click="confirmarImportacao"
             >
               Confirmar importação
             </v-btn>
@@ -247,14 +305,17 @@
     </v-card>
   </v-dialog>
 
+  <!-- "Voltar", e não o "Cancelar" padrão: os dois botões diriam cancelar com
+       sentidos opostos. -->
   <ConfirmDialog
-    v-model="confirmacaoAberta"
-    title="Confirmar importação"
-    :message="mensagemConfirmacao"
-    confirm-text="Importar"
-    :confirm-tone="desativacaoPrevia ? 'danger' : 'primary'"
-    :loading="iniciando"
-    @confirm="confirmarImportacao"
+    v-model="confirmacaoCancelamentoAberta"
+    title="Cancelar importação"
+    message="Os postos já processados permanecem gravados e nenhum posto será desativado. Deseja cancelar a importação?"
+    confirm-text="Cancelar importação"
+    cancel-text="Voltar"
+    confirm-tone="danger"
+    :loading="cancelando"
+    @confirm="confirmarCancelamento"
   />
 </template>
 
@@ -264,6 +325,7 @@ import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
 import ImportacaoContadores from './ImportacaoContadores.vue'
 import ImportacaoOcorrencias from './ImportacaoOcorrencias.vue'
 import {
+  cancelImport,
   getCurrentImport,
   getImportStatus,
   previewImport,
@@ -282,9 +344,11 @@ const props = defineProps({
   modelValue: Boolean,
 })
 
-// importacao-finalizada: houve gravação (concluída, falhou ou interrompida) e a
-// lista de postos da tela está desatualizada.
-const emit = defineEmits(['update:modelValue', 'importacao-finalizada'])
+// importacao-em-andamento: o dialog passou a acompanhar uma importação — iniciada
+// aqui, existente (409) ou retomada ao abrir. A tela usa para indicar no botão.
+// importacao-finalizada: houve gravação (concluída, falhou, cancelada ou
+// interrompida) e a lista de postos da tela está desatualizada.
+const emit = defineEmits(['update:modelValue', 'importacao-em-andamento', 'importacao-finalizada'])
 
 const TIPOS_ACEITOS = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
@@ -292,6 +356,9 @@ const TIPOS_ACEITOS = '.xlsx,application/vnd.openxmlformats-officedocument.sprea
 // conveniência: bem acima do limite o servidor pode resetar a conexão em vez de
 // responder um 413 legível.
 const TAMANHO_MAXIMO_BYTES = 10 * 1024 * 1024
+
+// A partir daqui a espera pela prévia ganha a frase sobre planilhas grandes.
+const ANALISE_DEMORADA_MS = 5000
 
 const INTERVALO_POLLING_MS = 3000
 const MAXIMO_FALHAS_SEGUIDAS = 5
@@ -304,6 +371,15 @@ const MENSAGEM_SEM_RESPOSTA =
 const MENSAGEM_ACESSO_NEGADO =
   'Acesso negado. Sua sessão pode ter expirado: entre novamente e tente de novo.'
 const MENSAGEM_FALHA_PADRAO = 'A importação falhou no servidor.'
+const MENSAGEM_CANCELADA_PADRAO = 'A importação foi cancelada.'
+// CONCLUIDA apesar do pedido, conforme o que o POST de cancelamento respondeu.
+const MENSAGENS_CANCELAMENTO_NAO_ATENDIDO = {
+  // 202: a desativação final não é interrompível, então o pedido foi aceito e
+  // mesmo assim a importação concluiu.
+  aceito: 'O cancelamento chegou quando a importação já estava na etapa final; ela foi concluída.',
+  // 409: a importação já tinha terminado quando o pedido chegou.
+  tardio: 'A importação terminou antes que o cancelamento fosse processado.',
+}
 const MENSAGEM_INTERROMPIDA =
   'A importação foi interrompida: o servidor foi reiniciado. O que já foi gravado permanece. Envie a planilha novamente para concluir.'
 const MENSAGEM_SEM_RESPOSTA_REPETIDA =
@@ -333,9 +409,14 @@ const erroArquivo = ref('')
 const erroApi = ref('')
 const aviso = ref(null)
 const analisando = ref(false)
+// Durante a análise: 'envio' enquanto o upload sobe, 'analise' depois que ele
+// chega a 100% e a resposta ainda não veio. percentualEnvio é null quando o
+// navegador não informa o tamanho total.
+const faseAnalise = ref(null)
+const percentualEnvio = ref(0)
+const analiseDemorada = ref(false)
 const previa = ref(null)
 
-const confirmacaoAberta = ref(false)
 const iniciando = ref(false)
 
 const importacao = ref(null)
@@ -348,9 +429,19 @@ const semResposta = ref(false)
 const acompanhamentoParado = ref(null)
 const erroAcompanhamento = ref('')
 
+// O status do backend não diz que houve pedido de cancelamento: esse estado é
+// só do front, e se perde de propósito ao fechar ou recarregar — o desfecho
+// chega pelo polling de qualquer forma. { id, resultado: 'aceito' | 'tardio' }:
+// o id evita que outra importação, retomada depois, herde o pedido.
+const pedidoCancelamento = ref(null)
+const confirmacaoCancelamentoAberta = ref(false)
+const cancelando = ref(false)
+const erroCancelamento = ref('')
+
 let falhasSeguidas = 0
 let gravacoesNotificadas = false
 let timerPolling = null
+let timerAnaliseDemorada = null
 
 // Identifica a operação corrente. Qualquer resposta — prévia, início ou
 // polling — que chegue com um número antigo pertence a um estado que o usuário
@@ -410,11 +501,11 @@ const textoAlertaDesativacao = computed(() => {
 
 const tempoEstimado = computed(() => descreverTempoEstimado(contarGeocodificacoes(previa.value)))
 
-const mensagemConfirmacao = computed(() => {
-  const partes = [`${tempoEstimado.value}.`]
-  if (desativacaoPrevia.value) partes.push(`Atenção: ${textoAlertaDesativacao.value}`)
-  partes.push('A importação continua no servidor mesmo se você fechar esta janela.')
-  return partes.join(' ')
+const textoFaseAnalise = computed(() => {
+  if (faseAnalise.value === 'analise') return 'Analisando planilha…'
+  return percentualEnvio.value === null
+    ? 'Enviando planilha…'
+    : `Enviando planilha… ${percentualEnvio.value}%`
 })
 
 const gruposItens = computed(() => {
@@ -462,8 +553,30 @@ const textoRestante = computed(() =>
   descreverTempoRestante(amostras.value, totalImportacao.value, processadosImportacao.value),
 )
 
+const cancelamentoSolicitado = computed(
+  () => pedidoCancelamento.value !== null && pedidoCancelamento.value.id === importacao.value?.id,
+)
+
 // === Resultado ===
-const falhou = computed(() => importacao.value?.status === 'FALHOU')
+// parcial: a importação não chegou ao fim, e os contadores dizem só o que já
+// tinha sido gravado.
+const desfecho = computed(() => {
+  const status = importacao.value?.status
+  const mensagem = importacao.value?.mensagem
+  if (status === 'FALHOU') {
+    return { tipo: 'error', texto: mensagem || MENSAGEM_FALHA_PADRAO, parcial: true }
+  }
+  if (status === 'CANCELADA') {
+    return { tipo: 'warning', texto: mensagem || MENSAGEM_CANCELADA_PADRAO, parcial: true }
+  }
+  return { tipo: 'success', texto: 'Importação concluída.', parcial: false }
+})
+
+// Só em CONCLUIDA: em FALHOU e CANCELADA o motivo do pedido não muda nada.
+const avisoCancelamentoNaoAtendido = computed(() => {
+  if (!cancelamentoSolicitado.value || importacao.value?.status !== 'CONCLUIDA') return ''
+  return MENSAGENS_CANCELAMENTO_NAO_ATENDIDO[pedidoCancelamento.value.resultado] ?? ''
+})
 
 const contadoresResultado = computed(() => {
   const r = importacao.value?.resumo ?? {}
@@ -527,6 +640,7 @@ function pararPolling() {
 function invalidarOperacoes() {
   requisicaoAtual++
   pararPolling()
+  pararTimerAnalise()
 }
 
 function limpar() {
@@ -538,14 +652,20 @@ function limpar() {
   erroApi.value = ''
   aviso.value = null
   analisando.value = false
+  faseAnalise.value = null
+  percentualEnvio.value = 0
+  analiseDemorada.value = false
   previa.value = null
-  confirmacaoAberta.value = false
   iniciando.value = false
   importacao.value = null
   amostras.value = []
   semResposta.value = false
   acompanhamentoParado.value = null
   erroAcompanhamento.value = ''
+  pedidoCancelamento.value = null
+  confirmacaoCancelamentoAberta.value = false
+  cancelando.value = false
+  erroCancelamento.value = ''
   falhasSeguidas = 0
   gravacoesNotificadas = false
 }
@@ -593,10 +713,24 @@ async function analisar() {
 
   erroApi.value = ''
   analisando.value = true
+  faseAnalise.value = 'envio'
+  percentualEnvio.value = 0
+  analiseDemorada.value = false
   const requisicao = ++requisicaoAtual
 
+  const aoEnviar = (evento) => {
+    // Cancelado no meio: o upload pode seguir notificando depois do descarte.
+    if (requisicao !== requisicaoAtual || faseAnalise.value !== 'envio') return
+    if (!evento.total) {
+      percentualEnvio.value = null
+      return
+    }
+    percentualEnvio.value = Math.min(100, Math.round((evento.loaded / evento.total) * 100))
+    if (evento.loaded >= evento.total) iniciarFaseAnalise(requisicao)
+  }
+
   try {
-    const { data } = await previewImport(arquivo.value)
+    const { data } = await previewImport(arquivo.value, { onUploadProgress: aoEnviar })
     if (requisicao !== requisicaoAtual) return
     previa.value = data
     etapa.value = 'previa'
@@ -604,7 +738,30 @@ async function analisar() {
     if (requisicao !== requisicaoAtual) return
     erroApi.value = mensagemDeErro(err)
   } finally {
-    if (requisicao === requisicaoAtual) analisando.value = false
+    if (requisicao === requisicaoAtual) {
+      analisando.value = false
+      faseAnalise.value = null
+      analiseDemorada.value = false
+      pararTimerAnalise()
+    }
+  }
+}
+
+// O upload terminou e a resposta não veio: o servidor está lendo a planilha.
+// Os ~5 s contam daqui, que é quando a análise de fato começa.
+function iniciarFaseAnalise(requisicao) {
+  faseAnalise.value = 'analise'
+  pararTimerAnalise()
+  timerAnaliseDemorada = setTimeout(() => {
+    timerAnaliseDemorada = null
+    if (requisicao === requisicaoAtual) analiseDemorada.value = true
+  }, ANALISE_DEMORADA_MS)
+}
+
+function pararTimerAnalise() {
+  if (timerAnaliseDemorada !== null) {
+    clearTimeout(timerAnaliseDemorada)
+    timerAnaliseDemorada = null
   }
 }
 
@@ -618,11 +775,9 @@ async function confirmarImportacao() {
     // voltar aqui, e são tratados igual.
     const { data } = await startImport(arquivo.value)
     if (requisicao !== requisicaoAtual) return
-    confirmacaoAberta.value = false
     acompanhar({ id: data.id, status: 'EM_ANDAMENTO' }, 0)
   } catch (err) {
     if (requisicao !== requisicaoAtual) return
-    confirmacaoAberta.value = false
     if (err?.response?.status === 409) await acompanharExistente(requisicao)
     else erroApi.value = mensagemDeErro(err)
   } finally {
@@ -660,6 +815,8 @@ function acompanhar(status, primeiraConsultaEmMs = INTERVALO_POLLING_MS) {
   etapa.value = 'progresso'
   registrarAmostra(status)
   agendarConsulta(primeiraConsultaEmMs)
+  // Único ponto de entrada no acompanhamento: cobre início, 409 e retomada.
+  emit('importacao-em-andamento')
 }
 
 function registrarAmostra(status) {
@@ -699,7 +856,9 @@ function aplicarStatus(status) {
     agendarConsulta()
     return
   }
-  // CONCLUIDA ou FALHOU: nos dois casos houve gravação.
+  // CONCLUIDA, FALHOU ou CANCELADA: nos três casos houve gravação. A
+  // confirmação de cancelamento, se aberta, não faz mais sentido sobre o relatório.
+  confirmacaoCancelamentoAberta.value = false
   etapa.value = 'resultado'
   notificarGravacoes()
 }
@@ -713,11 +872,8 @@ function notificarGravacoes() {
 function tratarFalhaConsulta(err) {
   const status = err?.response?.status
 
-  // O registro da importação vive em memória no backend: 404 é servidor
-  // reiniciado (ou mais de 24 h). O que já foi gravado continua gravado.
   if (status === 404) {
-    pararAcompanhamento('interrompida', MENSAGEM_INTERROMPIDA)
-    notificarGravacoes()
+    marcarInterrompida()
     return
   }
 
@@ -741,11 +897,73 @@ function tratarFalhaConsulta(err) {
   pararAcompanhamento('erro', mensagemDeErro(err))
 }
 
+// O registro da importação vive em memória no backend: 404 é servidor
+// reiniciado (ou mais de 24 h). O que já foi gravado continua gravado.
+function marcarInterrompida() {
+  confirmacaoCancelamentoAberta.value = false
+  pararAcompanhamento('interrompida', MENSAGEM_INTERROMPIDA)
+  notificarGravacoes()
+}
+
 function pararAcompanhamento(motivo, mensagem) {
   pararPolling()
   semResposta.value = false
   acompanhamentoParado.value = motivo
   erroAcompanhamento.value = mensagem
+}
+
+// === Cancelamento ===
+function abrirConfirmacaoCancelamento() {
+  erroCancelamento.value = ''
+  confirmacaoCancelamentoAberta.value = true
+}
+
+async function confirmarCancelamento() {
+  const id = importacao.value?.id
+  if (id == null) return
+
+  erroCancelamento.value = ''
+  cancelando.value = true
+  // Sem incrementar: um número novo descartaria a consulta de polling já
+  // agendada. Basta saber se o usuário abandonou o acompanhamento no meio.
+  const requisicao = requisicaoAtual
+
+  try {
+    await cancelImport(id)
+    if (requisicao !== requisicaoAtual) return
+    pedidoCancelamento.value = { id, resultado: 'aceito' }
+    confirmacaoCancelamentoAberta.value = false
+  } catch (err) {
+    if (requisicao !== requisicaoAtual) return
+    confirmacaoCancelamentoAberta.value = false
+    tratarFalhaCancelamento(err, id)
+  } finally {
+    if (requisicao === requisicaoAtual) cancelando.value = false
+  }
+}
+
+// O polling segue intocado em todos os casos: a parada real, ou o desfecho que
+// já aconteceu, chega pelo GET. Nenhuma consulta é antecipada aqui: se houver
+// uma em voo, agendar outra abriria duas cadeias de polling paralelas.
+function tratarFalhaCancelamento(err, id) {
+  const status = err?.response?.status
+
+  // IMPORTACAO_NAO_EM_ANDAMENTO: terminou antes do pedido. Não é erro.
+  if (status === 409) {
+    pedidoCancelamento.value = { id, resultado: 'tardio' }
+    return
+  }
+
+  if (status === 404) {
+    marcarInterrompida()
+    return
+  }
+
+  // Rede, 403, 5xx: o pedido não foi registrado e a importação segue rodando.
+  // O botão volta a ficar disponível para nova tentativa.
+  // Sem resposta, o texto de mensagemDeErro fala de envio da planilha: não serve.
+  const detalhe = err?.response ? mensagemDeErro(err) : 'Verifique a conexão e tente novamente.'
+  erroCancelamento.value = `Não foi possível pedir o cancelamento. ${detalhe}`
 }
 
 function tentarNovamente() {
@@ -787,6 +1005,20 @@ onUnmounted(invalidarOperacoes)
   align-items: center;
   gap: 12px;
   padding: 24px 0;
+}
+
+/* Análise da planilha */
+.analise-status {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.analise-texto {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 /* Prévia */
@@ -856,6 +1088,31 @@ onUnmounted(invalidarOperacoes)
   font-size: 0.9375rem;
   font-weight: 700;
   color: var(--color-primary);
+}
+
+.aviso-cancelamento {
+  display: flex;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-warning);
+}
+
+/* "Cancelando…": o Vuetify pinta o flat desabilitado com fundo de surface, e
+   quem vence a disputa com .btn-dialog--perigo depende da ordem de injeção do
+   CSS (CLAUDE.md §9, item 1). Fixa o vermelho de main.css, apagado. O scoped
+   alcança o conteúdo do v-dialog (§9, item 8b). */
+.v-btn.btn-dialog--perigo.v-btn--disabled {
+  background-color: #c50606;
+  color: var(--color-surface);
+  opacity: 0.6;
+}
+
+/* O flat desabilitado também clareia o overlay interno, o que deixaria o
+   vermelho rosado. */
+.v-btn.btn-dialog--perigo.v-btn--disabled :deep(.v-btn__overlay) {
+  opacity: 0;
 }
 
 .aviso-discreto {

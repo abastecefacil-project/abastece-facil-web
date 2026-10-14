@@ -20,10 +20,27 @@
       <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
     </div>
 
+    <template v-else>
+      <v-alert
+        v-if="cargaIncompleta"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        class="carga-aviso"
+      >
+        Não foi possível carregar todos os postos. Recarregue a página.
+      </v-alert>
+
+      <!-- Com zero resultados quem fala é o empty-state, com o mesmo texto -->
+      <p v-if="filteredPostos.length" class="postos-contagem">
+        {{ descreverQuantidadePostos(filteredPostos.length, Boolean(searchQuery)) }}
+      </p>
+    </template>
+
     <!-- Lista de Postos em Cards -->
-    <div v-else class="postos-grid">
+    <div v-if="!loading" class="postos-grid">
       <v-row>
-        <v-col v-for="posto in filteredPostos" :key="posto.id" cols="12" md="6" lg="6" xl="4">
+        <v-col v-for="posto in postosDaPagina" :key="posto.id" cols="12" md="6" lg="6" xl="4">
           <GasStationCard :posto="posto" @view="openModal" />
         </v-col>
       </v-row>
@@ -42,11 +59,7 @@
     <GasStationModal v-model="showModal" :posto="selectedPosto" />
   </div>
 
-  <PaginationBar
-    v-model="currentPageUi"
-    :length="totalPages"
-    @update:modelValue="(page) => carregaPostos(page - 1)"
-  />
+  <PaginationBar v-model="paginaAtual" :length="totalPages" />
 
   <Footer />
 </template>
@@ -58,35 +71,32 @@ import GasStationModal from '@/components/user/GasStationModal.vue'
 import SearchFilterBar from '@/components/app/SearchFilterBar.vue'
 import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
-import { getStations } from '@/services/stationService'
-import { nomeExibicaoPosto } from '@/utils/posto'
+import { listarTodosPostosAtivos } from '@/services/stationService'
+import { descreverQuantidadePostos, nomeExibicaoPosto } from '@/utils/posto'
+
+// A base inteira vem numa carga só e a paginação é feita aqui, porque a busca
+// e a ordenação são no navegador: sobre uma página do servidor, a busca só
+// enxergaria os 10 postos dela.
+const POSTOS_POR_PAGINA = 10
 
 // Estados reativos
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('todos')
 const postos = ref([])
+const cargaIncompleta = ref(false)
 const showModal = ref(false)
 const selectedPosto = ref(null)
-const currentPage = ref(0)
-const totalPages = ref(0)
-const currentPageUi = ref(1)
+const paginaAtual = ref(1)
 
-watch(currentPage, (newVal) => {
-  currentPageUi.value = newVal + 1
-})
-
-// GET - Busca postos
-async function carregaPostos(page = 0) {
+// GET - Busca todos os postos ativos
+async function carregaPostos() {
   loading.value = true
   try {
-    const search = searchQuery.value || undefined;
-    let active = true;
+    const { postos: carregados, completo } = await listarTodosPostosAtivos()
+    cargaIncompleta.value = !completo
 
-    const response = await getStations(page, search, active)
-    const data = response.data
-
-    postos.value = response.data.content.map((posto) => ({
+    postos.value = carregados.map((posto) => ({
       id: posto.id,
       name: posto.name,
       fantasyName: posto.fantasyName,
@@ -97,14 +107,10 @@ async function carregaPostos(page = 0) {
       district: posto.district,
       city: posto.city,
       state: posto.state,
-      address: posto.address.split(',')[0],
-      number: posto.address.split(',')[1]?.trim() || '',
+      address: (posto.address ?? '').split(',')[0],
+      number: (posto.address ?? '').split(',')[1]?.trim() || '',
       businessHours: posto.businessHours,
     }))
-    currentPage.value = data.number
-    totalPages.value = data.totalPages
-  } catch (err) {
-    console.log('Erro ao buscar postos', err)
   } finally {
     loading.value = false
   }
@@ -137,6 +143,18 @@ const filteredPostos = computed(() => {
   return filtered
 })
 
+const totalPages = computed(() => Math.ceil(filteredPostos.value.length / POSTOS_POR_PAGINA))
+
+const postosDaPagina = computed(() => {
+  const inicio = (paginaAtual.value - 1) * POSTOS_POR_PAGINA
+  return filteredPostos.value.slice(inicio, inicio + POSTOS_POR_PAGINA)
+})
+
+// Busca ou ordenação nova mudam a lista: volta para a primeira página.
+watch([searchQuery, statusFilter], () => {
+  paginaAtual.value = 1
+})
+
 // Abrir modal
 const openModal = (posto) => {
   selectedPosto.value = posto
@@ -167,6 +185,17 @@ onMounted(() => {
 
 .postos-grid {
   margin-top: 8px;
+}
+
+.carga-aviso {
+  margin-bottom: 12px;
+}
+
+.postos-contagem {
+  margin: 0 0 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
 }
 
 .loading-state {
