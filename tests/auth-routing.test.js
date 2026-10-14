@@ -5,7 +5,7 @@ import { test } from 'node:test'
 
 test('rotas do sistema exigem login e preservam permissões por perfil', () => {
   let routes, guard
-  const auth = { isAuthenticated: false, perfil: 'COLABORADOR', homeDoPerfil: '/user/dashboardUser' }
+  const auth = { restoreSession() {}, isAuthenticated: false, perfil: 'COLABORADOR', homeDoPerfil: '/user/dashboardUser' }
   const source = readFileSync(new URL('../src/router/index.js', import.meta.url), 'utf8')
     .replace(/^import .*$/gm, '')
     .replace('import.meta.env.BASE_URL', "'/'")

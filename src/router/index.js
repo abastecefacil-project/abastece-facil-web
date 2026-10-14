@@ -132,6 +132,7 @@ const router = createRouter({
 // nenhuma regra de negócio por entidade mora aqui.
 router.beforeEach((to, from, next) => {
   const auth = useAuthStore()
+  auth.restoreSession()
 
   // Nenhuma rota de `/admin/*` é exceção: as seis (`dashboard`, `station`,
   // `map`, `vehicle`, `occurrences`, `user`) são telas de gestão da frota, e

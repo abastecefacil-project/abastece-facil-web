@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import authService from '@/services/authService'
+import { lerTokenValido, limparSessao } from '@/utils/sessao'
 
 const PERFIS = ['COLABORADOR', 'GESTOR_FROTA', 'ADMINISTRADOR']
 
@@ -22,7 +23,7 @@ function normalizarPerfil(valor) {
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    token: localStorage.getItem("token") || null,
+    token: lerTokenValido(),
     perfil: normalizarPerfil(localStorage.getItem('perfil')),
   }),
 
@@ -78,9 +79,7 @@ export const useAuthStore = defineStore('auth', {
     // montada, e os itens sumiam por um frame antes de a navegação acontecer.
     // Invertendo, quando o estado zera o `AppShell` já está sendo desmontado.
     //
-    // Inverter é seguro porque o guard não lê `token` nem `perfil` ao navegar
-    // para `/login`: a rota não tem `meta.perfis`, então ele para no primeiro
-    // `if` e chama `next()` direto.
+    // A rota de login é pública, então o guard permite navegar antes da limpeza.
     //
     // O `finally` não é enfeite: se a navegação falhasse e a limpeza ficasse de
     // fora, a pessoa veria "Sair" e continuaria com sessão válida. Falhar
@@ -92,13 +91,12 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.token = null
         this.perfil = null
-        localStorage.removeItem('token')
-        localStorage.removeItem('perfil')
+        limparSessao()
       }
     },
 
     restoreSession() {
-      this.token = localStorage.getItem('token')
+      this.token = lerTokenValido()
       this.perfil = normalizarPerfil(localStorage.getItem('perfil'))
     },
   },
