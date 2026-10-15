@@ -31,17 +31,17 @@ export const NAVEGACAO = {
         perfis: PERFIS_ADMIN,
       },
       {
-        title: 'Postos',
-        icon: 'mdi-gas-station',
-        value: 'station',
-        to: { name: 'StationAdmin' },
-        perfis: PERFIS_ADMIN,
-      },
-      {
         title: 'Mapa',
         icon: 'mdi-map-marker',
         value: 'mapa',
         to: { name: 'MapAdmin' },
+        perfis: PERFIS_ADMIN,
+      },
+      {
+        title: 'Postos',
+        icon: 'mdi-gas-station',
+        value: 'station',
+        to: { name: 'StationAdmin' },
         perfis: PERFIS_ADMIN,
       },
       {
@@ -79,13 +79,13 @@ export const NAVEGACAO = {
     // `normalizarPerfil` zerou. Restringir aqui esvaziaria o menu dessa sessão.
     itens: [
       { title: 'Home', icon: 'mdi-home', value: 'home', to: { name: 'UserDashboard' } },
+      { title: 'Mapa', icon: 'mdi-map-marker', value: 'mapa', to: { name: 'MapUser' } },
       {
         title: 'Postos',
         icon: 'mdi-gas-station',
         value: 'station',
         to: { name: 'UserGasStations' },
       },
-      { title: 'Mapa', icon: 'mdi-map-marker', value: 'mapa', to: { name: 'MapUser' } },
       {
         title: 'Ocorrências',
         icon: 'mdi-alert',
