@@ -27,7 +27,24 @@
           </div>
         </div>
 
-        <div class="contact-item">
+        <a
+          v-if="URL_WHATSAPP_SUPORTE"
+          class="contact-item contact-item--link"
+          :href="URL_WHATSAPP_SUPORTE"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Falar com a gestora de frota pelo WhatsApp (abre em nova aba)"
+        >
+          <v-icon icon="mdi-whatsapp" color="#25D366" size="20"></v-icon>
+          <div class="contact-info">
+            <span class="contact-label">Gestora de Frota</span>
+            <span class="contact-value">Abastecimento, reembolsos e veículos da frota</span>
+            <span class="contact-detalhe">Atendimento pelo WhatsApp em horário comercial</span>
+          </div>
+          <v-icon icon="mdi-open-in-new" size="18" class="contact-externo"></v-icon>
+        </a>
+
+        <div v-else class="contact-item">
           <v-icon icon="mdi-account-tie" color="#757575" size="20"></v-icon>
           <div class="contact-info">
             <span class="contact-label">Gestora de Frota</span>
@@ -40,6 +57,7 @@
 </template>
 
 <script setup>
+import { URL_WHATSAPP_SUPORTE } from '@/config/whatsapp.js'
 </script>
 
 <style scoped>
@@ -106,6 +124,45 @@
   font-size: 14px;
   color: #424242;
   text-decoration: none;
+}
+
+/* Item clicável: a margem negativa compensa o padding e mantém o ícone
+   alinhado com os itens estáticos. Hover por borda, sem deslocamento (§8). */
+.contact-item--link {
+  margin: 0 -12px;
+  padding: 11px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color var(--transition),
+    background-color var(--transition);
+}
+
+.contact-item--link:hover {
+  border-color: var(--color-border-strong);
+  background-color: var(--color-background);
+}
+
+.contact-item--link:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.contact-item--link .contact-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.contact-detalhe {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.contact-externo {
+  align-self: center;
+  color: var(--color-text-muted);
 }
 
 @media (max-width: 768px) {

@@ -951,11 +951,11 @@ src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
 ├── components/  admin/ (15)  user/ (8)  app/ (8 compartilhados)  public/ (2)
-├── config/      navegacao.js
+├── config/      navegacao.js, whatsapp.js
 ├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1143,12 +1143,14 @@ Ambas usam `baseURL = import.meta.env.VITE_API_BASE_URL`.
 
 ### Variáveis de ambiente
 
-Este ponto é fonte recorrente de erro. O `.env.example` e o `README` documentam
-apenas `VITE_API_PROXY_TARGET`, mas o código lê **`VITE_API_BASE_URL`**.
+Este ponto é fonte recorrente de erro. O `.env.example` e o `README` trazem
+`VITE_API_BASE_URL=/api`, mas os serviços já chamam caminhos iniciados por `/api/...`,
+e o valor que funciona em desenvolvimento é **vazio**.
 
 ```env
 VITE_API_PROXY_TARGET="http://localhost:8081"
 VITE_API_BASE_URL=
+VITE_WHATSAPP_SUPORTE=
 ```
 
 `VITE_API_BASE_URL` deve ficar **vazia** em desenvolvimento. Como todos os serviços
@@ -1156,6 +1158,25 @@ chamam caminhos iniciados por `/api/...`, as requisições saem relativas e são
 capturadas pelo proxy do Vite (`vite.config.js`), que as encaminha ao backend.
 Preenchê-la com `http://localhost:8081` faz as chamadas contornarem o proxy e
 resultarem em erro de CORS.
+
+**`VITE_WHATSAPP_SUPORTE`** é o número institucional da gestora de frota, só dígitos,
+com país e DDD (`5547999999999`). Nenhum número real é versionado: em desenvolvimento
+ele mora no `.env.local`, e no Docker chega por `--build-arg`, porque o `.dockerignore`
+exclui os `.env*` e toda `VITE_*` é embutida no build. O `Dockerfile` declara o
+`ARG` sem valor padrão.
+
+- A lógica pura (normalizar e montar o `https://wa.me/…?text=`) está em
+  `utils/whatsapp.js`, coberta por `tests/whatsapp.test.js`. É válido com 12 ou 13
+  dígitos começando com `55`.
+- `config/whatsapp.js` lê a variável e exporta `URL_WHATSAPP_SUPORTE` (URL ou
+  `null`). O `console.warn` de ausente ou inválido fica **no nível do módulo** de
+  propósito, para sair uma vez por carga de página e não a cada visita à tela.
+- O consumidor é `components/user/ContactSection.vue`, na Central de Ajuda: com
+  número válido, o item "Gestora de Frota" vira um link de WhatsApp em nova aba;
+  sem ele, o item continua como texto, idêntico ao anterior. Nunca há link quebrado.
+- O verde do ícone é `#25D366`, o mesmo do WhatsApp da seguradora no mesmo card,
+  por decisão explícita: os dois ícones de WhatsApp têm a mesma cor. Não troque por
+  `success` num só deles.
 
 ### Nome e horário do posto
 
@@ -1827,11 +1848,11 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São cinco arquivos: `auth-routing.test.js` (guard do router),
+  - São seis arquivos: `auth-routing.test.js` (guard do router),
     `importacao-postos.test.js` (`utils/importacaoPostos.js`),
     `paginacao.test.js` (`utils/paginacao.js` e o contador de postos),
-    `perfil.test.js` (`utils/perfil.js`) e `coordenadas.test.js`
-    (`utils/coordenadas.js`).
+    `perfil.test.js` (`utils/perfil.js`), `coordenadas.test.js`
+    (`utils/coordenadas.js`) e `whatsapp.test.js` (`utils/whatsapp.js`).
   - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
     com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
 
