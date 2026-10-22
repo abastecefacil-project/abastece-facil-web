@@ -950,7 +950,7 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (15)  user/ (8)  app/ (8 compartilhados)  public/ (2)
+├── components/  admin/ (16)  user/ (8)  app/ (8 compartilhados)  public/ (2)
 ├── config/      navegacao.js, whatsapp.js
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
@@ -1294,13 +1294,54 @@ mobile, com todos os componentes instanciados em dobro. Ordem:
 2. `v-alert` de erro com "Tentar novamente", só quando a carga falha.
 3. `StatsCards`: quatro KPIs (postos ativos, frota ativa, ocorrências no mês e
    usuários ativos), cada um com uma linha de contexto.
-4. "Ocorrências por mês" (8 colunas) e `OccurrencesSidebar` (4).
+4. "Ocorrências por mês" (8 colunas, `OcorrenciasPorMesChart` dentro de um
+   `DashboardSecao`) e `UltimasOcorrencias` (4).
 5. Três áreas de 4 colunas: veículos com mais ocorrências, cidades com mais postos
    e usuários por perfil.
 
-Abaixo de 960px tudo ocupa a largura inteira. O gráfico e os três rankings são
-`components/admin/DashboardSecao.vue` **ainda sem conteúdo**: a moldura reserva a
-área, e o gráfico e os rankings entram no slot dela.
+Abaixo de 960px tudo ocupa a largura inteira, e a lista cai para baixo do gráfico.
+Os três rankings ainda são `components/admin/DashboardSecao.vue` **sem conteúdo**:
+a moldura reserva a área, e cada ranking entra no slot dela. O `DashboardSecao`
+tem `titulo`, `subtitulo` opcional e o slot `acoes`, à direita do cabeçalho.
+
+O item de menu e o título da barra superior dizem **"Painel"**. Os dois saem do
+`title` do item em `config/navegacao.js`, porque o `currentSection` do `AppShell`
+lê o menu. Path, name e `value` da rota continuam os mesmos. O item "Home" do
+contexto de usuário não mudou.
+
+**Gráfico de ocorrências por mês** (`components/admin/OcorrenciasPorMesChart.vue`).
+São barras feitas com CSS, sem biblioteca: o projeto não tem dependência de gráfico.
+
+- **Altura fixa de 240px, e é ela que define a altura da linha do grid.** Não
+  passe a derivá-la do conteúdo.
+- **O mês destacado é o último item da série**, que por contrato termina no mês
+  atual. Não compare com o relógio do navegador: o fuso da JVM difere, e na virada
+  do mês o destaque cairia na barra errada.
+- **Escala:** relativa ao maior valor (`alturasBarras`). Valor acima de zero nunca
+  fica abaixo de 4%, e o zero vira uma linha de base de 2px.
+- **Cores:** o mês atual usa `--color-primary`. Os demais usam
+  `rgba(var(--v-theme-primary), 0.3)`, do tema, porque o `--color-primary-soft`
+  quase some sobre o card branco.
+- **Estados:** sem resposta e carregando, skeleton. Sem resposta e sem carga, "—".
+  Série toda zerada, "Nenhuma ocorrência nos últimos 6 meses".
+- Cada barra tem `role="img"` e `aria-label` com o mês por extenso e a quantidade
+  (`rotuloBarraMes`).
+
+**Últimas ocorrências** (`components/admin/UltimasOcorrencias.vue`). Substituiu o
+`OccurrencesSidebar.vue`, que tinha elevation própria, `#e0e0e0`, `text-grey-*` e
+ícone de warning em cada item.
+
+- Usa `DashboardSecao` como invólucro, com "Ver todas" no slot `acoes`, apontando
+  para `OccurrencesAdmin`.
+- Cada linha tem o título, a placa num selo discreto e a data. Não tem ícone.
+- **A altura é a do gráfico, não a da lista.** A partir de 960px a `<ul>` tem
+  `height: 0` e `flex-grow: 1`. Com isso ela não contribui para a altura do card:
+  o grid estica o card até a altura da linha, que o gráfico define, e a lista rola
+  por dentro. Empilhada, a lista fica na altura natural.
+
+  O mecanismo depende do corpo do `DashboardSecao` ser uma coluna flexível com
+  `min-height: 0`. Não troque o `height: 0` por `max-height`: assim a lista volta
+  a esticar a linha.
 
 **Carga e erro**, no padrão do `IndicadoresPostos`:
 
@@ -1323,7 +1364,10 @@ Textos e cálculos são funções puras em `utils/dashboard.js`, cobertas por
   `utils/importacaoPostos.js`, devolveria `"0"`, e por isso o nulo é tratado antes
   de delegar.
 - **Contextos** (`contextoPostos`, `contextoVeiculos`, `contextoUsuarios`):
-  concordam em número.
+  concordam em número. Zero inativos vira "Nenhum inativo".
+- **Gráfico:** `formatarMesCurto` (`"2026-05"` vira `"mai/26"`, com array fixo
+  porque o `Intl` põe ponto e varia com o ICU), `rotuloBarraMes`, `alturasBarras`,
+  `totalOcorrenciasPeriodo` e `subtituloOcorrenciasPorMes`.
 - **`formatarDataOcorrencia`:** recebe `occurrenceDate`, que é `LocalDate`
   (`"YYYY-MM-DD"`). **Não use `new Date(occurrenceDate)`:** a string é lida como
   meia-noite UTC e, no fuso de Brasília, a tela mostra o dia anterior. A função
@@ -1912,7 +1956,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São oito arquivos, 46 testes: `auth-routing.test.js` (guard do router),
+  - São oito arquivos, 53 testes: `auth-routing.test.js` (guard do router),
     `importacao-postos.test.js` (`utils/importacaoPostos.js`),
     `paginacao.test.js` (`utils/paginacao.js` e o contador de postos),
     `perfil.test.js` (`utils/perfil.js`), `coordenadas.test.js`

@@ -47,14 +47,18 @@ export function variacaoMensal(atual, anterior) {
   return { direcao, texto: `${formatarNumero(percentual)}% vs. mês anterior` }
 }
 
+function textoInativos(inativos) {
+  return inativos === 0 ? 'Nenhum inativo' : plural(inativos, 'inativo', 'inativos')
+}
+
 /** "12 inativos · 34 cidades". */
 export function contextoPostos({ inativos, cidadesAtendidas }) {
-  return `${plural(inativos, 'inativo', 'inativos')} · ${plural(cidadesAtendidas, 'cidade', 'cidades')}`
+  return `${textoInativos(inativos)} · ${plural(cidadesAtendidas, 'cidade', 'cidades')}`
 }
 
 /** "3 inativos". */
 export function contextoVeiculos({ inativos }) {
-  return plural(inativos, 'inativo', 'inativos')
+  return textoInativos(inativos)
 }
 
 /** "2 aguardando ativação". */
@@ -78,6 +82,60 @@ export function formatarDataOcorrencia(data) {
   if (local.getMonth() !== mes - 1 || local.getDate() !== dia) return ''
 
   return local.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+// Arrays fixos, e não Intl: `month: 'short'` devolve "mai." com ponto, e o texto
+// varia com a versão do ICU.
+const MESES_CURTOS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+const MESES_COMPLETOS = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+]
+
+/** Barra com valor acima de zero nunca fica mais baixa que isto, em %. */
+export const ALTURA_MINIMA_BARRA = 4
+
+function partesMes(mes) {
+  const partes = /^(\d{4})-(\d{2})$/.exec(mes ?? '')
+  if (!partes) return null
+  const indice = Number(partes[2]) - 1
+  return indice >= 0 && indice < 12 ? { ano: partes[1], indice } : null
+}
+
+/** `ocorrenciasPorMes[].mes` ("2026-05") → "mai/26". */
+export function formatarMesCurto(mes) {
+  const partes = partesMes(mes)
+  return partes ? `${MESES_CURTOS[partes.indice]}/${partes.ano.slice(2)}` : ''
+}
+
+/** aria-label da barra: "maio de 2026: 1 ocorrência". */
+export function rotuloBarraMes({ mes, total }) {
+  const partes = partesMes(mes)
+  const periodo = partes ? `${MESES_COMPLETOS[partes.indice]} de ${partes.ano}` : mes
+  return `${periodo}: ${plural(total, 'ocorrência', 'ocorrências')}`
+}
+
+/**
+ * Altura de cada barra, em % do maior valor. Zero fica 0 (a linha de base é
+ * CSS); acima de zero, nunca menos que `ALTURA_MINIMA_BARRA`, para um valor
+ * pequeno ao lado de um pico não parecer zero.
+ */
+export function alturasBarras(totais) {
+  const maximo = Math.max(0, ...totais)
+  if (maximo === 0) return totais.map(() => 0)
+  return totais.map((total) =>
+    total > 0 ? Math.max(ALTURA_MINIMA_BARRA, Math.round((total / maximo) * 100)) : 0,
+  )
+}
+
+export function totalOcorrenciasPeriodo(itens) {
+  return (itens ?? []).reduce((soma, item) => soma + item.total, 0)
+}
+
+/** "7 nos últimos 6 meses"; vazio quando não há o que somar. */
+export function subtituloOcorrenciasPorMes(itens) {
+  const total = totalOcorrenciasPeriodo(itens)
+  return total > 0 ? `${formatarNumero(total)} nos últimos ${itens.length} meses` : ''
 }
 
 /** "Gestor de Frota · Atualizado às 14:32", omitindo a parte que faltar. */

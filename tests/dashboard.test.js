@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
+  ALTURA_MINIMA_BARRA,
   SEM_VALOR,
+  alturasBarras,
+  formatarMesCurto,
+  rotuloBarraMes,
+  subtituloOcorrenciasPorMes,
+  totalOcorrenciasPeriodo,
   contextoPostos,
   contextoUsuarios,
   contextoVeiculos,
@@ -43,12 +49,13 @@ test('meses iguais, inclusive os dois zerados, são estáveis', () => {
 test('contexto dos postos concorda em número', () => {
   assert.equal(contextoPostos({ inativos: 12, cidadesAtendidas: 34 }), '12 inativos · 34 cidades')
   assert.equal(contextoPostos({ inativos: 1, cidadesAtendidas: 1 }), '1 inativo · 1 cidade')
-  assert.equal(contextoPostos({ inativos: 0, cidadesAtendidas: 1200 }), '0 inativos · 1.200 cidades')
+  assert.equal(contextoPostos({ inativos: 0, cidadesAtendidas: 1200 }), 'Nenhum inativo · 1.200 cidades')
 })
 
 test('contexto da frota concorda em número', () => {
   assert.equal(contextoVeiculos({ inativos: 3 }), '3 inativos')
   assert.equal(contextoVeiculos({ inativos: 1 }), '1 inativo')
+  assert.equal(contextoVeiculos({ inativos: 0 }), 'Nenhum inativo')
 })
 
 test('contexto dos usuários aguardando ativação', () => {
@@ -76,4 +83,48 @@ test('subtítulo junta perfil e horário, omitindo o que faltar', () => {
   assert.equal(subtituloPainel(null, carga), 'Atualizado às 14:05')
   assert.equal(subtituloPainel(null, null), '')
   assert.equal(subtituloPainel('ADMINISTRADOR', new Date('inválida')), 'Administrador')
+})
+
+test('mês abreviado em pt-BR, com ano de dois dígitos', () => {
+  const esperados = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+  esperados.forEach((abreviacao, indice) => {
+    const mes = `2026-${String(indice + 1).padStart(2, '0')}`
+    assert.equal(formatarMesCurto(mes), `${abreviacao}/26`)
+  })
+  assert.equal(formatarMesCurto('2027-01'), 'jan/27')
+})
+
+test('mês inválido não vira texto', () => {
+  for (const mes of [null, undefined, '', '2026-13', '2026-00', '2026-5', '05/2026', '2026-05-01']) {
+    assert.equal(formatarMesCurto(mes), '', `mês ${mes}`)
+  }
+})
+
+test('rótulo acessível da barra diz mês por extenso e quantidade', () => {
+  assert.equal(rotuloBarraMes({ mes: '2026-05', total: 1 }), 'maio de 2026: 1 ocorrência')
+  assert.equal(rotuloBarraMes({ mes: '2026-06', total: 0 }), 'junho de 2026: 0 ocorrências')
+  assert.equal(rotuloBarraMes({ mes: '2026-03', total: 12 }), 'março de 2026: 12 ocorrências')
+})
+
+test('altura das barras é relativa ao maior valor', () => {
+  assert.deepEqual(alturasBarras([1, 0, 1, 1, 1, 2]), [50, 0, 50, 50, 50, 100])
+  assert.deepEqual(alturasBarras([3, 2, 1]), [100, 67, 33])
+})
+
+test('série zerada ou vazia não gera barra', () => {
+  assert.deepEqual(alturasBarras([0, 0, 0]), [0, 0, 0])
+  assert.deepEqual(alturasBarras([]), [])
+})
+
+test('valor pequeno ao lado de um pico não some', () => {
+  assert.deepEqual(alturasBarras([1, 1000]), [ALTURA_MINIMA_BARRA, 100])
+  assert.deepEqual(alturasBarras([0, 1000]), [0, 100])
+})
+
+test('subtítulo do gráfico soma o período', () => {
+  const serie = [1, 0, 1, 1, 1, 2].map((total, indice) => ({ mes: `2026-${String(indice + 5).padStart(2, '0')}`, total }))
+  assert.equal(totalOcorrenciasPeriodo(serie), 6)
+  assert.equal(subtituloOcorrenciasPorMes(serie), '6 nos últimos 6 meses')
+  assert.equal(subtituloOcorrenciasPorMes(serie.map((item) => ({ ...item, total: 0 }))), '')
+  assert.equal(subtituloOcorrenciasPorMes(null), '')
 })

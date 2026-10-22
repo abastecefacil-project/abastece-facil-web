@@ -19,12 +19,18 @@
         :carregando="carregando"
       />
 
-      <DashboardSecao class="area-principal" titulo="Ocorrências por mês" />
+      <DashboardSecao
+        class="area-principal"
+        titulo="Ocorrências por mês"
+        :subtitulo="subtituloOcorrenciasPorMes(dashboard?.ocorrenciasPorMes)"
+      >
+        <OcorrenciasPorMesChart :itens="dashboard?.ocorrenciasPorMes ?? null" :carregando="carregando" />
+      </DashboardSecao>
 
-      <OccurrencesSidebar
+      <UltimasOcorrencias
         class="area-lateral"
-        :occurrences="dashboard?.ultimasOcorrencias ?? []"
-        :loading="carregando && !dashboard"
+        :ocorrencias="dashboard?.ultimasOcorrencias ?? null"
+        :carregando="carregando"
       />
 
       <DashboardSecao class="area-terco" titulo="Veículos com mais ocorrências" />
@@ -42,8 +48,10 @@ import Footer from '@/components/app/Footer.vue'
 import DashboardHeader from '@/components/admin/DashboardHeader.vue'
 import DashboardSecao from '@/components/admin/DashboardSecao.vue'
 import StatsCards from '@/components/admin/StatsCards.vue'
-import OccurrencesSidebar from '@/components/admin/OccurrencesSidebar.vue'
+import OcorrenciasPorMesChart from '@/components/admin/OcorrenciasPorMesChart.vue'
+import UltimasOcorrencias from '@/components/admin/UltimasOcorrencias.vue'
 import { getDashboard } from '@/services/dashboardService'
+import { subtituloOcorrenciasPorMes } from '@/utils/dashboard'
 import { useAuthStore } from '@/stores/auth'
 
 const MENSAGEM_ERRO_PADRAO = 'Não foi possível carregar o painel.'
