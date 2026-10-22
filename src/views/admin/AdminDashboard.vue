@@ -33,9 +33,37 @@
         :carregando="carregando"
       />
 
-      <DashboardSecao class="area-terco" titulo="Veículos com mais ocorrências" />
-      <DashboardSecao class="area-terco" titulo="Cidades com mais postos" />
-      <DashboardSecao class="area-terco" titulo="Usuários por perfil" />
+      <!-- "Ver todos" no cabeçalho, e não por linha: as telas de destino não
+           aceitam filtro por query string. -->
+      <DashboardSecao
+        class="area-terco"
+        titulo="Veículos com mais ocorrências"
+        :subtitulo="`Últimos ${DIAS_RANKING_VEICULOS} dias`"
+      >
+        <template #acoes>
+          <router-link :to="{ name: 'OccurrencesAdmin' }" class="dashboard-secao__link">Ver todos</router-link>
+        </template>
+        <ListaComBarras
+          :itens="veiculos"
+          :carregando="carregando"
+          :mensagem-vazio="`Nenhuma ocorrência nos últimos ${DIAS_RANKING_VEICULOS} dias`"
+        />
+      </DashboardSecao>
+
+      <DashboardSecao class="area-terco" titulo="Cidades com mais postos" subtitulo="Postos ativos">
+        <template #acoes>
+          <router-link :to="{ name: 'StationAdmin' }" class="dashboard-secao__link">Ver todos</router-link>
+        </template>
+        <ListaComBarras :itens="cidades" :carregando="carregando" mensagem-vazio="Nenhum posto ativo" />
+      </DashboardSecao>
+
+      <DashboardSecao class="area-terco" titulo="Usuários por perfil">
+        <ListaComBarras :itens="perfis" :carregando="carregando" mensagem-vazio="Nenhum usuário ativo" />
+        <router-link v-if="avisoConvites" :to="{ name: 'UsersAdmin' }" class="aviso-convites">
+          <v-icon icon="mdi-alert-outline" size="16" />
+          <span>{{ avisoConvites }}</span>
+        </router-link>
+      </DashboardSecao>
     </div>
 
     <Footer />
@@ -43,15 +71,23 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import Footer from '@/components/app/Footer.vue'
 import DashboardHeader from '@/components/admin/DashboardHeader.vue'
 import DashboardSecao from '@/components/admin/DashboardSecao.vue'
 import StatsCards from '@/components/admin/StatsCards.vue'
 import OcorrenciasPorMesChart from '@/components/admin/OcorrenciasPorMesChart.vue'
 import UltimasOcorrencias from '@/components/admin/UltimasOcorrencias.vue'
+import ListaComBarras from '@/components/admin/ListaComBarras.vue'
 import { getDashboard } from '@/services/dashboardService'
-import { subtituloOcorrenciasPorMes } from '@/utils/dashboard'
+import {
+  DIAS_RANKING_VEICULOS,
+  itensCidadesComPostos,
+  itensUsuariosPorPerfil,
+  itensVeiculosComOcorrencias,
+  subtituloOcorrenciasPorMes,
+  textoConvitesAntigos,
+} from '@/utils/dashboard'
 import { useAuthStore } from '@/stores/auth'
 
 const MENSAGEM_ERRO_PADRAO = 'Não foi possível carregar o painel.'
@@ -64,6 +100,11 @@ const dashboard = ref(null)
 const carregadoEm = ref(null)
 const carregando = ref(false)
 const erro = ref(null)
+
+const veiculos = computed(() => itensVeiculosComOcorrencias(dashboard.value?.veiculosComMaisOcorrencias))
+const cidades = computed(() => itensCidadesComPostos(dashboard.value?.cidadesComMaisPostos))
+const perfis = computed(() => itensUsuariosPorPerfil(dashboard.value?.usuariosPorPerfil))
+const avisoConvites = computed(() => textoConvitesAntigos(dashboard.value?.usuariosAguardandoAtivacaoAntigos))
 
 // Descarta resposta atrasada quando o "Tentar novamente" dispara outra consulta.
 let consultaAtual = 0
@@ -121,6 +162,31 @@ onMounted(carregar)
 
 .area-terco {
   grid-column: span 4;
+}
+
+/* Mesmo padrão do "aguardando ativação" do StatsCards: warning só para o que
+   pede ação, e leva à tela onde o reenvio é feito. */
+.aviso-convites {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgb(var(--v-theme-warning));
+  text-decoration: none;
+}
+
+.aviso-convites .v-icon {
+  flex-shrink: 0;
+}
+
+.aviso-convites:hover span,
+.aviso-convites:focus-visible span {
+  text-decoration: underline;
 }
 
 @media (max-width: 959px) {

@@ -950,7 +950,7 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (16)  user/ (8)  app/ (8 compartilhados)  public/ (2)
+├── components/  admin/ (17)  user/ (8)  app/ (8 compartilhados)  public/ (2)
 ├── config/      navegacao.js, whatsapp.js
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
@@ -1296,13 +1296,19 @@ mobile, com todos os componentes instanciados em dobro. Ordem:
    usuários ativos), cada um com uma linha de contexto.
 4. "Ocorrências por mês" (8 colunas, `OcorrenciasPorMesChart` dentro de um
    `DashboardSecao`) e `UltimasOcorrencias` (4).
-5. Três áreas de 4 colunas: veículos com mais ocorrências, cidades com mais postos
-   e usuários por perfil.
+5. Três rankings de 4 colunas, cada um um `ListaComBarras` dentro de um
+   `DashboardSecao`: veículos com mais ocorrências, cidades com mais postos e
+   usuários por perfil.
 
-Abaixo de 960px tudo ocupa a largura inteira, e a lista cai para baixo do gráfico.
-Os três rankings ainda são `components/admin/DashboardSecao.vue` **sem conteúdo**:
-a moldura reserva a área, e cada ranking entra no slot dela. O `DashboardSecao`
-tem `titulo`, `subtitulo` opcional e o slot `acoes`, à direita do cabeçalho.
+Abaixo de 960px tudo ocupa a largura inteira: a lista cai para baixo do gráfico, e
+os rankings se empilham. Na mesma linha, os cards têm a mesma altura, porque o
+grid estica os itens (`align-items: stretch`).
+
+O `DashboardSecao` tem `titulo`, `subtitulo` opcional e o slot `acoes`, à direita
+do cabeçalho. O link do cabeçalho ("Ver todas", "Ver todos") usa a classe
+`dashboard-secao__link`, estilizada no próprio `DashboardSecao` com `:slotted()`:
+conteúdo de slot carrega o `data-v` de quem o passa, e um seletor escopado comum
+não o alcançaria. Não recrie esse estilo em quem usa o slot.
 
 O item de menu e o título da barra superior dizem **"Painel"**. Os dois saem do
 `title` do item em `config/navegacao.js`, porque o `currentSection` do `AppShell`
@@ -1343,6 +1349,47 @@ São barras feitas com CSS, sem biblioteca: o projeto não tem dependência de g
   `min-height: 0`. Não troque o `height: 0` por `max-height`: assim a lista volta
   a esticar a linha.
 
+**Rankings** (`components/admin/ListaComBarras.vue`). Lista genérica com barras
+horizontais.
+
+- **Props:**
+  - `itens`: `{ rotulo, detalhe?, total }`, ou `null` sem resposta;
+  - `carregando`;
+  - `mensagemVazio`.
+- **Linha:** rótulo, detalhe em texto discreto e total. Embaixo, um trilho em
+  `--color-primary-soft` com o preenchimento em `--color-primary`.
+- **Proporção:** `proporcoesRelativas`, a mesma regra das colunas do gráfico.
+  `alturasBarras` só delega a ela.
+- **Estados:** skeleton, "—" e a mensagem de vazio.
+
+| Seção | Rótulo / detalhe | Subtítulo | Cabeçalho |
+|---|---|---|---|
+| Veículos com mais ocorrências | placa | "Últimos 90 dias" | "Ver todos" → `OccurrencesAdmin` |
+| Cidades com mais postos | cidade / UF | "Postos ativos" | "Ver todos" → `StationAdmin` |
+| Usuários por perfil | `rotuloPerfil`, na ordem da API | — | nenhum |
+
+- **Por que não há link por linha.** `OccurrencesAnalysis` e `StationManagement`
+  não leem filtro da query string: a busca é um `ref` local, e a de ocorrências
+  filtra por título, não por placa. Clicar numa placa ou cidade levaria a uma
+  lista genérica, o que confunde. Por isso o link fica só no cabeçalho, e o
+  componente nem tem prop de destino.
+
+  **Os links por item podem voltar quando essas telas aceitarem filtro por query
+  string.** Aí cada linha passa a levar a placa ou a cidade.
+- **"Usuários por perfil" não tem "Ver todos".** O link para `/admin/user` já
+  está no aviso de convites.
+- **As janelas são do backend** (`DashboardConstants`: 90 dias no ranking de
+  veículos, 7 dias para convite antigo). A resposta não as traz, então
+  `utils/dashboard.js` as repete em `DIAS_RANKING_VEICULOS` e
+  `DIAS_CONVITE_ANTIGO`. Mudou lá, muda aqui.
+- **Aviso de convites antigos:** com `usuariosAguardandoAtivacaoAntigos > 0`,
+  abaixo da lista de perfis aparece "X usuários aguardam ativação há mais de 7
+  dias" (`textoConvitesAntigos`, com singular). É um link para `/admin/user` em
+  `warning`, no mesmo padrão do contexto do `StatsCards`.
+- **"Usuários por perfil" sempre traz os 3 perfis**, com zero nos ausentes. A
+  linha zerada aparece, com a linha de base de 2px. Para o gestor, os números são
+  da própria regional.
+
 **Carga e erro**, no padrão do `IndicadoresPostos`:
 
 - **Skeleton:** aparece só enquanto não há nenhuma resposta. Um KPI nunca mostra
@@ -1368,6 +1415,10 @@ Textos e cálculos são funções puras em `utils/dashboard.js`, cobertas por
 - **Gráfico:** `formatarMesCurto` (`"2026-05"` vira `"mai/26"`, com array fixo
   porque o `Intl` põe ponto e varia com o ICU), `rotuloBarraMes`, `alturasBarras`,
   `totalOcorrenciasPeriodo` e `subtituloOcorrenciasPorMes`.
+- **Rankings:** `proporcoesRelativas`, `itensVeiculosComOcorrencias`,
+  `itensCidadesComPostos` e `itensUsuariosPorPerfil`. Os três devolvem `null`
+  para entrada nula, que é o que separa carga de vazio na lista. E
+  `textoConvitesAntigos`.
 - **`formatarDataOcorrencia`:** recebe `occurrenceDate`, que é `LocalDate`
   (`"YYYY-MM-DD"`). **Não use `new Date(occurrenceDate)`:** a string é lida como
   meia-noite UTC e, no fuso de Brasília, a tela mostra o dia anterior. A função
@@ -1956,7 +2007,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São oito arquivos, 53 testes: `auth-routing.test.js` (guard do router),
+  - São oito arquivos, 59 testes: `auth-routing.test.js` (guard do router),
     `importacao-postos.test.js` (`utils/importacaoPostos.js`),
     `paginacao.test.js` (`utils/paginacao.js` e o contador de postos),
     `perfil.test.js` (`utils/perfil.js`), `coordenadas.test.js`

@@ -66,6 +66,20 @@ defineProps({
   flex-shrink: 0;
 }
 
+/* Link do cabeçalho ("Ver todas", "Ver todos"). Conteúdo de slot carrega o
+   data-v de quem o passa, então só :slotted() alcança a classe daqui. */
+.dashboard-secao__acoes :slotted(.dashboard-secao__link) {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.dashboard-secao__acoes :slotted(.dashboard-secao__link:hover),
+.dashboard-secao__acoes :slotted(.dashboard-secao__link:focus-visible) {
+  text-decoration: underline;
+}
+
 /* Coluna flexível com min-height 0: é o que deixa uma lista dentro do corpo
    crescer até a altura do card e rolar, em vez de esticar o card. */
 .dashboard-secao__corpo {

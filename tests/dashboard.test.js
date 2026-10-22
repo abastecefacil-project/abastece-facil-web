@@ -2,6 +2,12 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
   ALTURA_MINIMA_BARRA,
+  PROPORCAO_MINIMA,
+  itensCidadesComPostos,
+  itensUsuariosPorPerfil,
+  itensVeiculosComOcorrencias,
+  proporcoesRelativas,
+  textoConvitesAntigos,
   SEM_VALOR,
   alturasBarras,
   formatarMesCurto,
@@ -127,4 +133,61 @@ test('subtítulo do gráfico soma o período', () => {
   assert.equal(subtituloOcorrenciasPorMes(serie), '6 nos últimos 6 meses')
   assert.equal(subtituloOcorrenciasPorMes(serie.map((item) => ({ ...item, total: 0 }))), '')
   assert.equal(subtituloOcorrenciasPorMes(null), '')
+})
+
+test('proporção genérica é a mesma das colunas do gráfico', () => {
+  for (const totais of [[1, 0, 1, 1, 1, 2], [3, 2, 1], [0, 0], [], [1, 1000]]) {
+    assert.deepEqual(proporcoesRelativas(totais), alturasBarras(totais), `totais ${totais}`)
+  }
+  assert.deepEqual(proporcoesRelativas([3, 1]), [100, 33])
+  assert.deepEqual(proporcoesRelativas([1, 1000]), [PROPORCAO_MINIMA, 100])
+})
+
+test('ranking de veículos usa a placa como rótulo, sem link', () => {
+  const lista = [{ placa: 'MGM5H18', total: 3 }, { placa: 'ABC1234', total: 1 }]
+  assert.deepEqual(itensVeiculosComOcorrencias(lista), [
+    { rotulo: 'MGM5H18', total: 3 },
+    { rotulo: 'ABC1234', total: 1 },
+  ])
+  assert.deepEqual(itensVeiculosComOcorrencias([]), [])
+})
+
+test('ranking de cidades leva a UF como detalhe e preserva a ordem', () => {
+  const lista = [
+    { cidade: 'Joinville', uf: 'SC', total: 48 },
+    { cidade: 'Blumenau', uf: 'SC', total: 33 },
+  ]
+  assert.deepEqual(itensCidadesComPostos(lista), [
+    { rotulo: 'Joinville', detalhe: 'SC', total: 48 },
+    { rotulo: 'Blumenau', detalhe: 'SC', total: 33 },
+  ])
+})
+
+test('usuários por perfil usam o rótulo completo, na ordem da API', () => {
+  const lista = [
+    { perfil: 'COLABORADOR', total: 0 },
+    { perfil: 'GESTOR_FROTA', total: 1 },
+    { perfil: 'ADMINISTRADOR', total: 0 },
+  ]
+  assert.deepEqual(itensUsuariosPorPerfil(lista), [
+    { rotulo: 'Colaborador', total: 0 },
+    { rotulo: 'Gestor de Frota', total: 1 },
+    { rotulo: 'Administrador', total: 0 },
+  ])
+  assert.deepEqual(itensUsuariosPorPerfil([{ perfil: 'AUDITOR', total: 2 }]), [{ rotulo: 'AUDITOR', total: 2 }])
+})
+
+test('ranking sem resposta continua nulo, para a lista distinguir carga de vazio', () => {
+  for (const transformar of [itensVeiculosComOcorrencias, itensCidadesComPostos, itensUsuariosPorPerfil]) {
+    assert.equal(transformar(null), null)
+    assert.equal(transformar(undefined), null)
+  }
+})
+
+test('aviso de convites antigos concorda em número e some sem convites', () => {
+  assert.equal(textoConvitesAntigos(1), '1 usuário aguarda ativação há mais de 7 dias')
+  assert.equal(textoConvitesAntigos(3), '3 usuários aguardam ativação há mais de 7 dias')
+  for (const quantidade of [0, -1, null, undefined]) {
+    assert.equal(textoConvitesAntigos(quantidade), '', `quantidade ${quantidade}`)
+  }
 })

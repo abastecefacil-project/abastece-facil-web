@@ -1,7 +1,7 @@
 <template>
   <DashboardSecao titulo="Últimas ocorrências">
     <template #acoes>
-      <router-link :to="{ name: 'OccurrencesAdmin' }" class="ultimas-link">Ver todas</router-link>
+      <router-link :to="{ name: 'OccurrencesAdmin' }" class="dashboard-secao__link">Ver todas</router-link>
     </template>
 
     <div v-if="!ocorrencias && carregando" class="ultimas-carregando">
@@ -37,18 +37,6 @@ defineProps({
 </script>
 
 <style scoped>
-.ultimas-link {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
-.ultimas-link:hover,
-.ultimas-link:focus-visible {
-  text-decoration: underline;
-}
-
 .ultimas-skeleton {
   background: transparent;
 }

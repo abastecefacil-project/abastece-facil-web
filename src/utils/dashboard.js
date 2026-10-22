@@ -92,8 +92,11 @@ const MESES_COMPLETOS = [
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
 ]
 
-/** Barra com valor acima de zero nunca fica mais baixa que isto, em %. */
-export const ALTURA_MINIMA_BARRA = 4
+/** Barra com valor acima de zero nunca fica menor que isto, em %. */
+export const PROPORCAO_MINIMA = 4
+
+/** O mesmo mínimo, com o nome que o gráfico de colunas usa. */
+export const ALTURA_MINIMA_BARRA = PROPORCAO_MINIMA
 
 function partesMes(mes) {
   const partes = /^(\d{4})-(\d{2})$/.exec(mes ?? '')
@@ -116,16 +119,57 @@ export function rotuloBarraMes({ mes, total }) {
 }
 
 /**
- * Altura de cada barra, em % do maior valor. Zero fica 0 (a linha de base é
- * CSS); acima de zero, nunca menos que `ALTURA_MINIMA_BARRA`, para um valor
- * pequeno ao lado de um pico não parecer zero.
+ * Tamanho de cada barra, em % do maior valor. Zero fica 0 (a linha de base é
+ * CSS); acima de zero, nunca menos que `PROPORCAO_MINIMA`, para um valor
+ * pequeno ao lado de um pico não parecer zero. Serve às colunas do gráfico e
+ * às barras horizontais dos rankings.
  */
-export function alturasBarras(totais) {
+export function proporcoesRelativas(totais) {
   const maximo = Math.max(0, ...totais)
   if (maximo === 0) return totais.map(() => 0)
   return totais.map((total) =>
-    total > 0 ? Math.max(ALTURA_MINIMA_BARRA, Math.round((total / maximo) * 100)) : 0,
+    total > 0 ? Math.max(PROPORCAO_MINIMA, Math.round((total / maximo) * 100)) : 0,
   )
+}
+
+/** Altura das colunas do gráfico de ocorrências por mês. */
+export function alturasBarras(totais) {
+  return proporcoesRelativas(totais)
+}
+
+// Janelas definidas no backend (DashboardConstants): a resposta não as traz, e o
+// texto da tela precisa delas. Mudou lá, muda aqui.
+export const DIAS_RANKING_VEICULOS = 90
+export const DIAS_CONVITE_ANTIGO = 7
+
+// As três transformações abaixo devolvem null para entrada nula: é o que a
+// lista usa para escolher entre skeleton e "—".
+
+/** `veiculosComMaisOcorrencias` → itens da `ListaComBarras`. */
+export function itensVeiculosComOcorrencias(lista) {
+  return lista ? lista.map(({ placa, total }) => ({ rotulo: placa, total })) : null
+}
+
+/** `cidadesComMaisPostos` → itens da `ListaComBarras`, com a UF como detalhe. */
+export function itensCidadesComPostos(lista) {
+  return lista ? lista.map(({ cidade, uf, total }) => ({ rotulo: cidade, detalhe: uf, total })) : null
+}
+
+/**
+ * `usuariosPorPerfil` → itens da `ListaComBarras`, na ordem da API. Perfil que
+ * `rotuloPerfil` não conhece fica com o nome do enum, para não virar linha sem
+ * rótulo.
+ */
+export function itensUsuariosPorPerfil(lista) {
+  return lista ? lista.map(({ perfil, total }) => ({ rotulo: rotuloPerfil(perfil) ?? perfil, total })) : null
+}
+
+/** "2 usuários aguardam ativação há mais de 7 dias"; vazio quando não há. */
+export function textoConvitesAntigos(quantidade) {
+  if (!(quantidade > 0)) return ''
+  return quantidade === 1
+    ? `1 usuário aguarda ativação há mais de ${DIAS_CONVITE_ANTIGO} dias`
+    : `${formatarNumero(quantidade)} usuários aguardam ativação há mais de ${DIAS_CONVITE_ANTIGO} dias`
 }
 
 export function totalOcorrenciasPeriodo(itens) {
