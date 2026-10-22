@@ -24,7 +24,7 @@ export const NAVEGACAO = {
     // `components/admin/UserDialog.vue`, não em acesso a tela.
     itens: [
       {
-        title: 'Home',
+        title: 'Painel',
         icon: 'mdi-home',
         value: 'home',
         to: { name: 'AdminDashboard' },

@@ -950,12 +950,12 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (15)  user/ (8)  app/ (8 compartilhados)  public/ (2)
+├── components/  admin/ (17)  user/ (8)  app/ (8 compartilhados)  public/ (2)
 ├── config/      navegacao.js, whatsapp.js
-├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
+├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1107,8 +1107,9 @@ desde o S2a.
 
 Os consumidores de `perfil` no frontend são o guard, o
 `components/admin/UserDialog.vue` (que estreita o que um gestor pode criar), o
-`views/admin/StationManagement.vue` (importação só para administrador) e o
-`layouts/AppShell.vue`, que filtra o menu desde o P0.6 e mostra o indicador de
+`views/admin/StationManagement.vue` (importação só para administrador), o
+`views/admin/AdminDashboard.vue` (rótulo no subtítulo do painel, omitido com
+`null`) e o `layouts/AppShell.vue`, que filtra o menu desde o P0.6 e mostra o indicador de
 perfil no rodapé do menu. O `AppShell` trata `null` como "mostra tudo que não tem
 restrição" no menu, igual ao guard, e como "nenhum indicador" no rodapé.
 
@@ -1270,6 +1271,159 @@ Toda a lógica pura está em `utils/coordenadas.js`, coberta por
 - `coordenadasParaEnvio`;
 - `urlBuscaGoogleMaps`;
 - `mensagemErroCoordenadas`.
+
+### Home de gestão
+
+`/admin/dashboard` é `views/admin/AdminDashboard.vue`, a mesma tela para
+`ADMINISTRADOR` e `GESTOR_FROTA`.
+
+**Uma requisição só:** `getDashboard()` (`services/dashboardService.js`) faz
+`GET /api/dashboard`. Até o redesenho eram quatro: três `/filter` com `size=1` e
+`/api/incidents/dashboard`. Os services delas (`getStationDashboard`,
+`getVehicleDashboard`, `getUsersDashboard` e `getDashboardOccurrences`) foram
+removidos. Postos, veículos e ocorrências da resposta são globais. Os campos de
+usuário vêm **escopados pelo perfil**, com a regra de `GET /api/users`, então o
+gestor vê só a própria regional.
+
+**Um grid só**, em CSS grid de 12 colunas (o mesmo recurso do
+`IndicadoresPostos`). Até o redesenho o layout era montado duas vezes, desktop e
+mobile, com todos os componentes instanciados em dobro. Ordem:
+
+1. `DashboardHeader`: "Painel" e, no subtítulo, o perfil (`rotuloPerfil`) e a hora
+   da última carga. Não chama `/api/users/me`.
+2. `v-alert` de erro com "Tentar novamente", só quando a carga falha.
+3. `StatsCards`: quatro KPIs (postos ativos, frota ativa, ocorrências no mês e
+   usuários ativos), cada um com uma linha de contexto.
+4. "Ocorrências por mês" (8 colunas, `OcorrenciasPorMesChart` dentro de um
+   `DashboardSecao`) e `UltimasOcorrencias` (4).
+5. Três rankings de 4 colunas, cada um um `ListaComBarras` dentro de um
+   `DashboardSecao`: veículos com mais ocorrências, cidades com mais postos e
+   usuários por perfil.
+
+Abaixo de 960px tudo ocupa a largura inteira: a lista cai para baixo do gráfico, e
+os rankings se empilham. Na mesma linha, os cards têm a mesma altura, porque o
+grid estica os itens (`align-items: stretch`).
+
+O `DashboardSecao` tem `titulo`, `subtitulo` opcional e o slot `acoes`, à direita
+do cabeçalho. O link do cabeçalho ("Ver todas", "Ver todos") usa a classe
+`dashboard-secao__link`, estilizada no próprio `DashboardSecao` com `:slotted()`:
+conteúdo de slot carrega o `data-v` de quem o passa, e um seletor escopado comum
+não o alcançaria. Não recrie esse estilo em quem usa o slot.
+
+O item de menu e o título da barra superior dizem **"Painel"**. Os dois saem do
+`title` do item em `config/navegacao.js`, porque o `currentSection` do `AppShell`
+lê o menu. Path, name e `value` da rota continuam os mesmos. O item "Home" do
+contexto de usuário não mudou.
+
+**Gráfico de ocorrências por mês** (`components/admin/OcorrenciasPorMesChart.vue`).
+São barras feitas com CSS, sem biblioteca: o projeto não tem dependência de gráfico.
+
+- **Altura fixa de 240px, e é ela que define a altura da linha do grid.** Não
+  passe a derivá-la do conteúdo.
+- **O mês destacado é o último item da série**, que por contrato termina no mês
+  atual. Não compare com o relógio do navegador: o fuso da JVM difere, e na virada
+  do mês o destaque cairia na barra errada.
+- **Escala:** relativa ao maior valor (`alturasBarras`). Valor acima de zero nunca
+  fica abaixo de 4%, e o zero vira uma linha de base de 2px.
+- **Cores:** o mês atual usa `--color-primary`. Os demais usam
+  `rgba(var(--v-theme-primary), 0.3)`, do tema, porque o `--color-primary-soft`
+  quase some sobre o card branco.
+- **Estados:** sem resposta e carregando, skeleton. Sem resposta e sem carga, "—".
+  Série toda zerada, "Nenhuma ocorrência nos últimos 6 meses".
+- Cada barra tem `role="img"` e `aria-label` com o mês por extenso e a quantidade
+  (`rotuloBarraMes`).
+
+**Últimas ocorrências** (`components/admin/UltimasOcorrencias.vue`). Substituiu o
+`OccurrencesSidebar.vue`, que tinha elevation própria, `#e0e0e0`, `text-grey-*` e
+ícone de warning em cada item.
+
+- Usa `DashboardSecao` como invólucro, com "Ver todas" no slot `acoes`, apontando
+  para `OccurrencesAdmin`.
+- Cada linha tem o título, a placa num selo discreto e a data. Não tem ícone.
+- **A altura é a do gráfico, não a da lista.** A partir de 960px a `<ul>` tem
+  `height: 0` e `flex-grow: 1`. Com isso ela não contribui para a altura do card:
+  o grid estica o card até a altura da linha, que o gráfico define, e a lista rola
+  por dentro. Empilhada, a lista fica na altura natural.
+
+  O mecanismo depende do corpo do `DashboardSecao` ser uma coluna flexível com
+  `min-height: 0`. Não troque o `height: 0` por `max-height`: assim a lista volta
+  a esticar a linha.
+
+**Rankings** (`components/admin/ListaComBarras.vue`). Lista genérica com barras
+horizontais.
+
+- **Props:**
+  - `itens`: `{ rotulo, detalhe?, total }`, ou `null` sem resposta;
+  - `carregando`;
+  - `mensagemVazio`.
+- **Linha:** rótulo, detalhe em texto discreto e total. Embaixo, um trilho em
+  `--color-primary-soft` com o preenchimento em `--color-primary`.
+- **Proporção:** `proporcoesRelativas`, a mesma regra das colunas do gráfico.
+  `alturasBarras` só delega a ela.
+- **Estados:** skeleton, "—" e a mensagem de vazio.
+
+| Seção | Rótulo / detalhe | Subtítulo | Cabeçalho |
+|---|---|---|---|
+| Veículos com mais ocorrências | placa | "Últimos 90 dias" | "Ver todos" → `OccurrencesAdmin` |
+| Cidades com mais postos | cidade / UF | "Postos ativos" | "Ver todos" → `StationAdmin` |
+| Usuários por perfil | `rotuloPerfil`, na ordem da API | — | nenhum |
+
+- **Por que não há link por linha.** `OccurrencesAnalysis` e `StationManagement`
+  não leem filtro da query string: a busca é um `ref` local, e a de ocorrências
+  filtra por título, não por placa. Clicar numa placa ou cidade levaria a uma
+  lista genérica, o que confunde. Por isso o link fica só no cabeçalho, e o
+  componente nem tem prop de destino.
+
+  **Os links por item podem voltar quando essas telas aceitarem filtro por query
+  string.** Aí cada linha passa a levar a placa ou a cidade.
+- **"Usuários por perfil" não tem "Ver todos".** O link para `/admin/user` já
+  está no aviso de convites.
+- **As janelas são do backend** (`DashboardConstants`: 90 dias no ranking de
+  veículos, 7 dias para convite antigo). A resposta não as traz, então
+  `utils/dashboard.js` as repete em `DIAS_RANKING_VEICULOS` e
+  `DIAS_CONVITE_ANTIGO`. Mudou lá, muda aqui.
+- **Aviso de convites antigos:** com `usuariosAguardandoAtivacaoAntigos > 0`,
+  abaixo da lista de perfis aparece "X usuários aguardam ativação há mais de 7
+  dias" (`textoConvitesAntigos`, com singular). É um link para `/admin/user` em
+  `warning`, no mesmo padrão do contexto do `StatsCards`.
+- **"Usuários por perfil" sempre traz os 3 perfis**, com zero nos ausentes. A
+  linha zerada aparece, com a linha de base de 2px. Para o gestor, os números são
+  da própria regional.
+
+**Carga e erro**, no padrão do `IndicadoresPostos`:
+
+- **Skeleton:** aparece só enquanto não há nenhuma resposta. Um KPI nunca mostra
+  `0` por falta de dado.
+- **Falha sem dado anterior:** os cards mostram "—".
+- **Falha numa recarga:** os números anteriores ficam na tela, e o alerta avisa.
+- **Resposta atrasada:** um contador descarta a de um retry anterior.
+
+**Warning só para o que pede ação.** O único contexto em `warning` é "X aguardando
+ativação" com X > 0, e ele é link para `/admin/user`, onde se faz o reenvio. A
+variação das ocorrências fica em texto neutro, com seta.
+
+Textos e cálculos são funções puras em `utils/dashboard.js`, cobertas por
+`tests/dashboard.test.js`:
+
+- **`variacaoMensal`:** percentual arredondado sobre o mês anterior. Com o
+  anterior zerado, só a diferença absoluta.
+- **`formatarValorKpi`:** devolve "—" para nulo. `formatarNumero(null)`, de
+  `utils/importacaoPostos.js`, devolveria `"0"`, e por isso o nulo é tratado antes
+  de delegar.
+- **Contextos** (`contextoPostos`, `contextoVeiculos`, `contextoUsuarios`):
+  concordam em número. Zero inativos vira "Nenhum inativo".
+- **Gráfico:** `formatarMesCurto` (`"2026-05"` vira `"mai/26"`, com array fixo
+  porque o `Intl` põe ponto e varia com o ICU), `rotuloBarraMes`, `alturasBarras`,
+  `totalOcorrenciasPeriodo` e `subtituloOcorrenciasPorMes`.
+- **Rankings:** `proporcoesRelativas`, `itensVeiculosComOcorrencias`,
+  `itensCidadesComPostos` e `itensUsuariosPorPerfil`. Os três devolvem `null`
+  para entrada nula, que é o que separa carga de vazio na lista. E
+  `textoConvitesAntigos`.
+- **`formatarDataOcorrencia`:** recebe `occurrenceDate`, que é `LocalDate`
+  (`"YYYY-MM-DD"`). **Não use `new Date(occurrenceDate)`:** a string é lida como
+  meia-noite UTC e, no fuso de Brasília, a tela mostra o dia anterior. A função
+  monta a data pelas partes, no fuso local.
+- **`subtituloPainel`.**
 
 ### Indicadores da tela de postos
 
@@ -1588,6 +1742,11 @@ Problemas reais já encontrados. Consultar antes de investigar comportamento est
    saía do sistema, para qualquer perfil. Hoje ele diz "Sair", e o perfil da sessão
    aparece num indicador à parte (§7, *A casca dos dois layouts*). Se o rótulo de
    perfil parecer errado, o lugar é `utils/perfil.js`, não `config/navegacao.js`.
+8a. **`NavigationCards.vue` foi removido** no redesenho da Home de gestão. Eram os
+   atalhos coloridos do antigo dashboard (`#e57373`, `#81c784`…), com classes
+   `.bg-red`/`.bg-blue` que colidiam com as utilitárias do Vuetify e hover por
+   `translateY`. A navegação é o menu lateral. Não recrie atalhos na Home: o espaço
+   é dos indicadores (§7, *Home de gestão*).
 
 8b. **Regra global prefixada com `.v-application` NÃO alcança conteúdo de diálogo.**
    O `VOverlay` do Vuetify teleporta o conteúdo do `v-dialog` para
@@ -1848,11 +2007,13 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São seis arquivos: `auth-routing.test.js` (guard do router),
+  - São oito arquivos, 59 testes: `auth-routing.test.js` (guard do router),
     `importacao-postos.test.js` (`utils/importacaoPostos.js`),
     `paginacao.test.js` (`utils/paginacao.js` e o contador de postos),
     `perfil.test.js` (`utils/perfil.js`), `coordenadas.test.js`
-    (`utils/coordenadas.js`) e `whatsapp.test.js` (`utils/whatsapp.js`).
+    (`utils/coordenadas.js`), `whatsapp.test.js` (`utils/whatsapp.js`),
+    `sessao.test.js` (`utils/sessao.js`) e `dashboard.test.js`
+    (`utils/dashboard.js`).
   - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
     com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
 

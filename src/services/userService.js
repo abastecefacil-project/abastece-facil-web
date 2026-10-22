@@ -22,15 +22,6 @@ export async function deleteUser(id) {
     return await apiPrivate.delete(`/api/users/${id}`)
 }
 
-export async function getUsersDashboard() {
-    let active = true;
-    let page = 0;
-    let size = 1;
-    return await apiPrivate.get('/api/users', {
-        params: { active, page, size }
-    });
-}
-
 // ---------------------------------------------------------------------------
 // SOLUÇÃO TEMPORÁRIA — substituir por GET /api/users/me quando o backend expuser
 // esse endpoint. Ver a pendência registrada no CLAUDE.md.

@@ -17,12 +17,3 @@ export async function updateCar(id, body) {
 export async function deleteCar(id) {
     return await apiPrivate.delete(`/api/cars/${id}`)
 }
-
-export async function getVehicleDashboard() {
-    let active = true;
-    let page = 0;
-    let size = 1;
-    return await apiPrivate.get('/api/cars/filter', {
-        params: { active, page, size }
-    });
-}
