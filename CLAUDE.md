@@ -952,10 +952,10 @@ src/
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
 ├── components/  admin/ (15)  user/ (8)  app/ (8 compartilhados)  public/ (2)
 ├── config/      navegacao.js, whatsapp.js
-├── services/    apiClient.js + auth/occurrence/regional/station/user/vehicle
+├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1107,8 +1107,9 @@ desde o S2a.
 
 Os consumidores de `perfil` no frontend são o guard, o
 `components/admin/UserDialog.vue` (que estreita o que um gestor pode criar), o
-`views/admin/StationManagement.vue` (importação só para administrador) e o
-`layouts/AppShell.vue`, que filtra o menu desde o P0.6 e mostra o indicador de
+`views/admin/StationManagement.vue` (importação só para administrador), o
+`views/admin/AdminDashboard.vue` (rótulo no subtítulo do painel, omitido com
+`null`) e o `layouts/AppShell.vue`, que filtra o menu desde o P0.6 e mostra o indicador de
 perfil no rodapé do menu. O `AppShell` trata `null` como "mostra tudo que não tem
 restrição" no menu, igual ao guard, e como "nenhum indicador" no rodapé.
 
@@ -1270,6 +1271,64 @@ Toda a lógica pura está em `utils/coordenadas.js`, coberta por
 - `coordenadasParaEnvio`;
 - `urlBuscaGoogleMaps`;
 - `mensagemErroCoordenadas`.
+
+### Home de gestão
+
+`/admin/dashboard` é `views/admin/AdminDashboard.vue`, a mesma tela para
+`ADMINISTRADOR` e `GESTOR_FROTA`.
+
+**Uma requisição só:** `getDashboard()` (`services/dashboardService.js`) faz
+`GET /api/dashboard`. Até o redesenho eram quatro: três `/filter` com `size=1` e
+`/api/incidents/dashboard`. Os services delas (`getStationDashboard`,
+`getVehicleDashboard`, `getUsersDashboard` e `getDashboardOccurrences`) foram
+removidos. Postos, veículos e ocorrências da resposta são globais. Os campos de
+usuário vêm **escopados pelo perfil**, com a regra de `GET /api/users`, então o
+gestor vê só a própria regional.
+
+**Um grid só**, em CSS grid de 12 colunas (o mesmo recurso do
+`IndicadoresPostos`). Até o redesenho o layout era montado duas vezes, desktop e
+mobile, com todos os componentes instanciados em dobro. Ordem:
+
+1. `DashboardHeader`: "Painel" e, no subtítulo, o perfil (`rotuloPerfil`) e a hora
+   da última carga. Não chama `/api/users/me`.
+2. `v-alert` de erro com "Tentar novamente", só quando a carga falha.
+3. `StatsCards`: quatro KPIs (postos ativos, frota ativa, ocorrências no mês e
+   usuários ativos), cada um com uma linha de contexto.
+4. "Ocorrências por mês" (8 colunas) e `OccurrencesSidebar` (4).
+5. Três áreas de 4 colunas: veículos com mais ocorrências, cidades com mais postos
+   e usuários por perfil.
+
+Abaixo de 960px tudo ocupa a largura inteira. O gráfico e os três rankings são
+`components/admin/DashboardSecao.vue` **ainda sem conteúdo**: a moldura reserva a
+área, e o gráfico e os rankings entram no slot dela.
+
+**Carga e erro**, no padrão do `IndicadoresPostos`:
+
+- **Skeleton:** aparece só enquanto não há nenhuma resposta. Um KPI nunca mostra
+  `0` por falta de dado.
+- **Falha sem dado anterior:** os cards mostram "—".
+- **Falha numa recarga:** os números anteriores ficam na tela, e o alerta avisa.
+- **Resposta atrasada:** um contador descarta a de um retry anterior.
+
+**Warning só para o que pede ação.** O único contexto em `warning` é "X aguardando
+ativação" com X > 0, e ele é link para `/admin/user`, onde se faz o reenvio. A
+variação das ocorrências fica em texto neutro, com seta.
+
+Textos e cálculos são funções puras em `utils/dashboard.js`, cobertas por
+`tests/dashboard.test.js`:
+
+- **`variacaoMensal`:** percentual arredondado sobre o mês anterior. Com o
+  anterior zerado, só a diferença absoluta.
+- **`formatarValorKpi`:** devolve "—" para nulo. `formatarNumero(null)`, de
+  `utils/importacaoPostos.js`, devolveria `"0"`, e por isso o nulo é tratado antes
+  de delegar.
+- **Contextos** (`contextoPostos`, `contextoVeiculos`, `contextoUsuarios`):
+  concordam em número.
+- **`formatarDataOcorrencia`:** recebe `occurrenceDate`, que é `LocalDate`
+  (`"YYYY-MM-DD"`). **Não use `new Date(occurrenceDate)`:** a string é lida como
+  meia-noite UTC e, no fuso de Brasília, a tela mostra o dia anterior. A função
+  monta a data pelas partes, no fuso local.
+- **`subtituloPainel`.**
 
 ### Indicadores da tela de postos
 
@@ -1588,6 +1647,11 @@ Problemas reais já encontrados. Consultar antes de investigar comportamento est
    saía do sistema, para qualquer perfil. Hoje ele diz "Sair", e o perfil da sessão
    aparece num indicador à parte (§7, *A casca dos dois layouts*). Se o rótulo de
    perfil parecer errado, o lugar é `utils/perfil.js`, não `config/navegacao.js`.
+8a. **`NavigationCards.vue` foi removido** no redesenho da Home de gestão. Eram os
+   atalhos coloridos do antigo dashboard (`#e57373`, `#81c784`…), com classes
+   `.bg-red`/`.bg-blue` que colidiam com as utilitárias do Vuetify e hover por
+   `translateY`. A navegação é o menu lateral. Não recrie atalhos na Home: o espaço
+   é dos indicadores (§7, *Home de gestão*).
 
 8b. **Regra global prefixada com `.v-application` NÃO alcança conteúdo de diálogo.**
    O `VOverlay` do Vuetify teleporta o conteúdo do `v-dialog` para
@@ -1848,11 +1912,13 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São seis arquivos: `auth-routing.test.js` (guard do router),
+  - São oito arquivos, 46 testes: `auth-routing.test.js` (guard do router),
     `importacao-postos.test.js` (`utils/importacaoPostos.js`),
     `paginacao.test.js` (`utils/paginacao.js` e o contador de postos),
     `perfil.test.js` (`utils/perfil.js`), `coordenadas.test.js`
-    (`utils/coordenadas.js`) e `whatsapp.test.js` (`utils/whatsapp.js`).
+    (`utils/coordenadas.js`), `whatsapp.test.js` (`utils/whatsapp.js`),
+    `sessao.test.js` (`utils/sessao.js`) e `dashboard.test.js`
+    (`utils/dashboard.js`).
   - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
     com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
 

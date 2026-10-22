@@ -85,12 +85,3 @@ export async function getCurrentImport() {
     const response = await apiPrivate.get('/api/gas-stations/import/atual');
     return response.status === 204 ? null : response.data;
 }
-
-export async function getStationDashboard() {
-    let active = true;
-    let page = 0;
-    let size = 1;
-    return await apiPrivate.get('/api/public/gas-stations/filter', {
-        params: { active, page, size },
-    })
-}

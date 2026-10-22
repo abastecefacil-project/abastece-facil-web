@@ -1,33 +1,25 @@
 <template>
-  <div class="dashboard-header mb-6">
-    <h1 class="page-title">Bem-vindo ao Abastece Fácil!</h1>
-    <p class="page-subtitle">Abastecer nunca foi tão simples.</p>
+  <div class="dashboard-header">
+    <h1 class="page-title">Painel</h1>
+    <p v-if="subtitulo" class="page-subtitle">{{ subtitulo }}</p>
   </div>
 </template>
 
 <script setup>
-// Componente do cabeçalho do dashboard
+import { computed } from 'vue'
+import { subtituloPainel } from '@/utils/dashboard'
+
+// O perfil vem da store, pela view: nada aqui chama /api/users/me.
+const props = defineProps({
+  perfil: { type: String, default: null },
+  carregadoEm: { type: Date, default: null },
+})
+
+const subtitulo = computed(() => subtituloPainel(props.perfil, props.carregadoEm))
 </script>
 
 <style scoped>
-.dashboard-header {
-  margin-bottom: 24px;
-}
-
-@media (max-width: 600px) {
-  .dashboard-header {
-    margin-bottom: 20px;
-    text-align: center;
-  }
-
-  .dashboard-header p {
-    display: none;
-  }
-
-  .page-title {
-    padding-top: 10px;
-    padding-inline: 10%;
-    margin: 0;
-  }
+.dashboard-header .page-subtitle {
+  margin-top: 4px;
 }
 </style>

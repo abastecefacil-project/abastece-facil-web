@@ -28,7 +28,7 @@
                 {{ occurrence.title }}
               </p>
               <p class="text-caption text-grey">
-                {{ formatDate(occurrence.createdAt) }}
+                {{ formatarDataOcorrencia(occurrence.occurrenceDate) }}
               </p>
             </div>
           </div>
@@ -41,6 +41,8 @@
 </template>
 
 <script setup>
+import { formatarDataOcorrencia } from '@/utils/dashboard'
+
 defineProps({
   mobile: {
     type: Boolean,
@@ -55,17 +57,6 @@ defineProps({
     default: false,
   },
 })
-
-function formatDate(date) {
-  if (!date) return ''
-  return new Date(date).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-
 </script>
 
 <style scoped>
