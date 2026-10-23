@@ -100,7 +100,7 @@ const rules = {
   --text: #0f172a;
   --muted: #6b7280;
   --input-bg: #f3f4f6;
-  --input-border: #e5e7eb;
+  --input-border: var(--color-border-strong);
   --shadow: 0 20px 45px rgba(2, 12, 49, 0.12);
 }
 

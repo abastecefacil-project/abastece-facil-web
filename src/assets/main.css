@@ -9,8 +9,8 @@
 
   --color-background: #f7f8fa;
   --color-surface: #ffffff;
-  --color-border: #e3e7ec;
-  --color-border-strong: #cfd6de;
+  --color-border: #b8c3cf;
+  --color-border-strong: #7b8a9b;
 
   --color-text: #1f2933;
   --color-text-muted: #6b7785;
@@ -53,30 +53,33 @@ body,
   margin: 0;
 }
 
-/* As regras abaixo são prefixadas com .v-application porque, no dev server,
-   o CSS do Vuetify é injetado depois deste arquivo: com a mesma
-   especificidade o padrão do Vuetify venceria. */
+/* A especificidade evita que o CSS do Vuetify, injetado depois no dev server,
+   sobrescreva os estilos compartilhados. */
 
-/* Superfícies: borda sutil no lugar de sombra pesada */
-.v-application .v-card {
+/* Inclui os modais, que são teleportados para fora de .v-application. */
+.v-application .v-card,
+.v-overlay-container .v-card {
   border: 1px solid var(--color-border);
 }
 
-/* Campos de formulário.
-   O :not(.v-field--error) é essencial: sem ele, a borda definida aqui
-   sobrescreve o vermelho que o Vuetify aplica no estado inválido. */
-.v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__start,
-.v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__notch::before,
-.v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__notch::after,
-.v-application .v-field--variant-outlined:not(.v-field--error) .v-field__outline__end {
-  border-color: var(--color-border-strong);
+/* O Vuetify aplica 38% de opacidade à borda; campos desabilitados ainda
+   preservam a opacidade própria do componente. */
+.v-field.v-field--variant-outlined .v-field__outline {
+  --v-field-border-opacity: 1;
 }
 
-.v-application .v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline__start,
-.v-application .v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline__notch::before,
-.v-application .v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline__notch::after,
-.v-application .v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline__end {
-  border-color: var(--color-primary);
+/* Sem limitar à .v-application, os campos nos modais recebem o mesmo estilo.
+   :not(.v-field--error) preserva o vermelho da validação. */
+.v-field.v-field--variant-outlined:not(.v-field--error) .v-field__outline {
+  color: var(--color-border-strong);
+}
+
+.v-field.v-field--variant-outlined:not(.v-field--error):hover .v-field__outline {
+  color: var(--color-text-muted);
+}
+
+.v-field.v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline {
+  color: var(--color-primary);
 }
 
 /* Botões: sem caixa-alta forçada e com peso consistente */

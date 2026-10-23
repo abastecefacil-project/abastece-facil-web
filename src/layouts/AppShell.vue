@@ -300,6 +300,15 @@ const currentSection = computed(() => {
   padding: 8px 12px;
 }
 
+.app-drawer.v-navigation-drawer--rail .drawer-list {
+  padding-inline: 8px;
+}
+
+.app-drawer.v-navigation-drawer--rail :deep(.v-list-item__spacer),
+.app-drawer.v-navigation-drawer--rail :deep(.v-list-item__content) {
+  display: none;
+}
+
 .drawer-item {
   margin-bottom: 4px;
   min-height: 42px;

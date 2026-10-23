@@ -1,7 +1,7 @@
 <template>
   <v-footer color="#16496E" elevation="0" class="d-flex align-center justify-center static-footer">
     <span class="footer-text">
-      © 2025 Abastece Fácil. Todos os direitos reservados.
+      © 2026 Abastece Fácil. Todos os direitos reservados.
     </span>
   </v-footer>
 </template>
