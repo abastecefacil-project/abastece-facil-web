@@ -2,6 +2,7 @@
   <v-dialog
     :model-value="modelValue"
     max-width="800px"
+    scrollable
     persistent
     @update:model-value="$emit('update:modelValue', $event)"
   >
