@@ -62,6 +62,7 @@
     </SearchFilterBar>
 
     <!-- Lista de Postos em Cards -->
+    <v-alert v-if="erroNotificacao" type="error" variant="tonal" closable class="mb-4" @click:close="erroNotificacao = ''">{{ erroNotificacao }}</v-alert>
     <div class="postos-grid">
       <v-row>
         <v-col v-for="posto in postos" :key="posto.id" cols="12" md="6" lg="6" xl="4">
@@ -126,17 +127,22 @@ import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import {
   getStations,
+  getStationById,
   deleteStation,
   countStations,
   getCurrentImport,
 } from '@/services/stationService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
-import { lerHorarioFuncionamento } from '@/utils/posto'
+import { prepararPostoParaEdicao } from '@/utils/posto'
+import { useRoute, useRouter } from 'vue-router'
 import ImportacaoPostosDialog from '@/components/admin/ImportacaoPostosDialog.vue'
 import IndicadoresPostos from '@/components/admin/IndicadoresPostos.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
+const route = useRoute()
+const router = useRouter()
+const erroNotificacao = ref('')
 
 // Importar planilha é só para ADMINISTRADOR; o gestor de frota vê o resto da
 // tela normalmente. Mesmo critério do UserDialog.
@@ -189,31 +195,7 @@ async function loadingStations(page = 0) {
     const response = await getStations(page, search, active)
     const data = response.data
 
-    postos.value = response.data.content.map((posto) => {
-      const horario = lerHorarioFuncionamento(posto.businessHours)
-      return {
-        id: posto.id,
-        name: posto.name,
-        fantasyName: posto.fantasyName,
-        completeAddress: `${posto.address} - ${posto.district}, ${posto.city} - ${posto.state}`,
-        phone: posto.phone,
-        cnpj: posto.cnpj,
-        cep: posto.cep,
-        district: posto.district,
-        city: posto.city,
-        state: posto.state,
-        address: posto.address.split(',')[0],
-        number: posto.address.split(',')[1]?.trim() || '',
-        status: posto.isActive,
-        businessHours: posto.businessHours,
-        openTime: horario?.abertura ?? '',
-        closeTime: horario?.fechamento ?? '',
-        // Strings, como a API devolve. O PostoDialog abre a edição com elas,
-        // mas só as reenvia se o administrador mexer nos campos.
-        latitude: posto.latitude ?? '',
-        longitude: posto.longitude ?? '',
-      }
-    })
+    postos.value = response.data.content.map(prepararPostoParaEdicao)
     currentPage.value = data.number
     totalPages.value = data.totalPages
 
@@ -346,6 +328,7 @@ const openDialog = () => {
 const closeDialog = () => {
   dialog.value = false
   resetForm()
+  if (route.query.posto) router.replace({ query: { ...route.query, posto: undefined } })
 }
 
 const resetForm = () => {
@@ -418,6 +401,17 @@ onMounted(() => {
 })
 
 onUnmounted(suspenderConsultaImportacao)
+
+watch(() => route.query.posto, async (id) => {
+  if (!id) return
+  erroNotificacao.value = ''
+  try {
+    const { data } = await getStationById(id)
+    if (id === route.query.posto) editarPosto(prepararPostoParaEdicao(data))
+  } catch {
+    if (id === route.query.posto) erroNotificacao.value = 'Não foi possível abrir o posto da notificação. Tente novamente.'
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>

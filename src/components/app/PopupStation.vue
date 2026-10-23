@@ -42,6 +42,16 @@
     >
       Iniciar navegação
     </v-btn>
+    <v-btn
+      v-if="onAvaliarNeo"
+      color="primary"
+      variant="outlined"
+      prepend-icon="mdi-credit-card-outline"
+      class="map-button mt-2"
+      @click="onAvaliarNeo()"
+    >
+      Cartão Neo
+    </v-btn>
 </template>
 
 <script setup>
@@ -54,6 +64,10 @@ const props = defineProps({
     required: true,
   },
   onStartRoute: {
+    type: Function,
+    default: null,
+  },
+  onAvaliarNeo: {
     type: Function,
     default: null,
   },

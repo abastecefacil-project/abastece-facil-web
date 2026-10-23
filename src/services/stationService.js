@@ -5,6 +5,18 @@ import { buscarTodasAsPaginas } from "@/utils/paginacao";
 // teto do Spring é 2000.
 const TAMANHO_PAGINA_COMPLETA = 500;
 
+export async function getAvaliacaoNeo(postoId) {
+    return await apiPrivate.get(`/api/gas-stations/${postoId}/neo`);
+}
+
+export async function salvarAvaliacaoNeo(postoId, passouNeo) {
+    return await apiPrivate.put(`/api/gas-stations/${postoId}/neo`, { passouNeo });
+}
+
+export async function removerAvaliacaoNeo(postoId) {
+    return await apiPrivate.delete(`/api/gas-stations/${postoId}/neo`);
+}
+
 export async function getAddressByCep(cep){
     return await apiPrivate.get('/api/cep/info', {
         params: { cep }
@@ -19,6 +31,10 @@ export async function getStations(page = 0, search, active) {
     return await apiPrivate.get('/api/public/gas-stations/filter', {
         params: { search, active, page },
     })
+}
+
+export async function getStationById(id) {
+    return await apiPrivate.get(`/api/public/gas-stations/${id}`);
 }
 
 // Quantidade de postos, ativos ou inativos, sem trazer a lista: page 0 com

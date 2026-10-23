@@ -31,6 +31,20 @@ export function nomeExibicaoPosto(posto) {
   return escolherNomeExibicao(posto?.fantasyName, posto?.name)
 }
 
+export function prepararPostoParaEdicao(posto) {
+  const horario = lerHorarioFuncionamento(posto.businessHours)
+  return {
+    id: posto.id, name: posto.name, fantasyName: posto.fantasyName,
+    completeAddress: `${posto.address} - ${posto.district}, ${posto.city} - ${posto.state}`,
+    phone: posto.phone, cnpj: posto.cnpj, cep: posto.cep, district: posto.district,
+    city: posto.city, state: posto.state,
+    address: posto.address.split(',')[0], number: posto.address.split(',')[1]?.trim() || '',
+    status: posto.isActive, businessHours: posto.businessHours,
+    openTime: horario?.abertura ?? '', closeTime: horario?.fechamento ?? '',
+    latitude: posto.latitude ?? '', longitude: posto.longitude ?? '',
+  }
+}
+
 /**
  * Lê "HH:mm - HH:mm", tolerando espaços em volta do hífen e nas pontas.
  *
