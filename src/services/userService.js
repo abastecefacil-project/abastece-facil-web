@@ -14,12 +14,20 @@ export async function createUser(userData) {
     return await apiPrivate.post('/api/users', userData)
 }
 
+export async function updateUser(id, userData) {
+    return await apiPrivate.patch(`/api/users/${id}`, userData)
+}
+
 export async function reenviarAtivacao(id) {
     return await apiPrivate.post(`/api/users/${id}/reenviar-ativacao`)
 }
 
-export async function deleteUser(id) {
+export async function inativarUser(id) {
     return await apiPrivate.delete(`/api/users/${id}`)
+}
+
+export async function reativarUser(id) {
+    return await apiPrivate.post(`/api/users/${id}/reativar`)
 }
 
 // ---------------------------------------------------------------------------

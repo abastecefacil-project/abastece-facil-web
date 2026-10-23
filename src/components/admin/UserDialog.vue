@@ -7,13 +7,16 @@
   >
     <v-card class="dialog-card" rounded="lg">
       <v-card-title class="pa-6 pb-4">
-        <span class="text-h5 font-weight-bold">Novo Usuário</span>
+        <span class="text-h5 font-weight-bold">{{ editando ? 'Editar Usuário' : 'Novo Usuário' }}</span>
       </v-card-title>
 
       <v-card-text class="dialog-content">
         <!-- O usuário nasce sem senha: quem a define é a própria pessoa, pelo
              link de ativação enviado por e-mail. Daí não haver campo de senha. -->
-        <p class="dialog-hint">
+        <p v-if="editando" class="dialog-hint">
+          Atualize nome e e-mail. Alterar o e-mail da sua própria conta exige entrar novamente.
+        </p>
+        <p v-else class="dialog-hint">
           O convite de ativação é enviado por e-mail. A senha é definida pela própria pessoa.
         </p>
 
@@ -27,7 +30,7 @@
         />
 
         <v-alert
-          v-else-if="gestorSemRegional"
+          v-else-if="!editando && gestorSemRegional"
           type="warning"
           variant="tonal"
           density="compact"
@@ -55,52 +58,54 @@
               :rules="[rules.required, rules.email]"
             ></v-text-field>
 
-            <v-text-field
-              v-model="localUser.telefone"
-              label="Telefone"
-              placeholder="Ex: (47) 99999-8888"
-              variant="outlined"
-              density="comfortable"
-              maxlength="15"
-              :rules="[rules.telefone]"
-              @input="aoDigitarTelefone"
-            ></v-text-field>
+            <template v-if="!editando">
+              <v-text-field
+                v-model="localUser.telefone"
+                label="Telefone"
+                placeholder="Ex: (47) 99999-8888"
+                variant="outlined"
+                density="comfortable"
+                maxlength="15"
+                :rules="[rules.telefone]"
+                @input="aoDigitarTelefone"
+              ></v-text-field>
 
-            <v-text-field
-              v-model="localUser.matricula"
-              :label="camposDePerfilObrigatorios ? 'Matrícula*' : 'Matrícula'"
-              placeholder="Ex: 12345"
-              variant="outlined"
-              density="comfortable"
-              :rules="regrasMatricula"
-            ></v-text-field>
+              <v-text-field
+                v-model="localUser.matricula"
+                :label="camposDePerfilObrigatorios ? 'Matrícula*' : 'Matrícula'"
+                placeholder="Ex: 12345"
+                variant="outlined"
+                density="comfortable"
+                :rules="regrasMatricula"
+              ></v-text-field>
 
-            <v-select
-              v-model="localUser.perfil"
-              :items="perfisDisponiveis"
-              label="Perfil*"
-              variant="outlined"
-              density="comfortable"
-              menu-icon="mdi-chevron-down"
-              :rules="[rules.required]"
-              :hint="perfilTravado ? 'Você só pode cadastrar colaboradores.' : ''"
-              :persistent-hint="perfilTravado"
-            ></v-select>
+              <v-select
+                v-model="localUser.perfil"
+                :items="perfisDisponiveis"
+                label="Perfil*"
+                variant="outlined"
+                density="comfortable"
+                menu-icon="mdi-chevron-down"
+                :rules="[rules.required]"
+                :hint="perfilTravado ? 'Você só pode cadastrar colaboradores.' : ''"
+                :persistent-hint="perfilTravado"
+              ></v-select>
 
-            <v-select
-              v-model="localUser.regionalId"
-              :items="regionaisDisponiveis"
-              :label="camposDePerfilObrigatorios ? 'Regional*' : 'Regional'"
-              variant="outlined"
-              density="comfortable"
-              menu-icon="mdi-chevron-down"
-              :loading="carregandoDados"
-              :readonly="regionalTravada"
-              :append-inner-icon="regionalTravada ? 'mdi-lock-outline' : undefined"
-              :rules="regrasRegional"
-              :hint="regionalTravada ? 'Travada na sua regional.' : ''"
-              :persistent-hint="regionalTravada"
-            ></v-select>
+              <v-select
+                v-model="localUser.regionalId"
+                :items="regionaisDisponiveis"
+                :label="camposDePerfilObrigatorios ? 'Regional*' : 'Regional'"
+                variant="outlined"
+                density="comfortable"
+                menu-icon="mdi-chevron-down"
+                :loading="carregandoDados"
+                :readonly="regionalTravada"
+                :append-inner-icon="regionalTravada ? 'mdi-lock-outline' : undefined"
+                :rules="regrasRegional"
+                :hint="regionalTravada ? 'Travada na sua regional.' : ''"
+                :persistent-hint="regionalTravada"
+              ></v-select>
+            </template>
           </div>
         </v-form>
       </v-card-text>
@@ -118,10 +123,10 @@
           class="btn-dialog btn-dialog--confirmar"
           variant="flat"
           :loading="isLoading"
-          :disabled="isLoading || carregandoDados || gestorSemRegional || !!erroCarregamento"
+          :disabled="isLoading || carregandoDados || (!editando && gestorSemRegional) || !!erroCarregamento"
           @click="handleSave"
         >
-          Cadastrar
+          {{ editando ? 'Salvar alterações' : 'Cadastrar' }}
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -131,7 +136,7 @@
     v-model="successDialog"
     type="success"
     title="Sucesso!"
-    message="Usuário cadastrado e convite de ativação enviado por e-mail."
+    :message="editando ? 'Usuário atualizado com sucesso.' : 'Usuário cadastrado e convite de ativação enviado por e-mail.'"
   />
 
   <BaseStatusModal
@@ -152,7 +157,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import BaseStatusModal from '../app/BaseStatusModal.vue'
-import { createUser, getUsuarioAutenticado } from '@/services/userService'
+import { createUser, updateUser, getUsuarioAutenticado } from '@/services/userService'
 import { getRegionais } from '@/services/regionalService'
 import { formatarTelefone } from '@/utils/mascaras'
 import { useAuthStore } from '@/stores/auth'
@@ -160,11 +165,13 @@ import { rotuloPerfil } from '@/utils/perfil'
 
 const props = defineProps({
   modelValue: Boolean,
+  user: { type: Object, default: null },
 })
 
 const emit = defineEmits(['update:modelValue', 'save', 'close'])
 
 const authStore = useAuthStore()
+const editando = computed(() => props.user?.id != null)
 
 const MENSAGEM_ERRO_PADRAO = 'Não foi possível cadastrar o usuário. Tente novamente.'
 
@@ -286,6 +293,7 @@ const regrasRegional = computed(() => (camposDePerfilObrigatorios.value ? [rules
 function mensagemDeErro(err) {
   const corpo = err?.response?.data
   const codigo = corpo?.error
+  if (editando.value) return corpo?.message || 'Não foi possível atualizar o usuário. Tente novamente.'
 
   // O 403 do próprio Spring Security não passa pelo GlobalExceptionHandler e
   // chega sem corpo — daí o fallback até a mensagem genérica.
@@ -324,7 +332,10 @@ const handleSave = async () => {
 
   isLoading.value = true
   try {
-    const body = {
+    const body = editando.value ? {
+      name: localUser.value.name.trim(),
+      email: localUser.value.email.trim(),
+    } : {
       name: localUser.value.name.trim(),
       email: localUser.value.email.trim(),
       telefone: localUser.value.telefone?.trim() || null,
@@ -333,13 +344,15 @@ const handleSave = async () => {
       regionalId: localUser.value.regionalId ?? null,
     }
 
-    const response = await createUser(body)
+    const response = editando.value
+      ? await updateUser(props.user.id, body)
+      : await createUser(body)
     emit('save', response.data)
     emit('update:modelValue', false)
 
     // conviteEnviado só vem preenchido no POST e no reenvio. Em GET vem null, e
     // null não é falha: só `false` significa que o e-mail não saiu.
-    if (response.data?.conviteEnviado === false) {
+    if (!editando.value && response.data?.conviteEnviado === false) {
       warningDialog.value = true
     } else {
       successDialog.value = true
@@ -352,14 +365,15 @@ const handleSave = async () => {
   }
 }
 
-// Cada abertura começa do zero e recarrega regionais e usuário logado.
+// Edição usa os dados do card; apenas o cadastro precisa carregar as regionais.
 watch(
   () => props.modelValue,
   (aberto) => {
     if (!aberto) return
-    localUser.value = formVazio()
+    localUser.value = props.user ? { ...formVazio(), ...props.user } : formVazio()
+    erroCarregamento.value = ''
     form.value?.resetValidation()
-    carregarDados()
+    if (!editando.value) carregarDados()
   },
 )
 </script>
