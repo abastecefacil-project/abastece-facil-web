@@ -9,10 +9,28 @@
           <p class="user-email">{{ user.email }}</p>
         </div>
 
-        <!-- Ações (delete) -->
+        <!-- Ações do usuário -->
         <div class="user-actions">
-          <v-btn icon size="small" variant="text" @click.stop="$emit('delete', user.id)">
-            <v-icon icon="mdi-delete" size="20" color="#666666"></v-icon>
+          <v-btn
+            v-if="podeEditar"
+            icon
+            size="small"
+            variant="text"
+            aria-label="Editar usuário"
+            @click.stop="$emit('edit', user)"
+          >
+            <v-icon icon="mdi-pencil" size="20" color="#666666"></v-icon>
+          </v-btn>
+          <v-btn
+            v-if="podeAlterarStatus"
+            icon
+            size="small"
+            variant="text"
+            :aria-label="user.isActive ? 'Inativar usuário' : 'Reativar usuário'"
+            @click.stop="$emit('alterar-status', user)"
+          >
+            <v-icon :icon="user.isActive ? 'mdi-account-off-outline' : 'mdi-account-check-outline'" size="20" color="#666666" />
+            <v-tooltip activator="parent">{{ user.isActive ? 'Inativar usuário' : 'Reativar usuário' }}</v-tooltip>
           </v-btn>
         </div>
       </div>
@@ -51,13 +69,15 @@
 import { computed } from 'vue'
 
 const props = defineProps({
+  podeEditar: { type: Boolean, default: false },
+  podeAlterarStatus: { type: Boolean, default: false },
   user: {
     type: Object,
     required: true,
   },
 })
 
-defineEmits(['delete', 'reenviar-ativacao'])
+defineEmits(['alterar-status', 'reenviar-ativacao', 'edit'])
 
 // Três estados, derivados de isActive e senhaDefinida. Note que conviteEnviado
 // NÃO entra aqui: em qualquer GET ele vem null, e null não é falha.

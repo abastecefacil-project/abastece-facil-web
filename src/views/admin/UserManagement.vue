@@ -9,19 +9,38 @@
     </div>
 
     <!-- Barra de Pesquisa, Filtros e Novo Usuário -->
-    <!-- Sem opção "Todos": GET /api/users exige o parâmetro active. -->
     <SearchFilterBar
       v-model:search-query="searchQuery"
-      v-model:status-filter="statusFilter"
       search-label="Buscar por nome"
-      :filter-options="[
-        { label: 'Ativos', value: 'ativo' },
-        { label: 'Inativos', value: 'inativo' },
-      ]"
       action-label="NOVO USUÁRIO"
       action-icon="mdi-plus"
       @action="openDialog"
-    />
+    >
+      <template #acoes-extras>
+        <v-btn-toggle v-model="statusFilter" mandatory divided color="primary" variant="outlined" aria-label="Status dos usuários">
+          <v-btn value="ativo">Ativos</v-btn>
+          <v-btn value="inativo">Inativos</v-btn>
+        </v-btn-toggle>
+      </template>
+    </SearchFilterBar>
+
+    <v-alert v-if="avisoStatus" type="success" variant="tonal" closable class="mb-4" @click:close="avisoStatus = null">
+      {{ avisoStatus.nome }} foi {{ avisoStatus.ativo ? 'reativado' : 'inativado' }}.
+      O cadastro está na lista de {{ avisoStatus.ativo ? 'ativos' : 'inativos' }}.
+      <template #append>
+        <v-btn
+          v-if="statusFilter !== (avisoStatus.ativo ? 'ativo' : 'inativo')"
+          variant="text"
+          size="small"
+          @click="statusFilter = avisoStatus.ativo ? 'ativo' : 'inativo'"
+        >Ver {{ avisoStatus.ativo ? 'ativos' : 'inativos' }}</v-btn>
+      </template>
+    </v-alert>
+
+    <p class="text-body-2 text-medium-emphasis mb-3" role="status">
+      Exibindo usuários {{ statusFilter === 'ativo' ? 'ativos' : 'inativos' }}.
+    </p>
+    <v-progress-linear v-if="loading" indeterminate color="primary" aria-label="Carregando usuários" />
 
     <!-- Lista de Usuários em Cards -->
     <div class="usuarios-grid">
@@ -29,7 +48,10 @@
         <v-col v-for="user in users" :key="user.id" cols="12" md="6" lg="6" xl="4">
           <UserCard
             :user="user"
-            @delete="abrirModalExclusao"
+            :pode-editar="podeEditarUsuario(user)"
+            :pode-alterar-status="podeAlterarStatus(user)"
+            @edit="editarUsuario"
+            @alterar-status="abrirModalStatus"
             @reenviar-ativacao="abrirModalReenvio"
           />
         </v-col>
@@ -37,26 +59,29 @@
     </div>
 
     <!-- Mensagem quando não há resultados -->
-    <div v-if="users.length === 0" class="empty-state">
+    <div v-if="!loading && users.length === 0" class="empty-state">
       <div class="empty-state-content">
         <v-icon icon="mdi-account-off" size="64" class="empty-icon"></v-icon>
         <h3 class="empty-title">
-          {{ searchQuery ? 'Nenhum usuário encontrado' : 'Nenhum usuário cadastrado' }}
+          Nenhum usuário {{ statusFilter === 'ativo' ? 'ativo' : 'inativo' }} encontrado
         </h3>
         <p class="empty-subtitle">
-          {{
-            searchQuery
-              ? 'Tente ajustar os filtros de pesquisa'
-              : 'Clique em "Novo Usuário" para adicionar o primeiro usuário'
-          }}
+          Tente ajustar a busca ou alternar entre Ativos e Inativos.
         </p>
       </div>
     </div>
 
-    <!-- Dialog para Adicionar Usuário -->
-    <UserDialog v-model="dialog" @save="salvarUsuario" @close="closeDialog" />
+    <UserDialog v-model="dialog" :user="usuarioEmEdicao" @save="salvarUsuario" @close="closeDialog" />
 
-    <ConfirmDialog v-model="modalExclusao" @confirm="confirmarExclusao" />
+    <ConfirmDialog
+      v-model="modalStatus"
+      :title="usuarioParaStatus?.isActive ? 'Inativar usuário' : 'Reativar usuário'"
+      :message="mensagemConfirmacaoStatus"
+      :confirm-text="usuarioParaStatus?.isActive ? 'Inativar' : 'Reativar'"
+      :confirm-tone="usuarioParaStatus?.isActive ? 'danger' : 'primary'"
+      :loading="alterandoStatus"
+      @confirm="confirmarStatus"
+    />
 
     <ConfirmDialog
       v-model="modalReenvio"
@@ -94,12 +119,18 @@ import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
 import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import { watchDebounced } from '@vueuse/core'
-import { deleteUser, getUsers, reenviarAtivacao } from '@/services/userService'
+import { inativarUser, reativarUser, getUsers, getUsuarioAutenticado, reenviarAtivacao } from '@/services/userService'
+import { useAuthStore } from '@/stores/auth'
+import { useRouter } from 'vue-router'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
 import BaseStatusModal from '@/components/app/BaseStatusModal.vue'
 
 // Estados reativos
 const dialog = ref(false)
+const usuarioEmEdicao = ref(null)
+const usuarioLogado = ref(null)
+const auth = useAuthStore()
+const router = useRouter()
 const searchQuery = ref('')
 const statusFilter = ref('ativo')
 const users = ref([])
@@ -107,8 +138,10 @@ const loading = ref(false)
 const currentPage = ref(0)
 const totalPages = ref(0)
 const currentPageUi = ref(1)
-const modalExclusao = ref(false)
-const usuarioParaExcluir = ref(null)
+const modalStatus = ref(false)
+const usuarioParaStatus = ref(null)
+const alterandoStatus = ref(false)
+const avisoStatus = ref(null)
 
 // Reenvio de ativação
 const modalReenvio = ref(false)
@@ -133,8 +166,10 @@ watch(currentPageUi, (newPage) => {
   currentPage.value = newPage - 1
 })
 
+watch(statusFilter, () => loadingUsers())
+
 watchDebounced(
-  [searchQuery, statusFilter],
+  searchQuery,
   () => {
     loadingUsers()
   },
@@ -173,6 +208,21 @@ async function loadingUsers(page = 0) {
 
 // Funções
 const openDialog = () => {
+  usuarioEmEdicao.value = null
+  dialog.value = true
+}
+
+function podeEditarUsuario(user) {
+  const autor = usuarioLogado.value
+  if (!autor || user.isActive === false) return false
+  if (autor.perfil === 'ADMINISTRADOR' || autor.id === user.id) return true
+  return autor.perfil === 'GESTOR_FROTA' && user.perfil === 'COLABORADOR'
+    && autor.regional?.id != null && autor.regional.id === user.regional?.id
+}
+
+function editarUsuario(user) {
+  if (!podeEditarUsuario(user)) return
+  usuarioEmEdicao.value = user
   dialog.value = true
 }
 
@@ -180,9 +230,17 @@ const closeDialog = () => {
   dialog.value = false
 }
 
-const salvarUsuario = async () => {
+const salvarUsuario = async (salvo) => {
+  if (salvo.id === usuarioLogado.value?.id) {
+    if (salvo.email !== usuarioLogado.value.email) {
+      closeDialog()
+      await auth.logout(router)
+      return
+    }
+    usuarioLogado.value = salvo
+  }
   try {
-    await loadingUsers()
+    await loadingUsers(usuarioEmEdicao.value ? currentPage.value : 0)
   } catch (err) {
     console.error('Erro ao salvar usuário:', err)
   }
@@ -190,23 +248,40 @@ const salvarUsuario = async () => {
   closeDialog()
 }
 
-const abrirModalExclusao = (id) => {
-  usuarioParaExcluir.value = id
-  modalExclusao.value = true
+function podeAlterarStatus(user) {
+  return usuarioLogado.value?.perfil === 'ADMINISTRADOR' && usuarioLogado.value.id !== user.id
 }
 
-const fecharModalExclusao = () => {
-  modalExclusao.value = false
-  usuarioParaExcluir.value = null
+const mensagemConfirmacaoStatus = computed(() => {
+  const user = usuarioParaStatus.value
+  if (!user) return ''
+  return user.isActive
+    ? `Inativar ${user.name}? O acesso será bloqueado e o histórico será preservado.`
+    : `Reativar ${user.name}? O acesso será liberado novamente, preservando o cadastro e o histórico.`
+})
+
+function abrirModalStatus(user) {
+  if (!podeAlterarStatus(user)) return
+  usuarioParaStatus.value = user
+  modalStatus.value = true
 }
 
-const confirmarExclusao = async () => {
+const confirmarStatus = async () => {
+  if (!usuarioParaStatus.value || alterandoStatus.value) return
+  alterandoStatus.value = true
   try {
-    await deleteUser(usuarioParaExcluir.value)
+    const user = usuarioParaStatus.value
+    if (user.isActive) await inativarUser(user.id)
+    else await reativarUser(user.id)
+    avisoStatus.value = { nome: user.name, ativo: !user.isActive }
     await loadingUsers()
-    fecharModalExclusao()
+    modalStatus.value = false
+    usuarioParaStatus.value = null
   } catch (err) {
-    console.error('Erro ao deletar usuário:', err)
+    mostrarFeedback('error', 'Não foi possível alterar o status',
+      err?.response?.data?.message || 'Tente novamente em alguns instantes.')
+  } finally {
+    alterandoStatus.value = false
   }
 }
 
@@ -267,8 +342,17 @@ const confirmarReenvio = async () => {
   }
 }
 
+async function carregarUsuarioLogado() {
+  try {
+    usuarioLogado.value = await getUsuarioAutenticado()
+  } catch {
+    mostrarFeedback('error', 'Não foi possível habilitar a edição', 'Recarregue a página para tentar novamente.')
+  }
+}
+
 onMounted(() => {
   loadingUsers()
+  carregarUsuarioLogado()
 })
 </script>
 
