@@ -73,11 +73,12 @@ function createRoutePopupContent(station) {
       businessHours: station.businessHours,
     },
     onStartRoute: () => emit('start-route', station),
+    onAvaliarNeo: () => emit('avaliar-neo', station),
     routeContext,
   });
 }
 
-const emit = defineEmits(['start-route', 'show-route', 'popup-open', 'popup-close']);
+const emit = defineEmits(['start-route', 'show-route', 'popup-open', 'popup-close', 'avaliar-neo']);
 
 function renderStations(stations) {
   if (!markersLayer) return;

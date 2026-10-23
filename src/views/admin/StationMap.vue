@@ -10,6 +10,7 @@
         @start-route="navigateToStation"
         @popup-open="popupOpen = true"
         @popup-close="popupOpen = false"
+        @avaliar-neo="postoNeo = $event"
       />
 
       <div v-if="loadedMarker && !popupOpen" :class="['route-panel', { 'route-panel--compact': route && !showRouteForm }]">
@@ -98,15 +99,22 @@
         <p>Carregando localização...</p>
       </div>
     </div>
+    <AvaliacaoNeoDialog
+      v-if="postoNeo"
+      :posto="postoNeo"
+      @fechar="postoNeo = null"
+    />
   </div>
 </template>
 
 <script setup>
 import Map from '@/components/app/Map.vue'
+import AvaliacaoNeoDialog from '@/components/user/AvaliacaoNeoDialog.vue'
 import { onMounted, reactive, ref, computed, watch, onUnmounted } from 'vue'
 import { listarTodosPostosAtivos } from '@/services/stationService'
 
 const userMarker = reactive({ lat: 0, lon: 0 })
+const postoNeo = ref(null)
 const loadedMarker = ref(false)
 const errorMarker = ref(false)
 const origin = ref('')

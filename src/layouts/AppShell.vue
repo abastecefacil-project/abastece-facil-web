@@ -15,6 +15,7 @@
       <span v-if="!mobile" class="header-section">{{ currentSection }}</span>
 
       <v-spacer></v-spacer>
+      <NotificacoesNeo v-if="authStore.perfil === 'ADMINISTRADOR'" />
 
       <!-- No mobile só o ícone, para caber ao lado do logo e do menu. -->
       <v-btn
@@ -144,6 +145,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { NAVEGACAO, itensVisiveis } from '@/config/navegacao'
 import { iconePerfil, rotuloCurtoPerfil } from '@/utils/perfil'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
+import NotificacoesNeo from '@/components/admin/NotificacoesNeo.vue'
 
 // Qual conjunto de menu e qual botão superior usar. Os dois únicos call sites
 // são os wrappers `AdminLayout.vue` e `DefaultLayout.vue`, que o router
