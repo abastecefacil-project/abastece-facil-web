@@ -20,13 +20,15 @@ test('número com máscara é reduzido aos dígitos', () => {
   }
 })
 
-test('número sem o código do país é inválido', () => {
-  assert.deepEqual(normalizarNumeroWhatsapp('47999999999'), { numero: null, motivo: 'invalido' })
+test('telefone cadastrado com DDD recebe o código do Brasil', () => {
+  assert.deepEqual(normalizarNumeroWhatsapp('(47) 99999-9999'), { numero: '5547999999999', motivo: null })
+  assert.deepEqual(normalizarNumeroWhatsapp('4733334444'), { numero: '554733334444', motivo: null })
+  assert.deepEqual(normalizarNumeroWhatsapp('55999999999'), { numero: '5555999999999', motivo: null })
   assert.deepEqual(normalizarNumeroWhatsapp('0147999999999'), { numero: null, motivo: 'invalido' })
 })
 
 test('número curto ou longo demais é inválido', () => {
-  for (const valor of ['55479999999', '55', '55479999999999', 'abc']) {
+  for (const valor of ['479999999', '55', '55479999999999', 'abc']) {
     assert.deepEqual(normalizarNumeroWhatsapp(valor), { numero: null, motivo: 'invalido' }, valor)
   }
 })

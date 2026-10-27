@@ -10,10 +10,6 @@ COPY . .
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
-# Sem valor padrão: sem o --build-arg, o contato por WhatsApp não aparece.
-ARG VITE_WHATSAPP_SUPORTE
-ENV VITE_WHATSAPP_SUPORTE=$VITE_WHATSAPP_SUPORTE
-
 RUN npm run build
 
 FROM nginx:alpine

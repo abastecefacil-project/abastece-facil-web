@@ -27,37 +27,73 @@
           </div>
         </div>
 
-        <a
-          v-if="URL_WHATSAPP_SUPORTE"
-          class="contact-item contact-item--link"
-          :href="URL_WHATSAPP_SUPORTE"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Falar com a gestora de frota pelo WhatsApp (abre em nova aba)"
-        >
-          <v-icon icon="mdi-whatsapp" color="#25D366" size="20"></v-icon>
-          <div class="contact-info">
-            <span class="contact-label">Gestora de Frota</span>
-            <span class="contact-value">Abastecimento, reembolsos e veículos da frota</span>
-            <span class="contact-detalhe">Atendimento pelo WhatsApp em horário comercial</span>
-          </div>
-          <v-icon icon="mdi-open-in-new" size="18" class="contact-externo"></v-icon>
-        </a>
-
-        <div v-else class="contact-item">
-          <v-icon icon="mdi-account-tie" color="#757575" size="20"></v-icon>
-          <div class="contact-info">
-            <span class="contact-label">Gestora de Frota</span>
-            <span class="contact-value">Para questões sobre abastecimento e reembolsos</span>
-          </div>
+        <p v-if="carregando" role="status">Carregando contatos da gestão de frota...</p>
+        <div v-else-if="erro" role="alert">
+          <p>Não foi possível carregar os contatos da gestão de frota.</p>
+          <v-btn variant="text" @click="carregarGestores">Tentar novamente</v-btn>
         </div>
+        <template v-else>
+          <component
+            v-for="(gestor, index) in contatos"
+            :key="index"
+            :is="gestor.url ? 'a' : 'div'"
+            class="contact-item"
+            :class="{ 'contact-item--link': gestor.url }"
+            :href="gestor.url || undefined"
+            :target="gestor.url ? '_blank' : undefined"
+            :rel="gestor.url ? 'noopener noreferrer' : undefined"
+            :aria-label="gestor.url ? `Falar com ${gestor.nome} pelo WhatsApp (abre em nova aba)` : undefined"
+          >
+            <v-icon :icon="gestor.url ? 'mdi-whatsapp' : 'mdi-account-tie'" :color="gestor.url ? '#25D366' : '#757575'" size="20"></v-icon>
+            <div class="contact-info">
+              <span class="contact-label">Gestão de frota da sua regional</span>
+              <span class="contact-value">{{ gestor.nome }}</span>
+              <span v-if="gestor.url" class="contact-value">{{ gestor.telefone }}</span>
+              <span class="contact-detalhe">
+                {{ gestor.url ? 'Falar pelo WhatsApp sobre abastecimento, reembolsos e veículos' : 'Telefone não disponível para contato pelo WhatsApp.' }}
+              </span>
+            </div>
+            <v-icon v-if="gestor.url" icon="mdi-open-in-new" size="18" class="contact-externo"></v-icon>
+          </component>
+          <div v-if="!contatos.length" class="contact-item">
+            <v-icon icon="mdi-account-tie" color="#757575" size="20"></v-icon>
+            <div class="contact-info">
+              <span class="contact-label">Gestão de frota da sua regional</span>
+              <span class="contact-value">Nenhum gestor de frota ativo vinculado à sua regional.</span>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { URL_WHATSAPP_SUPORTE } from '@/config/whatsapp.js'
+import { ref, computed, onMounted } from 'vue'
+import { getGestoresDaMinhaRegional } from '@/services/userService'
+import { montarUrlWhatsapp, normalizarNumeroWhatsapp } from '@/utils/whatsapp'
+
+const gestores = ref([])
+const carregando = ref(true)
+const erro = ref(false)
+const contatos = computed(() => gestores.value.map((gestor) => {
+  const { numero } = normalizarNumeroWhatsapp(gestor.telefone)
+  return { ...gestor, url: numero ? montarUrlWhatsapp(numero) : null }
+}))
+
+const carregarGestores = async () => {
+  carregando.value = true
+  erro.value = false
+  try {
+    gestores.value = await getGestoresDaMinhaRegional()
+  } catch {
+    erro.value = true
+  } finally {
+    carregando.value = false
+  }
+}
+
+onMounted(carregarGestores)
 </script>
 
 <style scoped>

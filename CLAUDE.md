@@ -1151,7 +1151,6 @@ e o valor que funciona em desenvolvimento é **vazio**.
 ```env
 VITE_API_PROXY_TARGET="http://localhost:8081"
 VITE_API_BASE_URL=
-VITE_WHATSAPP_SUPORTE=
 ```
 
 `VITE_API_BASE_URL` deve ficar **vazia** em desenvolvimento. Como todos os serviços
@@ -1160,24 +1159,14 @@ capturadas pelo proxy do Vite (`vite.config.js`), que as encaminha ao backend.
 Preenchê-la com `http://localhost:8081` faz as chamadas contornarem o proxy e
 resultarem em erro de CORS.
 
-**`VITE_WHATSAPP_SUPORTE`** é o número institucional da gestora de frota, só dígitos,
-com país e DDD (`5547999999999`). Nenhum número real é versionado: em desenvolvimento
-ele mora no `.env.local`, e no Docker chega por `--build-arg`, porque o `.dockerignore`
-exclui os `.env*` e toda `VITE_*` é embutida no build. O `Dockerfile` declara o
-`ARG` sem valor padrão.
-
-- A lógica pura (normalizar e montar o `https://wa.me/…?text=`) está em
-  `utils/whatsapp.js`, coberta por `tests/whatsapp.test.js`. É válido com 12 ou 13
-  dígitos começando com `55`.
-- `config/whatsapp.js` lê a variável e exporta `URL_WHATSAPP_SUPORTE` (URL ou
-  `null`). O `console.warn` de ausente ou inválido fica **no nível do módulo** de
-  propósito, para sair uma vez por carga de página e não a cada visita à tela.
-- O consumidor é `components/user/ContactSection.vue`, na Central de Ajuda: com
-  número válido, o item "Gestora de Frota" vira um link de WhatsApp em nova aba;
-  sem ele, o item continua como texto, idêntico ao anterior. Nunca há link quebrado.
-- O verde do ícone é `#25D366`, o mesmo do WhatsApp da seguradora no mesmo card,
-  por decisão explícita: os dois ícones de WhatsApp têm a mesma cor. Não troque por
-  `success` num só deles.
+A Central de Ajuda busca os gestores ativos da regional do usuário autenticado
+em `GET /api/users/me/gestores-frota` (nome e telefone apenas). A regional vem do
+banco, sem parâmetro do cliente. Não existe número global por variável de ambiente.
+`components/user/ContactSection.vue` lista os contatos e abre o WhatsApp quando o
+telefone é válido; mostra estados de carregamento, erro e ausência de gestores.
+`utils/whatsapp.js` aceita telefones nacionais com DDD (10/11 dígitos) ou com país
+55 (12/13), e monta a URL com mensagem inicial. Cobertura: `tests/whatsapp.test.js`.
+O verde do ícone de WhatsApp é `#25D366`, igual ao contato da seguradora.
 
 ### Nome e horário do posto
 

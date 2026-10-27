@@ -36,41 +36,15 @@ Exemplo:
 VITE_API_BASE_URL=/api
 VITE_API_PROXY_TARGET="http://localhost:8081"
 
-# WhatsApp da gestora de frota, exibido na Central de Ajuda (opcional)
-VITE_WHATSAPP_SUPORTE=
 ```
 
-### `VITE_WHATSAPP_SUPORTE`
+### Contato da gestão de frota
 
-Número institucional da gestora de frota. Na Central de Ajuda, o item "Gestora de
-Frota" vira um link que abre o WhatsApp (app ou WhatsApp Web) na conversa com esse
-número, com uma mensagem inicial pronta.
-
-- Formato: **só dígitos, com país e DDD**, 12 ou 13 dígitos começando com `55`
-  (ex.: `5547999999999`). Máscara como `+55 (47) 99999-9999` também é aceita.
-- Vazia ou inválida: o item continua como texto, sem link, e o console do navegador
-  mostra um aviso uma vez por carga de página.
-- **Não versione o número real.** Em desenvolvimento, coloque-o no `.env.local`
-  (ignorado pelo Git).
-
-Como toda variável `VITE_*`, ela é embutida no bundle **no momento do build**: mudar
-o valor exige gerar a imagem de novo. O `.dockerignore` exclui os arquivos `.env*`,
-então no Docker o valor chega por argumento de build:
-
-```bash
-docker build --build-arg VITE_WHATSAPP_SUPORTE=5547999999999 -t abastece-facil-web .
-```
-
-No Docker Compose:
-
-```yaml
-services:
-  web:
-    build:
-      context: .
-      args:
-        VITE_WHATSAPP_SUPORTE: ${VITE_WHATSAPP_SUPORTE}
-```
+A Central de Ajuda consulta os gestores ativos da regional do usuário logado em
+`GET /api/users/me/gestores-frota`. Nome e telefone vêm do cadastro de usuários.
+O telefone com DDD gera um link de WhatsApp; sem telefone válido, o contato é
+exibido sem link. Se houver mais de um gestor, todos são listados.
+Não há configuração de número por variável de ambiente.
 
 ---
 

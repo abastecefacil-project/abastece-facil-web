@@ -34,3 +34,8 @@ export async function getUsuarioAutenticado() {
   const { data } = await apiPrivate.get('/api/users/me')
   return data
 }
+
+export async function getGestoresDaMinhaRegional() {
+  const { data } = await apiPrivate.get('/api/users/me/gestores-frota')
+  return data
+}
