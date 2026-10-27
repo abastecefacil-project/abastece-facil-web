@@ -41,28 +41,27 @@
       class="app-drawer"
       @click="handleDrawerClick"
     >
-      <!-- Cabeçalho do drawer quando expandido -->
-      <template v-if="!rail || mobile">
-        <div class="drawer-header">
-          <span class="drawer-label">Menu</span>
-          <v-btn
-            v-if="!mobile"
-            icon="mdi-chevron-left"
-            variant="text"
-            color="white"
-            size="small"
-            @click.stop="rail = true"
-          ></v-btn>
-          <v-btn
-            v-if="mobile"
-            icon="mdi-close"
-            variant="text"
-            color="white"
-            size="small"
-            @click.stop="drawer = false"
-          ></v-btn>
-        </div>
-      </template>
+      <div class="drawer-header">
+        <span v-if="!rail || mobile" class="drawer-label">Menu</span>
+        <v-btn
+          v-if="!mobile"
+          :icon="rail ? 'mdi-chevron-right' : 'mdi-chevron-left'"
+          :aria-label="rail ? 'Expandir menu' : 'Recolher menu'"
+          variant="text"
+          color="white"
+          size="small"
+          @click.stop="rail = !rail"
+        ></v-btn>
+        <v-btn
+          v-if="mobile"
+          icon="mdi-close"
+          aria-label="Fechar menu"
+          variant="text"
+          color="white"
+          size="small"
+          @click.stop="drawer = false"
+        ></v-btn>
+      </div>
 
       <v-list nav density="compact" class="drawer-list">
         <v-list-item
@@ -83,9 +82,8 @@
         </v-list-item>
       </v-list>
 
-      <!-- Rodapé do menu: indicador de perfil e, recolhido, o botão de expandir
-           abaixo dele. -->
-      <template v-if="rotuloPerfil || (rail && !mobile)" v-slot:append>
+      <!-- Rodapé do menu: indicador de perfil. -->
+      <template v-if="rotuloPerfil" v-slot:append>
         <!-- Indicador, não botão: só diz com qual perfil a sessão está. Mesma
              estrutura dos itens do menu, para herdar alinhamento e tipografia
              também no modo rail; sem `to` nem `@click`, o Vuetify não o trata
@@ -103,16 +101,6 @@
           </v-list-item>
         </v-list>
 
-        <!-- Botão para expandir quando em modo rail (apenas desktop) -->
-        <div v-if="rail && !mobile" class="pa-2">
-          <v-btn
-            icon="mdi-chevron-right"
-            variant="text"
-            color="white"
-            size="small"
-            @click.stop="rail = false"
-          ></v-btn>
-        </div>
       </template>
     </v-navigation-drawer>
 
@@ -288,6 +276,11 @@ const currentSection = computed(() => {
   align-items: center;
   justify-content: space-between;
   padding: 16px 16px 8px;
+}
+
+.app-drawer.v-navigation-drawer--rail .drawer-header {
+  justify-content: center;
+  padding-inline: 8px;
 }
 
 .drawer-label {
