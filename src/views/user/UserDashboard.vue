@@ -5,9 +5,9 @@
       <div class="onboarding-section">
         <div class="section-header mb-5 text-center">
           <v-icon icon="mdi-help-circle" color="primary" size="32" class="mb-2"></v-icon>
-          <h2 class="text-h5 font-weight-bold text-grey-darken-2">Como usar o sistema</h2>
+          <h2 class="text-h5 font-weight-bold text-grey-darken-2">O que você precisa fazer?</h2>
           <p class="text-body-2 text-grey mt-2">
-            Siga este guia rápido para aproveitar ao máximo o Abastece Fácil
+            Consulte postos, registre ocorrências do veículo e encontre orientações para abastecer.
           </p>
         </div>
 
@@ -35,33 +35,33 @@ import DashboardCard from '@/components/user/DashboardCard.vue'
 const guideSteps = [
   {
     step: 1,
-    title: 'Encontre Postos',
+    title: 'Consultar postos',
     description:
-      'Visualize todos os postos de combustível cadastrados no sistema. Use o mapa ou a lista para encontrar o posto mais próximo de você.',
+      'Busque postos por nome ou cidade e consulte os detalhes de cada estabelecimento.',
     icon: 'mdi-gas-station',
     to: { name: 'UserGasStations' },
   },
   {
     step: 2,
-    title: 'Explore o Mapa',
+    title: 'Explorar o mapa',
     description:
-      'Utilize o mapa interativo para visualizar a localização exata dos postos. Veja rotas e planeje seu abastecimento com facilidade.',
+      'Localize postos, consulte rotas e informe se o cartão Neo passou ou não no seu abastecimento.',
     icon: 'mdi-map-marker',
     to: { name: 'MapUser' },
   },
   {
     step: 3,
-    title: 'Reporte Ocorrências',
+    title: 'Registrar ocorrência do veículo',
     description:
-      'Encontrou algum problema em um posto? Reporte ocorrências para ajudar a manter a qualidade do serviço e informar outros usuários.',
+      'Relate situações como veículo sujo, itens pessoais esquecidos ou devolução fora do estacionamento para a gestão da frota.',
     icon: 'mdi-alert-circle',
     to: { name: 'OccurrencesUser' },
   },
   {
     step: 4,
-    title: 'Central de Ajuda',
+    title: 'Consultar orientações',
     description:
-      'Acesse nossa central de ajuda com perguntas frequentes e informações sobre como utilizar o sistema de forma eficiente e facilitada.',
+      'Veja orientações sobre abastecimento, seguro da frota e contatos de suporte na Central de Ajuda.',
     icon: 'mdi-tooltip-question',
     to: { name: 'HelpCenter' },
   },
