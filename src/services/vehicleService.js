@@ -17,3 +17,7 @@ export async function updateCar(id, body) {
 export async function deleteCar(id) {
     return await apiPrivate.delete(`/api/cars/${id}`)
 }
+
+export async function getAvailableCars() {
+    return await apiPrivate.get('/api/cars/available')
+}

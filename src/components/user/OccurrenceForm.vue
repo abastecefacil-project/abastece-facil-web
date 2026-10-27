@@ -7,18 +7,27 @@
           <p class="form-section-hint">Campos marcados com * são obrigatórios</p>
         </div>
 
+        <v-alert v-if="dataError" type="error" variant="tonal" class="mb-4">
+          {{ dataError }}
+          <v-btn variant="text" @click="loadData" :loading="loadingData">Tentar novamente</v-btn>
+        </v-alert>
+
         <v-row>
-          <!-- Placa -->
           <v-col cols="12" sm="6">
-            <v-text-field
+            <v-autocomplete
               v-model="form.licensePlate"
-              label="Placa*"
-              placeholder="ABC-1234"
+              :items="vehicles"
+              item-title="label"
+              item-value="licensePlate"
+              label="Veículo*"
+              placeholder="Busque pelo modelo ou placa"
               variant="outlined"
               density="comfortable"
-              :rules="licensePlateRules"
+              :loading="loadingData"
+              :disabled="loadingData || loading"
+              :rules="[(v) => !!v || 'Veículo é obrigatório']"
+              no-data-text="Nenhum veículo disponível"
               hide-details="auto"
-              @input="formatLicensePlate"
               prepend-inner-icon="mdi-car-info"
             />
           </v-col>
@@ -26,12 +35,11 @@
           <!--Nome -->
           <v-col cols="12" sm="6">
             <v-text-field
-              v-model="form.name"
+              :model-value="userName"
+              readonly
               label="Nome*"
-              placeholder="Seu nome completo"
               variant="outlined"
               density="comfortable"
-              maxlength="20"
               :rules="[(v) => !!v || 'Nome é obrigatório']"
               prepend-inner-icon="mdi-account"
             />
@@ -124,6 +132,7 @@
           <v-btn
             variant="flat"
             :loading="loading"
+            :disabled="loadingData || !!dataError"
             @click="handleSubmit"
             class="btn-dialog btn-dialog--confirmar"
           >
@@ -153,7 +162,35 @@
 <script setup>
 import BaseStatusModal from '../app/BaseStatusModal.vue'
 import { createOccurrences } from '@/services/occurrenceService'
-import { ref, reactive } from 'vue'
+import { getAvailableCars } from '@/services/vehicleService'
+import { getUsuarioAutenticado } from '@/services/userService'
+import { ref, reactive, onMounted } from 'vue'
+
+const vehicles = ref([])
+const userName = ref('')
+const loadingData = ref(true)
+const dataError = ref('')
+const dateValue = ref(null)
+
+const loadData = async () => {
+  loadingData.value = true
+  dataError.value = ''
+  try {
+    const [response, user] = await Promise.all([getAvailableCars(), getUsuarioAutenticado()])
+    if (!user?.name) throw new Error('Usuário sem nome')
+    vehicles.value = response.data.map((vehicle) => ({
+      ...vehicle,
+      label: `${vehicle.model} — ${vehicle.licensePlate}`,
+    }))
+    userName.value = user.name
+  } catch {
+    dataError.value = 'Não foi possível carregar os veículos e o usuário. Tente novamente.'
+  } finally {
+    loadingData.value = false
+  }
+}
+
+onMounted(loadData)
 
 const dateMenu = ref(false)
 const formRef = ref(null)
@@ -174,39 +211,13 @@ const form = reactive({
   title: '',
   customTitle: '',
   description: '',
-  name: '',
   date: '',
 })
-
-const licensePlateRules = [
-  (v) => !!v || 'Placa é obrigatória',
-  (v) => {
-    if (!v) return false
-    const value = v.toUpperCase().trim()
-
-    const oldFormat = /^[A-Z]{3}-?\d{4}$/
-    const newFormat = /^[A-Z]{3}-?\d[A-Z]\d{2}$/
-
-    return (
-      oldFormat.test(value) ||
-      newFormat.test(value) ||
-      'Formato inválido. Use "AAA-0000" ou "ABC1D23"'
-    )
-  },
-]
 
 const titleRules = [
   (v) => !!v || 'Título é obrigatório',
   (v) => (v && v.length >= 3) || 'Mínimo 3 caracteres',
 ]
-
-const formatLicensePlate = () => {
-  let value = form.licensePlate.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
-  if (value.length > 3 && value.length <= 7 && /^[A-Z]{3}[0-9]/.test(value)) {
-    value = value.slice(0, 3) + '-' + value.slice(3, 7)
-  }
-  form.licensePlate = value.slice(0, 8)
-}
 
 const onDateSelected = (val) => {
   if (val) {
@@ -229,6 +240,7 @@ const formatDateToISO = (dateStr) => {
 }
 
 const handleSubmit = async () => {
+  if (loadingData.value || dataError.value || loading.value) return
   const { valid } = await formRef.value.validate()
   if (!valid) return
 
@@ -239,10 +251,10 @@ const handleSubmit = async () => {
       licensePlate: form.licensePlate.replace('-', ''),
       title: finalTitle,
       description: form.description,
-      userName: form.name,
+      userName: userName.value,
       occurrenceDate: formatDateToISO(form.date),
     }
-    const response = await createOccurrences(body)
+    await createOccurrences(body)
 
     handleClear()
     successDialog.value = true
@@ -258,8 +270,9 @@ const handleClear = () => {
   form.title = ''
   form.customTitle = ''
   form.description = ''
-  form.name = ''
   form.date = ''
+  dateValue.value = null
+  formRef.value?.resetValidation()
 }
 </script>
 
