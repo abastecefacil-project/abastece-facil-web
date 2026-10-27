@@ -187,15 +187,7 @@ async function loadingUsers(page = 0) {
 
     // isActive e senhaDefinida alimentam o estado da conta no card.
     // conviteEnviado não é lido aqui: em GET ele vem sempre null.
-    users.value = data.content.map((user) => ({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      isActive: user.isActive,
-      senhaDefinida: user.senhaDefinida,
-      perfil: user.perfil,
-      regional: user.regional,
-    }))
+    users.value = data.content
     currentPage.value = data.number
     currentPageUi.value = data.number + 1
     totalPages.value = data.totalPages

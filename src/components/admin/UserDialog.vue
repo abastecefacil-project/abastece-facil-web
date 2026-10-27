@@ -15,7 +15,7 @@
         <!-- O usuário nasce sem senha: quem a define é a própria pessoa, pelo
              link de ativação enviado por e-mail. Daí não haver campo de senha. -->
         <p v-if="editando" class="dialog-hint">
-          Atualize nome e e-mail. Alterar o e-mail da sua própria conta exige entrar novamente.
+          Atualize os dados do usuário. Alterar o e-mail da sua própria conta exige entrar novamente.
         </p>
         <p v-else class="dialog-hint">
           O convite de ativação é enviado por e-mail. A senha é definida pela própria pessoa.
@@ -59,7 +59,7 @@
               :rules="[rules.required, rules.email]"
             ></v-text-field>
 
-            <template v-if="!editando">
+            <template v-if="!editando || isAdministrador">
               <v-text-field
                 v-model="localUser.telefone"
                 label="Telefone"
@@ -88,25 +88,27 @@
                 density="comfortable"
                 menu-icon="mdi-chevron-down"
                 :rules="[rules.required]"
-                :hint="perfilTravado ? 'Você só pode cadastrar colaboradores.' : ''"
+                :readonly="perfilTravado"
+                :hint="propriaConta ? 'Seu próprio perfil não pode ser alterado.' : perfilTravado ? 'Você só pode cadastrar colaboradores.' : ''"
                 :persistent-hint="perfilTravado"
               ></v-select>
-
-              <v-select
-                v-model="localUser.regionalId"
-                :items="regionaisDisponiveis"
-                :label="camposDePerfilObrigatorios ? 'Regional*' : 'Regional'"
-                variant="outlined"
-                density="comfortable"
-                menu-icon="mdi-chevron-down"
-                :loading="carregandoDados"
-                :readonly="regionalTravada"
-                :append-inner-icon="regionalTravada ? 'mdi-lock-outline' : undefined"
-                :rules="regrasRegional"
-                :hint="regionalTravada ? 'Travada na sua regional.' : ''"
-                :persistent-hint="regionalTravada"
-              ></v-select>
             </template>
+
+            <v-select
+              v-if="camposDePerfilObrigatorios"
+              v-model="localUser.regionalId"
+              :items="regionaisDisponiveis"
+              label="Regional*"
+              variant="outlined"
+              density="comfortable"
+              menu-icon="mdi-chevron-down"
+              :loading="carregandoDados"
+              :readonly="regionalTravada"
+              :append-inner-icon="regionalTravada ? 'mdi-lock-outline' : undefined"
+              :rules="regrasRegional"
+              :hint="regionalTravada ? 'Apenas o administrador pode alterar a regional.' : ''"
+              :persistent-hint="regionalTravada"
+            ></v-select>
           </div>
         </v-form>
       </v-card-text>
@@ -218,7 +220,8 @@ const localUser = ref(formVazio())
 // regra real é do backend, e a interface não deve prometer mais do que ele
 // permite. Isso é conveniência de tela, não controle de acesso.
 const isAdministrador = computed(() => authStore.perfil === 'ADMINISTRADOR')
-const perfilTravado = computed(() => !isAdministrador.value)
+const propriaConta = computed(() => editando.value && usuarioLogado.value?.id === props.user?.id)
+const perfilTravado = computed(() => !isAdministrador.value || propriaConta.value)
 const regionalTravada = computed(() => !isAdministrador.value)
 
 const perfisDisponiveis = computed(() => {
@@ -237,12 +240,15 @@ function opcaoRegional(regional) {
 
 const regionaisDisponiveis = computed(() => {
   if (regionalTravada.value) {
-    const propria = usuarioLogado.value?.regional
+    const propria = editando.value ? props.user?.regional : usuarioLogado.value?.regional
     return propria ? [opcaoRegional(propria)] : []
   }
   // O endpoint não filtra por `ativo`, então a filtragem é aqui. O resumo que vem
   // dentro do usuário não traz esse campo, por isso a comparação é com !== false.
-  return regionais.value.filter((regional) => regional.ativo !== false).map(opcaoRegional)
+  const opcoes = regionais.value.filter((regional) => regional.ativo !== false).map(opcaoRegional)
+  const atual = props.user?.regional
+  if (atual && !opcoes.some((opcao) => opcao.value === atual.id)) opcoes.push(opcaoRegional(atual))
+  return opcoes
 })
 
 const gestorSemRegional = computed(
@@ -253,8 +259,7 @@ const gestorSemRegional = computed(
     !usuarioLogado.value?.regional,
 )
 
-// Matrícula e regional são obrigatórias para COLABORADOR e GESTOR_FROTA, e
-// opcionais para ADMINISTRADOR — conta de infraestrutura pode não ter regional.
+// Gestores e colaboradores precisam de regional. Administrador não possui regional.
 const camposDePerfilObrigatorios = computed(() => localUser.value.perfil !== 'ADMINISTRADOR')
 
 // A máscara é aplicada ao vivo; o backend aceita o valor formatado e normaliza
@@ -307,14 +312,11 @@ async function carregarDados() {
   carregandoDados.value = true
   erroCarregamento.value = ''
   try {
-    const requisicoes = [getRegionais()]
-    if (regionalTravada.value) requisicoes.push(getUsuarioAutenticado())
-
-    const [respostaRegionais, autenticado] = await Promise.all(requisicoes)
+    const [respostaRegionais, autenticado] = await Promise.all([getRegionais(), getUsuarioAutenticado()])
     regionais.value = respostaRegionais.data.content ?? []
 
+    usuarioLogado.value = autenticado
     if (regionalTravada.value) {
-      usuarioLogado.value = autenticado
       localUser.value.regionalId = autenticado?.regional?.id ?? null
     }
   } catch {
@@ -336,13 +338,19 @@ const handleSave = async () => {
     const body = editando.value ? {
       name: localUser.value.name.trim(),
       email: localUser.value.email.trim(),
+      ...(isAdministrador.value ? {
+        telefone: localUser.value.telefone?.trim() || '',
+        matricula: localUser.value.matricula?.trim() || '',
+        perfil: localUser.value.perfil,
+        ...(camposDePerfilObrigatorios.value ? { regionalId: localUser.value.regionalId } : {}),
+      } : {}),
     } : {
       name: localUser.value.name.trim(),
       email: localUser.value.email.trim(),
       telefone: localUser.value.telefone?.trim() || null,
       matricula: localUser.value.matricula?.trim() || null,
       perfil: localUser.value.perfil,
-      regionalId: localUser.value.regionalId ?? null,
+      regionalId: camposDePerfilObrigatorios.value ? localUser.value.regionalId ?? null : null,
     }
 
     const response = editando.value
@@ -366,15 +374,17 @@ const handleSave = async () => {
   }
 }
 
-// Edição usa os dados do card; apenas o cadastro precisa carregar as regionais.
+// O administrador pode transferir gestores e colaboradores entre regionais.
 watch(
   () => props.modelValue,
   (aberto) => {
     if (!aberto) return
-    localUser.value = props.user ? { ...formVazio(), ...props.user } : formVazio()
+    localUser.value = props.user
+      ? { ...formVazio(), ...props.user, regionalId: props.user.regional?.id ?? null }
+      : formVazio()
     erroCarregamento.value = ''
     form.value?.resetValidation()
-    if (!editando.value) carregarDados()
+    if (!editando.value || isAdministrador.value) carregarDados()
   },
 )
 </script>

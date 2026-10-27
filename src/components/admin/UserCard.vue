@@ -7,6 +7,9 @@
         <div class="user-info">
           <h3 class="user-name">{{ user.name }}</h3>
           <p class="user-email">{{ user.email }}</p>
+          <p v-if="user.perfil !== 'ADMINISTRADOR'" class="user-email mt-1">
+            Regional: {{ user.regional?.nome || 'Não informada' }}
+          </p>
         </div>
 
         <!-- Ações do usuário -->
@@ -111,6 +114,7 @@ const estado = computed(() => {
 
 <style scoped>
 .user-card {
+  height: 100%;
   border-radius: var(--radius-md);
   transition: border-color var(--transition);
   background: var(--color-surface);
@@ -124,6 +128,7 @@ const estado = computed(() => {
 }
 
 .card-content {
+  height: 100%;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -132,13 +137,14 @@ const estado = computed(() => {
 
 .user-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
 }
 
 .user-info {
   flex: 1;
   min-width: 0;
+  min-height: 60px;
 }
 
 .user-name {
@@ -173,7 +179,8 @@ const estado = computed(() => {
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 4px;
+  margin-top: auto;
+  padding-top: 4px;
 }
 
 .status-chip {
@@ -191,6 +198,7 @@ const estado = computed(() => {
 /* Responsividade */
 @media (max-width: 768px) {
   .card-content {
+  height: 100%;
     padding: 14px;
   }
 
