@@ -26,6 +26,8 @@
 
       <!-- Conteúdo -->
       <v-card-text class="dialogo-corpo">
+        <!-- Abaixo de 600px (xs) todo campo ocupa a linha inteira: cols="12" em
+             todas as colunas, e a divisão começa no sm (REDESIGN §4.6). -->
         <v-form ref="form">
           <!-- Nome e Nome Fantasia -->
           <v-row dense>
@@ -50,7 +52,7 @@
             </v-col>
 
           <!-- CNPJ e Telefone -->
-            <v-col cols="6" sm="5" md="6">
+            <v-col cols="12" sm="6">
               <v-text-field
                 v-model="localPosto.cnpj"
                 class="small-input"
@@ -62,7 +64,7 @@
                 @input="formatCnpj"
               ></v-text-field>
             </v-col>
-            <v-col cols="6" sm="4" md="6">
+            <v-col cols="12" sm="6">
               <v-text-field
                 v-model="localPosto.phone"
                 class="small-input"
@@ -75,7 +77,7 @@
             </v-col>
 
           <!-- CEP e Endereço na mesma linha -->
-            <v-col cols="4" sm="3" md="3">
+            <v-col cols="12" sm="3">
               <v-text-field
                 v-model="localPosto.cep"
                 class="small-input"
@@ -90,7 +92,7 @@
                 @blur="searchCep"
               />
             </v-col>
-            <v-col cols="8" sm="9" md="6">
+            <v-col cols="12" sm="6">
               <v-text-field
                 v-model="localPosto.address"
                 class="small-input"
@@ -100,7 +102,7 @@
                 :rules="[(v) => !!v || 'Endereço é obrigatório']"
               ></v-text-field>
             </v-col>
-            <v-col cols="4" sm="3" md="3">
+            <v-col cols="12" sm="3">
               <v-text-field
                 v-model="localPosto.number"
                 class="small-input"
@@ -112,7 +114,7 @@
             </v-col>          
 
           <!-- Bairro, Cidade e Estado -->
-            <v-col cols="8" sm="5" md="6">
+            <v-col cols="12" sm="5" md="6">
               <v-text-field
                 v-model="localPosto.district"
                 class="small-input"
@@ -122,7 +124,7 @@
                 :rules="[(v) => !!v || 'Bairro é obrigatório']"
               ></v-text-field>
             </v-col>
-            <v-col cols="8" sm="5" md="4">
+            <v-col cols="12" sm="5" md="4">
               <v-text-field
                 v-model="localPosto.city"
                 class="small-input"
@@ -132,7 +134,7 @@
                 :rules="[(v) => !!v || 'Cidade é obrigatória']"
               ></v-text-field>
             </v-col>
-            <v-col cols="4" sm="2" md="2">
+            <v-col cols="12" sm="2">
               <v-text-field
                 v-model="localPosto.state"
                 class="small-input"
@@ -221,11 +223,7 @@
             </v-col>
 
           <!-- Horário de Funcionamento e Switch de Ativação -->
-            <v-col 
-              :cols="isEditing ? 6 : 6"
-              :sm="isEditing ? 4 : 6"
-              :md="isEditing ? 4 : 6"
-            >
+            <v-col cols="12" :sm="isEditing ? 4 : 6">
               <v-text-field
                 v-model="localPosto.openTime"
                 class="small-input"
@@ -237,11 +235,7 @@
               ></v-text-field>
             </v-col>
             
-            <v-col
-              :cols="isEditing ? 6 : 6"
-              :sm="isEditing ? 4 : 6"
-              :md="isEditing ? 4 : 6"
-            >
+            <v-col cols="12" :sm="isEditing ? 4 : 6">
               <v-text-field
                 v-model="localPosto.closeTime"
                 class="small-input"
@@ -610,10 +604,22 @@ const formatPhone = (event) => {
   font-size: var(--text-body-size);
 }
 
-/* Localização no mapa */
+/* Trilho sólido. O Vuetify pinta o ligado com .bg-primary (!important) a 60%
+   de opacidade, o que dava um azul lavado; com opacidade 1 fica o primary cheio
+   (9,3:1 sobre o branco, acima dos 3:1 de componente). Desligado, neutral-400,
+   a mesma borda dos campos (3,5:1). */
+.campo-status :deep(.v-switch__track) {
+  opacity: 1;
+  background-color: var(--color-neutral-400);
+}
+
+/* Localização no mapa. A margem de baixo compensa o rótulo flutuante dos
+   horários, que sobe ~7px acima do contorno: sem ela o rótulo encostava no
+   painel, enquanto entre os campos sobram 8px. */
 .secao-coordenadas {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  margin-bottom: var(--space-2);
 }
 
 .secao-coordenadas-titulo {

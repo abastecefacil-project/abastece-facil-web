@@ -244,9 +244,11 @@
             Fechar e acompanhar depois
           </v-btn>
 
+          <!-- Contornado: é saída da tela de progresso, não a confirmação. O
+               ConfirmDialog que vem depois mantém o botão preenchido. -->
           <v-btn
-            class="btn-dialog btn-dialog--perigo"
-            variant="flat"
+            class="btn-dialog btn-dialog--perigo-contorno"
+            variant="outlined"
             :disabled="cancelamentoSolicitado"
             @click="abrirConfirmacaoCancelamento"
           >
@@ -1161,19 +1163,20 @@ onUnmounted(invalidarOperacoes)
   color: var(--color-warning);
 }
 
-/* "Cancelando…": o Vuetify pinta o flat desabilitado com fundo de surface, e
-   quem vence a disputa com .btn-dialog--perigo depende da ordem de injeção do
-   CSS (CLAUDE.md §9, item 1). Fixa o vermelho de main.css, apagado. O scoped
+/* "Cancelando…": o Vuetify troca a cor do botão desabilitado e quem vence a
+   disputa com .btn-dialog--perigo-contorno depende da ordem de injeção do CSS
+   (CLAUDE.md §9, item 1). Fixa o vermelho de main.css, apagado. O scoped
    alcança o conteúdo do v-dialog (§9, item 8b). */
-.v-btn.btn-dialog--perigo.v-btn--disabled {
-  background-color: var(--color-error);
-  color: var(--color-surface);
+.v-btn.btn-dialog--perigo-contorno.v-btn--disabled {
+  background-color: transparent;
+  border-color: var(--color-error);
+  color: var(--color-error);
   opacity: 0.6;
 }
 
-/* O flat desabilitado também clareia o overlay interno, o que deixaria o
-   vermelho rosado. */
-.v-btn.btn-dialog--perigo.v-btn--disabled :deep(.v-btn__overlay) {
+/* O desabilitado também clareia o overlay interno, o que deixaria o fundo
+   rosado. */
+.v-btn.btn-dialog--perigo-contorno.v-btn--disabled :deep(.v-btn__overlay) {
   opacity: 0;
 }
 

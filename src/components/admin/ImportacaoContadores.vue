@@ -53,10 +53,17 @@ defineProps({
   font-variant-numeric: tabular-nums;
 }
 
+/* Uma linha só. O tracking de 0,5px herdado do v-card-text fazia "Sem
+   alteração" passar dos ~83px de uma coluna em 1440px e quebrar. Com tracking
+   zero cabe (77px); a reticência é só rede de segurança. */
 .contador-rotulo {
+  overflow: hidden;
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line);
+  letter-spacing: 0;
   color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .contador--alerta {
@@ -75,9 +82,10 @@ defineProps({
   color: var(--color-error);
 }
 
-/* Até 720px (diálogo estreito ou celular) a grade vira lista: rótulo à
-   esquerda, número à direita, um contador por linha. Nenhum fica órfão. */
-@media (max-width: 720px) {
+/* Abaixo de 900px o diálogo (máx. 860px) fica estreito demais para 7 colunas
+   sem cortar rótulo, e a grade vira lista: rótulo à esquerda, número à
+   direita, um contador por linha. Nenhum fica órfão. */
+@media (max-width: 899px) {
   .contadores {
     grid-template-columns: 1fr;
     gap: 0;

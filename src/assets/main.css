@@ -380,6 +380,19 @@ body,
   filter: brightness(0.88);
 }
 
+/* Destrutivo contornado: a ação que leva à confirmação destrutiva, quando a
+   confirmação em si é outra janela ("Cancelar importação" abre o ConfirmDialog,
+   que usa o preenchido). Texto e borda em error, 6,57:1 sobre o branco. */
+.v-btn.btn-dialog--perigo-contorno {
+  background-color: transparent;
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+}
+
+.v-btn.btn-dialog--perigo-contorno:hover {
+  background-color: var(--color-error-bg);
+}
+
 /* Linha de ações, alinhada à direita em todos os diálogos. */
 .v-card-actions.dialog-actions {
   display: flex;
