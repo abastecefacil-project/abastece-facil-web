@@ -3,11 +3,11 @@
     <v-dialog v-model="dialogModel" max-width="480" persistent>
       <v-card class="modal-card">
         <v-card-title class="modal-title">
-          {{ title }}
+          {{ tituloExibido }}
         </v-card-title>
   
         <v-card-text class="modal-text">
-          {{ message }}
+          {{ mensagemExibida }}
         </v-card-text>
   
         <v-card-actions class="dialog-actions">
@@ -30,7 +30,7 @@
             :loading="loading"
             @click="handleConfirm"
           >
-            {{ confirmText }}
+            {{ textoConfirmar }}
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -41,8 +41,12 @@
   import { computed } from 'vue'
   
   // title, message, confirmText, cancelText, confirmTone e loading são aditivos:
-  // os defaults reproduzem o texto que o componente já tinha, então as telas que
+  // sem eles, os textos são os que o componente sempre teve, então as telas que
   // o usam sem passar nada continuam funcionando sem alteração.
+  //
+  // `objeto` nomeia o que vai ser excluído (REDESIGN §4.6), com artigo e tipo:
+  // "o posto Posto Delta". Com ele, e sem title/message/confirmText explícitos,
+  // o título vira "Excluir o posto Posto Delta?" e o botão, "Excluir".
   const props = defineProps({
     modelValue: {
       type: Boolean,
@@ -50,15 +54,19 @@
     },
     title: {
       type: String,
-      default: 'Confirmar Exclusão'
+      default: ''
     },
     message: {
       type: String,
-      default: 'Tem certeza que deseja excluir este item? Esta ação não poderá ser desfeita.'
+      default: ''
     },
     confirmText: {
       type: String,
-      default: 'Sim'
+      default: ''
+    },
+    objeto: {
+      type: String,
+      default: ''
     },
     cancelText: {
       type: String,
@@ -82,6 +90,19 @@
     set: (value) => emit('update:modelValue', value)
   })
   
+  const tituloExibido = computed(() =>
+    props.title || (props.objeto ? `Excluir ${props.objeto}?` : 'Confirmar Exclusão')
+  )
+
+  const mensagemExibida = computed(() => {
+    if (props.message) return props.message
+    return props.objeto
+      ? 'Esta ação não poderá ser desfeita.'
+      : 'Tem certeza que deseja excluir este item? Esta ação não poderá ser desfeita.'
+  })
+
+  const textoConfirmar = computed(() => props.confirmText || (props.objeto ? 'Excluir' : 'Sim'))
+
   const handleConfirm = () => {
     emit('confirm')
   }
@@ -92,22 +113,22 @@
   </script>
   
   <style scoped>
-  .modal-card {
-    border-radius: 8px !important;
-  }
-  
+  /* O raio de 16px e a sombra de overlay vêm da regra global de diálogo em
+     main.css. */
   .modal-title {
-    font-size: 20px !important;
-    font-weight: 600 !important;
-    color: #212121 !important;
+    font-size: var(--text-section-title-size) !important;
+    line-height: var(--text-section-title-line) !important;
+    font-weight: var(--text-section-title-weight) !important;
+    color: var(--color-neutral-900) !important;
+    white-space: normal;
     padding: 24px 24px 16px !important;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--color-border);
   }
   
   .modal-text {
-    font-size: 16px !important;
-    line-height: 1.5 !important;
-    color: #424242 !important;
+    font-size: var(--text-body-lg-size) !important;
+    line-height: var(--text-body-lg-line) !important;
+    color: var(--color-text) !important;
     padding: 24px !important;
   }
   
@@ -116,12 +137,10 @@
   
   @media (max-width: 640px) {
     .modal-title {
-      font-size: 18px !important;
       padding: 20px 20px 12px !important;
     }
   
     .modal-text {
-      font-size: 15px !important;
       padding: 20px !important;
     }
   }

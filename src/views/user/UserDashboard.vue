@@ -3,13 +3,10 @@
     <div class="dashboard-container">
       <!-- Seção Como Usar o Sistema -->
       <div class="onboarding-section">
-        <div class="section-header mb-5 text-center">
-          <v-icon icon="mdi-help-circle" color="primary" size="32" class="mb-2"></v-icon>
-          <h2 class="text-h5 font-weight-bold text-grey-darken-2">O que você precisa fazer?</h2>
-          <p class="text-body-2 text-grey mt-2">
-            Consulte postos, registre ocorrências do veículo e encontre orientações para abastecer.
-          </p>
-        </div>
+        <PageHeader
+          titulo="O que você precisa fazer?"
+          subtitulo="Consulte postos, registre ocorrências do veículo e encontre orientações para abastecer."
+        />
 
         <v-row>
           <v-col v-for="guide in guideSteps" :key="guide.step" cols="12" md="6">
@@ -29,6 +26,7 @@
 
 <script setup>
 import DashboardCard from '@/components/user/DashboardCard.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 
 const guideSteps = [
   {
@@ -80,10 +78,6 @@ const guideSteps = [
   max-width: 1400px;
   margin: 0 auto;
   width: 100%;
-}
-
-.section-header {
-  margin-bottom: 14px;
 }
 
 @media (max-width: 960px) {

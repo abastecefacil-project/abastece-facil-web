@@ -1,12 +1,6 @@
 <template>
   <div class="veiculos-container">
-    <!-- Cabeçalho -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">Veículos</h1>
-        <p class="page-subtitle">Gerenciar veículos cadastrados</p>
-      </div>
-    </div>
+    <PageHeader titulo="Veículos" subtitulo="Gerenciar veículos cadastrados" />
 
     <!-- Barra de Pesquisa, Filtros e Novo Veículo -->
     <SearchFilterBar
@@ -57,8 +51,9 @@
       @save="salvarVeiculo"
       @close="closeDialog"
     />
-      <ConfirmDialog
+    <ConfirmDialog
       v-model="modalExclusao"
+      :objeto="objetoExclusao"
       @confirm="confirmarExclusao"
     />
   </div>
@@ -66,21 +61,23 @@
   <PaginationBar
     v-model="currentPageUi"
     :length="totalPages"
+    :total="totalElements"
+    :por-pagina="pageSize"
     @update:modelValue="(page) => loadingCars(page - 1)"
   />
 
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import VehicleCard from '../../components/admin/VehicleCard.vue'
 import VehicleDialog from '../../components/admin/VehicleDialog.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 import { getCars, deleteCar } from '@/services/vehicleService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
-
 
 // Estados reativos
 const dialog = ref(false)
@@ -91,6 +88,8 @@ const vehicles = ref([])
 const loading = ref(false)
 const currentPage = ref(0)
 const totalPages = ref(0)
+const totalElements = ref(null)
+const pageSize = ref(null)
 const currentPageUi = ref(1)
 const modalExclusao = ref(false)
 const veiculoParaExcluir = ref(null)
@@ -128,6 +127,8 @@ async function loadingCars(page = 0) {
     }))
     currentPage.value = data.number
     totalPages.value = data.totalPages
+    totalElements.value = data.totalElements
+    pageSize.value = data.size
   } catch (err) {
     console.log('Erro ao buscar veículos', err)
   } finally {
@@ -183,6 +184,12 @@ const abrirModalExclusao = (id) => {
   modalExclusao.value = true
 }
 
+// "Excluir o veículo ABC1D23?": a confirmação nomeia o que vai ser apagado.
+const objetoExclusao = computed(() => {
+  const veiculo = vehicles.value.find((item) => item.id === veiculoParaExcluir.value)
+  return veiculo ? `o veículo ${veiculo.plate}` : ''
+})
+
 const fecharModalExclusao = () => {
   modalExclusao.value = false
   veiculoParaExcluir.value = null
@@ -208,31 +215,6 @@ onMounted(() => {
   padding: 24px;
   background-color: #fafafa;
   min-height: 100vh;
-}
-
-.page-header {
-  margin-bottom: 32px;
-}
-
-.header-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #424242;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.page-subtitle {
-  font-size: 1rem;
-  color: #757575;
-  margin: 0;
-  font-weight: 400;
 }
 
 .veiculos-grid {
@@ -284,14 +266,6 @@ onMounted(() => {
     padding: 16px;
   }
 
-  .page-title {
-    font-size: 1.75rem;
-  }
-
-  .page-subtitle {
-    font-size: 0.95rem;
-  }
-
   .empty-state {
     padding: 48px 16px;
     min-height: 250px;
@@ -309,14 +283,6 @@ onMounted(() => {
 @media (max-width: 480px) {
   .veiculos-container {
     padding: 12px;
-  }
-
-  .page-header {
-    margin-bottom: 24px;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
   }
 
   .empty-state {

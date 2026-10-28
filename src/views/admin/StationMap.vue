@@ -73,7 +73,7 @@
           {{ routeError }}
         </v-alert>
         <div v-if="route" class="route-summary">
-          {{ formatDistance(route.distance) }} · {{ formatDuration(route.duration) }}
+          {{ formatarDistancia(route.distance) }} · {{ formatarDuracao(route.duration) }}
           <div class="route-actions">
             <button v-if="!showRouteForm" type="button" @click="editRoute">Editar</button>
             <button type="button" @click="clearRoute">Limpar</button>
@@ -108,6 +108,7 @@
 </template>
 
 <script setup>
+import { formatarDistancia, formatarDuracao } from '@/utils/formatacao'
 import Map from '@/components/app/Map.vue'
 import AvaliacaoNeoDialog from '@/components/user/AvaliacaoNeoDialog.vue'
 import { onMounted, reactive, ref, computed, watch, onUnmounted } from 'vue'
@@ -389,15 +390,6 @@ function clearRoute() {
   lastReroutePosition = null
 }
 
-function formatDistance(meters) {
-  return `${(meters / 1000).toFixed(1).replace('.', ',')} km`
-}
-
-function formatDuration(seconds) {
-  const minutes = Math.round(seconds / 60)
-  if (minutes < 60) return `${minutes} min`
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}min`
-}
 
 watch(loadedMarker, (val) => {
   if (val && isMounted) {

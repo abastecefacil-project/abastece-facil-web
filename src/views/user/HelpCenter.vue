@@ -1,10 +1,6 @@
 <template>
   <div class="help-center-container">
-    <!-- Cabeçalho -->
-    <div class="page-header">
-      <h1 class="page-title">Central de Ajuda</h1>
-      <p class="page-subtitle">Orientações sobre abastecimento e seguro frota</p>
-    </div>
+    <PageHeader titulo="Central de Ajuda" subtitulo="Orientações sobre abastecimento e seguro frota" />
 
     <!-- Seção Abastecimento -->
     <div class="info-section">
@@ -60,6 +56,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import AbastecimentoGuide from '@/components/user/AbastecimentoGuide.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 import SeguroInfo from '@/components/user/SeguroInfo.vue'
 import FaqItem from '@/components/user/FaqItem.vue'
 import ContactSection from '@/components/user/ContactSection.vue'
@@ -119,25 +116,6 @@ const filteredFaqs = computed(() => {
   padding: 24px;
   background-color: #f5f5f5;
   min-height: 100vh;
-}
-
-.page-header {
-  margin-bottom: 32px;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #424242;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.page-subtitle {
-  font-size: 1rem;
-  color: #757575;
-  margin: 0;
-  font-weight: 400;
 }
 
 .info-section {
@@ -204,10 +182,6 @@ const filteredFaqs = computed(() => {
 @media (max-width: 768px) {
   .help-center-container {
     padding: 16px;
-  }
-
-  .page-title {
-    font-size: 24px;
   }
 
   .section-title {

@@ -1,12 +1,6 @@
 <template>
   <div class="usuarios-container">
-    <!-- Cabeçalho -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">Usuários</h1>
-        <p class="page-subtitle">Gerenciar usuários do sistema</p>
-      </div>
-    </div>
+    <PageHeader titulo="Usuários" subtitulo="Gerenciar usuários do sistema" />
 
     <!-- Barra de Pesquisa, Filtros e Novo Usuário -->
     <SearchFilterBar
@@ -104,9 +98,10 @@
   <PaginationBar
     v-model="currentPageUi"
     :length="totalPages"
+    :total="totalElements"
+    :por-pagina="pageSize"
     @update:modelValue="(page) => loadingUsers(page - 1)"
   />
-
 
 </template>
 
@@ -116,6 +111,7 @@ import UserCard from '@/components/admin/UserCard.vue'
 import UserDialog from '@/components/admin/UserDialog.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 import { watchDebounced } from '@vueuse/core'
 import { inativarUser, reativarUser, getUsers, getUsuarioAutenticado, reenviarAtivacao } from '@/services/userService'
 import { useAuthStore } from '@/stores/auth'
@@ -135,6 +131,10 @@ const users = ref([])
 const loading = ref(false)
 const currentPage = ref(0)
 const totalPages = ref(0)
+// O endpoint não tem @PageableDefault: o tamanho é o padrão do Spring (20), e
+// por isso vem da resposta, não de uma constante.
+const totalElements = ref(null)
+const pageSize = ref(null)
 const currentPageUi = ref(1)
 const modalStatus = ref(false)
 const usuarioParaStatus = ref(null)
@@ -189,6 +189,8 @@ async function loadingUsers(page = 0) {
     currentPage.value = data.number
     currentPageUi.value = data.number + 1
     totalPages.value = data.totalPages
+    totalElements.value = data.totalElements
+    pageSize.value = data.size
   } catch (error) {
     console.error('Erro ao carregar usuários:', error)
   } finally {
@@ -353,31 +355,6 @@ onMounted(() => {
   min-height: 100vh;
 }
 
-.page-header {
-  margin-bottom: 32px;
-}
-
-.header-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #424242;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.page-subtitle {
-  font-size: 1rem;
-  color: #757575;
-  margin: 0;
-  font-weight: 400;
-}
-
 .usuarios-grid {
   margin-top: 8px;
 }
@@ -427,14 +404,6 @@ onMounted(() => {
     padding: 16px;
   }
 
-  .page-title {
-    font-size: 1.75rem;
-  }
-
-  .page-subtitle {
-    font-size: 0.95rem;
-  }
-
   .empty-state {
     padding: 48px 16px;
     min-height: 250px;
@@ -452,14 +421,6 @@ onMounted(() => {
 @media (max-width: 480px) {
   .usuarios-container {
     padding: 12px;
-  }
-
-  .page-header {
-    margin-bottom: 24px;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
   }
 
   .empty-state {

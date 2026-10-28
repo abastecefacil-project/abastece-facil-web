@@ -1,10 +1,6 @@
 <template>
   <div class="occurrences-container">
-    <!-- Cabeçalho -->
-    <div class="page-header">
-      <h1 class="page-title">Nova Ocorrência</h1>
-      <p class="page-subtitle">Registre uma nova ocorrência no sistema</p>
-    </div>
+    <PageHeader titulo="Nova Ocorrência" subtitulo="Registre uma nova ocorrência no sistema" />
     <!-- Formulário -->
     <OccurrenceForm />
   </div>
@@ -12,6 +8,7 @@
 
 <script setup>
 import OccurrenceForm from '@/components/user/OccurrenceForm.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 </script>
 
 <style scoped>
@@ -19,11 +16,6 @@ import OccurrenceForm from '@/components/user/OccurrenceForm.vue'
   padding: 28px 32px;
   background-color: var(--color-background);
   min-height: 100vh;
-}
-
-.page-header {
-  max-width: 860px;
-  margin: 0 auto 20px;
 }
 
 @media (max-width: 768px) {

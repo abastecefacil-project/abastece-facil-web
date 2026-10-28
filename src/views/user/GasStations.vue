@@ -1,12 +1,6 @@
 <template>
   <div class="postos-container">
-    <!-- Cabeçalho -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">Postos</h1>
-        <p class="page-subtitle">Visualize todos os postos de combustível cadastrados</p>
-      </div>
-    </div>
+    <PageHeader titulo="Postos" subtitulo="Visualize todos os postos de combustível cadastrados" />
 
     <!-- Barra de Pesquisa e Filtros (SEM botão de novo posto) -->
     <SearchFilterBar
@@ -59,7 +53,13 @@
     <GasStationModal v-model="showModal" :posto="selectedPosto" />
   </div>
 
-  <PaginationBar v-model="paginaAtual" :length="totalPages" />
+  <!-- Paginação no navegador: o total é o da lista já filtrada pela busca. -->
+  <PaginationBar
+    v-model="paginaAtual"
+    :length="totalPages"
+    :total="filteredPostos.length"
+    :por-pagina="POSTOS_POR_PAGINA"
+  />
 
 </template>
 
@@ -69,6 +69,7 @@ import GasStationCard from '@/components/user/GasStationCard.vue'
 import GasStationModal from '@/components/user/GasStationModal.vue'
 import SearchFilterBar from '@/components/app/SearchFilterBar.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 import { listarTodosPostosAtivos } from '@/services/stationService'
 import { descreverQuantidadePostos, nomeExibicaoPosto } from '@/utils/posto'
 
@@ -171,16 +172,6 @@ onMounted(() => {
   min-height: 100vh;
 }
 
-.page-header {
-  margin-bottom: 24px;
-}
-
-.header-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
 .postos-grid {
   margin-top: 8px;
 }
@@ -267,10 +258,6 @@ onMounted(() => {
 @media (max-width: 480px) {
   .postos-container {
     padding: 12px;
-  }
-
-  .page-header {
-    margin-bottom: 20px;
   }
 
   .empty-state {

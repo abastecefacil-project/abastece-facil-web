@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-wrapper">
     <div class="dashboard-grid">
-      <DashboardHeader class="area-inteira" :perfil="authStore.perfil" :carregado-em="carregadoEm" />
+      <PageHeader class="area-inteira dashboard-cabecalho" titulo="Painel" :subtitulo="subtitulo" />
 
       <v-alert v-if="erro" class="area-inteira" type="error" variant="tonal" density="comfortable">
         {{ erro }}
@@ -71,7 +71,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import DashboardHeader from '@/components/admin/DashboardHeader.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 import DashboardSecao from '@/components/admin/DashboardSecao.vue'
 import StatsCards from '@/components/admin/StatsCards.vue'
 import OcorrenciasPorMesChart from '@/components/admin/OcorrenciasPorMesChart.vue'
@@ -84,6 +84,7 @@ import {
   itensUsuariosPorPerfil,
   itensVeiculosComOcorrencias,
   subtituloOcorrenciasPorMes,
+  subtituloPainel,
   textoConvitesAntigos,
 } from '@/utils/dashboard'
 import { useAuthStore } from '@/stores/auth'
@@ -102,6 +103,8 @@ const erro = ref(null)
 const veiculos = computed(() => itensVeiculosComOcorrencias(dashboard.value?.veiculosComMaisOcorrencias))
 const cidades = computed(() => itensCidadesComPostos(dashboard.value?.cidadesComMaisPostos))
 const perfis = computed(() => itensUsuariosPorPerfil(dashboard.value?.usuariosPorPerfil))
+// Perfil (da store, sem chamar /api/users/me) e hora da última carga.
+const subtitulo = computed(() => subtituloPainel(authStore.perfil, carregadoEm.value) ?? '')
 const avisoConvites = computed(() => textoConvitesAntigos(dashboard.value?.usuariosAguardandoAtivacaoAntigos))
 
 // Descarta resposta atrasada quando o "Tentar novamente" dispara outra consulta.
@@ -134,6 +137,12 @@ onMounted(carregar)
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* O grid já espaça os itens pelo gap; a margem própria do PageHeader dobraria
+   a distância até os indicadores. */
+.dashboard-grid > .dashboard-cabecalho {
+  margin-bottom: 0;
 }
 
 /* Um grid só para todas as larguras: 12 colunas, que viram uma abaixo de 960px. */

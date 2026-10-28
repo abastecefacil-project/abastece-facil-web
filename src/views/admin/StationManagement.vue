@@ -1,12 +1,6 @@
 <template>
   <div class="postos-container">
-    <!-- Cabeçalho -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">Postos</h1>
-        <p class="page-subtitle">Gerenciar postos de combustível</p>
-      </div>
-    </div>
+    <PageHeader titulo="Postos" subtitulo="Gerenciar postos de combustível" />
 
     <!-- Base inteira: busca, filtro e paginação não alteram estes números. -->
     <IndicadoresPostos
@@ -98,6 +92,7 @@
     />
     <ConfirmDialog
       v-model="modalExclusao"
+      :objeto="objetoExclusao"
       @confirm="confirmarExclusao"
     />
     <ImportacaoPostosDialog
@@ -111,6 +106,8 @@
   <PaginationBar
     v-model="currentPageUi"
     :length="totalPages"
+    :total="totalElements"
+    :por-pagina="pageSize"
     @update:modelValue="(page) => loadingStations(page - 1)"
   />
 
@@ -123,6 +120,7 @@ import PostoCard from '../../components/admin/PostoCard.vue'
 import PostoDialog from '../../components/admin/PostoDialog.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 import {
   getStations,
   getStationById,
@@ -131,7 +129,7 @@ import {
   getCurrentImport,
 } from '@/services/stationService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
-import { prepararPostoParaEdicao } from '@/utils/posto'
+import { nomeExibicaoPosto, prepararPostoParaEdicao } from '@/utils/posto'
 import { useRoute, useRouter } from 'vue-router'
 import ImportacaoPostosDialog from '@/components/admin/ImportacaoPostosDialog.vue'
 import IndicadoresPostos from '@/components/admin/IndicadoresPostos.vue'
@@ -156,6 +154,8 @@ const postos = ref([])
 const loading = ref(false)
 const currentPage = ref(0)
 const totalPages = ref(0)
+const totalElements = ref(null)
+const pageSize = ref(null)
 const currentPageUi = ref(1)
 const modalExclusao = ref(false)
 const postoParaExcluir = ref(null)
@@ -196,6 +196,8 @@ async function loadingStations(page = 0) {
     postos.value = response.data.content.map(prepararPostoParaEdicao)
     currentPage.value = data.number
     totalPages.value = data.totalPages
+    totalElements.value = data.totalElements
+    pageSize.value = data.size
 
   } catch (err) {
     console.log('Erro ao buscar postos', err)
@@ -370,6 +372,12 @@ const abrirModalExclusao = (id) => {
   modalExclusao.value = true
 }
 
+// "Excluir o posto Posto Delta?": a confirmação nomeia o que vai ser apagado.
+const objetoExclusao = computed(() => {
+  const posto = postos.value.find((item) => item.id === postoParaExcluir.value)
+  return posto ? `o posto ${nomeExibicaoPosto(posto)}` : ''
+})
+
 const fecharModalExclusao = () => {
   modalExclusao.value = false
   postoParaExcluir.value = null
@@ -417,31 +425,6 @@ watch(() => route.query.posto, async (id) => {
   padding: 24px;
   background-color: #fafafa;
   min-height: 100vh;
-}
-
-.page-header {
-  margin-bottom: 32px;
-}
-
-.header-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #424242;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.page-subtitle {
-  font-size: 1rem;
-  color: #757575;
-  margin: 0;
-  font-weight: 400;
 }
 
 .postos-grid {
@@ -535,14 +518,6 @@ watch(() => route.query.posto, async (id) => {
     padding: 16px;
   }
 
-  .page-title {
-    font-size: 1.75rem;
-  }
-
-  .page-subtitle {
-    font-size: 0.95rem;
-  }
-
   .empty-state {
     padding: 48px 16px;
     min-height: 250px;
@@ -557,18 +532,9 @@ watch(() => route.query.posto, async (id) => {
   }
 }
 
-
 @media (max-width: 480px) {
   .postos-container {
     padding: 12px;
-  }
-
-  .page-header {
-    margin-bottom: 24px;
-  }
-
-  .page-title {
-    font-size: 1.5rem;
   }
 
   .empty-state {

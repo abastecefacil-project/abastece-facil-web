@@ -1,10 +1,6 @@
 <template>
   <div class="ocorrencias-container">
-    <!-- Cabeçalho -->
-    <div class="page-header">
-      <h1 class="page-title">Ocorrências</h1>
-      <p class="page-subtitle">Acompanhe as ocorrências registradas no sistema</p>
-    </div>
+    <PageHeader titulo="Ocorrências" subtitulo="Acompanhe as ocorrências registradas no sistema" />
 
     <!-- Barra de Pesquisa e Filtros -->
     <SearchFilterBar
@@ -125,6 +121,8 @@
   <PaginationBar
     v-model="currentPageUi"
     :length="totalPages"
+    :total="totalElements"
+    :por-pagina="pageSize"
     @update:modelValue="(page) => loadingOccurrences(page - 1)"
   />
 
@@ -136,6 +134,8 @@ import { watchDebounced } from '@vueuse/core'
 import OccurrenceCard from '../../components/admin/OccurrenceCard.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
+import { formatarDataCurta, formatarDataHora } from '@/utils/formatacao'
 import { getOccurrences } from '@/services/occurrenceService.js'
 
 // Estados reativos
@@ -146,6 +146,8 @@ const occurrences = ref([])
 const loading = ref(false)
 const currentPage = ref(0)
 const totalPages = ref(0)
+const totalElements = ref(null)
+const pageSize = ref(null)
 const currentPageUi = ref(1)
 const selectedOccurrence = ref(null)
 
@@ -180,6 +182,8 @@ async function loadingOccurrences(page = 0) {
     }))
     currentPage.value = data.number
     totalPages.value = data.totalPages
+    totalElements.value = data.totalElements
+    pageSize.value = data.size
   } catch (error) {
     console.error('Erro ao carregar ocorrências:', error)
   } finally {
@@ -187,29 +191,10 @@ async function loadingOccurrences(page = 0) {
   }
 }
 
-function formatarDataBrasileira(dataISO) {
-  const data = new Date(dataISO)
-
-  const dia = String(data.getDate()).padStart(2, '0')
-  const mes = String(data.getMonth() + 1).padStart(2, '0')
-  const ano = data.getFullYear()
-
-  const horas = String(data.getHours()).padStart(2, '0')
-  const minutos = String(data.getMinutes()).padStart(2, '0')
-
-  return `${dia}/${mes}/${ano} ${horas}:${minutos}`
-}
-
-function converterDataParaBR(dataISO) {
-  if (!dataISO) return ''
-  const [ano, mes, dia] = dataISO.split('-')
-  return `${dia}/${mes}/${ano}`
-}
-
 const openOccurrence = (occurrence) => {
   const occurrenceCopy = { ...occurrence }
-  occurrenceCopy.date = formatarDataBrasileira(occurrenceCopy.date)
-  occurrenceCopy.occurrenceDate = converterDataParaBR(occurrenceCopy.occurrenceDate)
+  occurrenceCopy.date = formatarDataHora(occurrenceCopy.date)
+  occurrenceCopy.occurrenceDate = formatarDataCurta(occurrenceCopy.occurrenceDate)
   selectedOccurrence.value = occurrenceCopy
   dialogOpen.value = true
 }
@@ -224,25 +209,6 @@ onMounted(() => {
   padding: 24px;
   background-color: #f5f5f5;
   min-height: 100vh;
-}
-
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #424242;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.page-subtitle {
-  font-size: 1rem;
-  color: #757575;
-  margin: 0;
-  font-weight: 400;
 }
 
 .ocorrencias-grid {
@@ -323,8 +289,5 @@ onMounted(() => {
     padding: 16px;
   }
 
-  .page-title {
-    font-size: 24px;
-  }
 }
 </style>

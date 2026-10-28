@@ -5,27 +5,27 @@
     max-width="450px"
     persistent
   >
-    <v-card :class="['status-modal', type]" rounded="lg">
+    <v-card :class="['status-modal', type]">
       <v-card-text class="text-center pa-8">
         <div class="status-icon-wrapper">
-          <v-icon :size="80" :color="iconColor">
+          <v-icon :size="80" :class="['status-icone', `status-icone--${tipo}`]">
             {{ icon }}
           </v-icon>
         </div>
 
-        <h2 class="text-h5 font-weight-bold mb-3 mt-4">{{ title }}</h2>
-        <p class="text-body-1 text-grey-darken-1">{{ message }}</p>
+        <h2 class="status-titulo mb-3 mt-4">{{ title }}</h2>
+        <p class="status-mensagem">{{ message }}</p>
       </v-card-text>
 
       <v-card-actions class="pb-6 px-6">
         <v-spacer/>
-        <!-- Único botão do sistema que mantém a prop `color`: aqui a cor é
-             informação de estado (sucesso, aviso, erro), não estilo. Por isso
-             .btn-dialog entra sozinho, sem modificador de cor. -->
+        <!-- Botão sempre primário (REDESIGN §4.6): o status já está no ícone.
+             Antes a cor do status pintava o botão, e o de aviso ficava com texto
+             branco sobre âmbar, abaixo de 4,5:1. Sem prop `color`, que o Vuetify
+             converteria em .bg-<cor> com !important. -->
         <v-btn
-          :color="iconColor"
           variant="flat"
-          :class="['btn-dialog', { 'ok-btn--warning': type === 'warning' }]"
+          class="btn-dialog btn-dialog--confirmar"
           @click="updateValue(false)"
         >
           OK
@@ -52,30 +52,42 @@ const updateValue = (val) => {
   emit("update:modelValue", val)
 }
 
-const icon = computed(() => {
-  if (props.type === "success") return "mdi-check-circle"
-  if (props.type === "warning") return "mdi-alert-circle"
-  return "mdi-close-circle"
-})
+// Tipo desconhecido cai em erro, como antes.
+const tipo = computed(() => (["success", "warning"].includes(props.type) ? props.type : "error"))
 
-// O amarelo sai do token --color-warning-icon do main.css, e não de um literal,
-// para continuar amarrado ao design system se o valor mudar. É a variante de
-// ícone, e não a de texto, porque a cor pinta o ícone e o fundo do botão. O
-// Vuetify aceita var(--...) em prop de cor: isCssColor reconhece o prefixo e
-// aplica por style.
-const iconColor = computed(() => {
-  if (props.type === "success") return "#4CAF50"
-  if (props.type === "warning") return "var(--color-warning-icon)"
-  return "#F44336"
+const icon = computed(() => {
+  if (tipo.value === "success") return "mdi-check-circle"
+  if (tipo.value === "warning") return "mdi-alert-circle"
+  return "mdi-close-circle"
 })
 </script>
 
 <style scoped>
-/* O Vuetify calcula a cor de texto do botão a partir do fundo, mas só quando o
-   fundo é uma cor parseável — isParsableColor rejeita var(--...) de propósito.
-   Como o warning usa o token, a cor do texto é declarada aqui em vez de ficar
-   herdada por acaso. */
-.ok-btn--warning {
-  color: var(--color-surface) !important;
+/* A cor do status fica só no ícone, com as variantes -icon dos tokens: elas
+   garantem 3:1 sobre o branco, o mínimo para elemento gráfico. */
+.status-icone--success {
+  color: var(--color-success-icon);
+}
+
+.status-icone--warning {
+  color: var(--color-warning-icon);
+}
+
+.status-icone--error {
+  color: var(--color-error-icon);
+}
+
+.status-titulo {
+  color: var(--color-neutral-900);
+  font-size: var(--text-section-title-size);
+  line-height: var(--text-section-title-line);
+  font-weight: var(--text-section-title-weight);
+}
+
+.status-mensagem {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body-lg-size);
+  line-height: var(--text-body-lg-line);
 }
 </style>

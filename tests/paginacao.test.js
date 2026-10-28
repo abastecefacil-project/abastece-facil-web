@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { buscarTodasAsPaginas } from '../src/utils/paginacao.js'
+import { buscarTodasAsPaginas, textoIntervaloPagina } from '../src/utils/paginacao.js'
 import { descreverQuantidadePostos } from '../src/utils/posto.js'
 
 const pagina = (ids, totalPages) => ({ content: ids.map((id) => ({ id })), totalPages })
@@ -99,4 +99,18 @@ test('contador da lista de postos, com e sem busca', () => {
   assert.equal(descreverQuantidadePostos(48, true), '48 postos encontrados')
   assert.equal(descreverQuantidadePostos(1, true), '1 posto encontrado')
   assert.equal(descreverQuantidadePostos(0, true), 'Nenhum posto encontrado')
+})
+
+test('textoIntervaloPagina: primeira, intermediária e última página', () => {
+  assert.equal(textoIntervaloPagina(1, 10, 971), 'Mostrando 1 a 10 de 971')
+  assert.equal(textoIntervaloPagina(2, 10, 971), 'Mostrando 11 a 20 de 971')
+  assert.equal(textoIntervaloPagina(98, 10, 971), 'Mostrando 971 a 971 de 971')
+  assert.equal(textoIntervaloPagina(1, 20, 3), 'Mostrando 1 a 3 de 3')
+  assert.equal(textoIntervaloPagina(1, 10, 1200), 'Mostrando 1 a 10 de 1.200')
+})
+
+test('textoIntervaloPagina: sem total ou fora do intervalo, null', () => {
+  for (const args of [[1, 10, 0], [1, 10, undefined], [1, 10, null], [0, 10, 5], [3, 10, 15], [1, 0, 5], [1, undefined, 5]]) {
+    assert.equal(textoIntervaloPagina(...args), null, JSON.stringify(args))
+  }
 })

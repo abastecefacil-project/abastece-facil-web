@@ -29,8 +29,8 @@
     </div>
 
     <div v-if="routeContext?.value" class="route-info">
-      <span>{{ formatDistance(routeContext.value.distance) }}</span>
-      <span>{{ formatDuration(routeContext.value.duration) }}</span>
+      <span>{{ formatarDistancia(routeContext.value.distance) }}</span>
+      <span>{{ formatarDuracao(routeContext.value.duration) }}</span>
     </div>
 
     <v-btn
@@ -55,6 +55,7 @@
 </template>
 
 <script setup>
+import { formatarDistancia, formatarDuracao } from '@/utils/formatacao'
 import { computed } from 'vue'
 import { HORARIO_NAO_INFORMADO, formatarHorarioFuncionamento } from '@/utils/posto'
 
@@ -94,15 +95,6 @@ function startRoute() {
   window.open(googleMapsUrl.value, '_blank', 'noopener,noreferrer')
 }
 
-function formatDistance(meters) {
-  return `${(meters / 1000).toFixed(1).replace('.', ',')} km`
-}
-
-function formatDuration(seconds) {
-  const minutes = Math.round(seconds / 60)
-  if (minutes < 60) return `${minutes} min`
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}min`
-}
 </script>
 
 <style scoped>
