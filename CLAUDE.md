@@ -1762,6 +1762,51 @@ Z").
   ficha com rótulos em sentence case, telefone `tel:`, horário e o endereço num
   bloco neutro com "Copiar endereço" (que copia o mesmo texto cru de antes).
 
+### Nova ocorrência (R11)
+
+`/user/occurrencesUser` é `views/user/Occurrences.vue` com
+`components/user/OccurrenceForm.vue` (REDESIGN §5.10). O `PageHeader` e o card
+dividem um contêiner de 720px alinhado à esquerda, como as outras telas, e as
+bordas esquerdas coincidem. O card tem as seções Veículo, Tipo da ocorrência,
+Data e Descrição, e "Registrar ocorrência" é a única ação primária.
+
+- **O nome do colaborador não é campo.** "Registrando como: {nome}" é texto, e
+  `userName` só aparece no template nessa interpolação. Ele continua vindo de
+  `getUsuarioAutenticado` e indo no payload como antes. A regra "Nome é
+  obrigatório" saiu junto com o campo: quem barra o envio sem nome é o
+  `loadData`, que lança erro, e o `dataError` no `handleSubmit`.
+  `tests/occurrence-form.test.js` falha se algum `v-model`, `:model-value`,
+  `:value` ou campo de entrada do template passar a citar `userName`. É a
+  proteção contra registrar ocorrência em nome de outra pessoa: não a enfraqueça.
+- **O tipo é um `v-chip-group` dentro de um `v-input`** com as mesmas
+  `titleRules` do antigo select. O `v-input` é o que registra o grupo no `v-form`
+  e mostra "Título é obrigatório" abaixo dos chips. O grupo tem
+  `role="group"`, `aria-labelledby` no título da seção, `aria-describedby` na
+  mensagem e `aria-invalid`, e cada chip tem `role="button"` e `aria-pressed`.
+  `messagesId` e `isValid` chegam do slot do `v-input` como **refs**, por isso
+  o `.value` no template. Sem ele o atributo sai `"[object Object]"`.
+- **`licensePlate` começa e volta a `null`, nunca a `''`.** Corrigido no F3. O
+  Vuetify trata `''` de dois jeitos que atrapalham:
+  - como valor selecionado: o rótulo ficava flutuando e saía um `PlateBadge`
+    vazio no campo;
+  - como valor a validar: o watcher de validação revalida tudo que é diferente
+    de `null`. Por isso "Veículo é obrigatório" voltava logo depois do Cancelar.
+
+  `handleClear` também espera o `nextTick` antes do `resetValidation`, para o
+  reset rodar depois desse watcher.
+
+  O tipo continua com `''`: dentro do `v-input` ele não reproduz o problema,
+  conferido no navegador. O payload não muda, porque o veículo só é enviado
+  quando a regra `!!v` passa.
+- **A data começa com hoje**, e Cancelar e o sucesso a devolvem para hoje. Ela
+  continua editável pelo date picker, e o envio segue convertendo `dd/mm/aaaa`
+  para `LocalDate`.
+- **O `<script setup>` roda numa VM nos testes**, sem as linhas de `import`.
+  A VM recebe só `ref`, `reactive`, `onMounted`, `nextTick` (como função async
+  vazia) e os três services, como no `ContactSection`. Usar `computed`,
+  `setTimeout` ou utils importados quebra o teste. Um `Date` da VM é de outro
+  realm, então `instanceof Date` falha no teste.
+
 ### Apresentação do mapa (R9)
 
 O R9 (REDESIGN §5.12) mudou o que está dentro do mapa. A estrutura continua a
@@ -2226,8 +2271,9 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 22 arquivos e 166 testes depois do R10 (160 no R9, 151 na correção do
-    mapa, 139 no R8). Entre eles: `posto-exibicao.test.js`
+  - São 22 arquivos e 173 testes depois do F3 (172 no R11, 166 no R10, 160 no R9, 151 na
+    correção do mapa, 139 no R8). Entre eles: `occurrence-form.test.js`
+    (script e template do `OccurrenceForm`, ver §7), `posto-exibicao.test.js`
     (`utils/postoExibicao.js`), `mapa.test.js` (`utils/mapa.js`), `auth-routing.test.js`
     (guard do router), `importacao-postos.test.js`, `paginacao.test.js`,
     `perfil.test.js`, `coordenadas.test.js`, `whatsapp.test.js`, `sessao.test.js`,
@@ -2273,8 +2319,8 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   Enquanto isso, a verificação é manual: rodar as próprias instruções do repository no
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
-- `npx eslint src` reporta **6 erros pré-existentes** (medido no R8, no R9 e de
-  novo no R10). Não são
+- `npx eslint src` reporta **6 erros pré-existentes** (medido no R8, no R9, no
+  R10 e de novo no R11). Não são
   regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |
@@ -2283,7 +2329,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   | `no-unused-vars` (2) | `err` (VehicleDialog), `error` (OccurrenceForm) |
 
   Caíram de 9 para 6 nas etapas anteriores do redesign (sem `Footer`, sem o
-  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9 e o R10 não mudaram a contagem.
+  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10 e o R11 não mudaram a contagem.
 
   Caíram de **10 para 9** com as coordenadas no cadastro de posto: o `catch (err)`
   do `PostoDialog` passou a ler o erro para separar `COORDINATES_NOT_FOUND` do modal

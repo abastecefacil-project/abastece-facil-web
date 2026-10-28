@@ -1,8 +1,9 @@
 <template>
-  <div class="occurrences-container">
-    <PageHeader titulo="Nova Ocorrência" subtitulo="Registre uma nova ocorrência no sistema" />
-    <!-- Formulário -->
-    <OccurrenceForm />
+  <div class="ocorrencia">
+    <div class="ocorrencia__conteudo">
+      <PageHeader titulo="Nova ocorrência" subtitulo="Registre uma ocorrência com um veículo da frota." />
+      <OccurrenceForm />
+    </div>
   </div>
 </template>
 
@@ -12,15 +13,21 @@ import PageHeader from '@/components/app/PageHeader.vue'
 </script>
 
 <style scoped>
-.occurrences-container {
-  padding: 28px 32px;
-  background-color: var(--color-background);
-  min-height: 100vh;
+/* Fundo e rolagem são do AppShell. Padding da §4.3, igual ao da Início: 32px
+   no desktop, 16px abaixo de md. O título e o formulário dividem o mesmo
+   contêiner de 720px (largura de formulário da §4.3), alinhado à esquerda como
+   as demais telas, para as bordas esquerdas coincidirem. */
+.ocorrencia {
+  padding: var(--space-8);
 }
 
-@media (max-width: 768px) {
-  .occurrences-container {
-    padding: 16px;
+.ocorrencia__conteudo {
+  max-width: 720px;
+}
+
+@media (max-width: 959px) {
+  .ocorrencia {
+    padding: var(--space-4);
   }
 }
 </style>

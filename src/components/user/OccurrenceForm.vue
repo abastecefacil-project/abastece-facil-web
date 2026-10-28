@@ -1,142 +1,170 @@
 <template>
-  <div class="form-wrapper">
+  <div class="ocorrencia-form">
     <v-form ref="formRef">
-      <div class="form-card">
-        <div class="form-section-header">
-          <h2 class="form-section-title">Dados da ocorrência</h2>
-          <p class="form-section-hint">Campos marcados com * são obrigatórios</p>
-        </div>
-
-        <v-alert v-if="dataError" type="error" variant="tonal" class="mb-4">
+      <div class="ocorrencia-card">
+        <v-alert v-if="dataError" type="error" variant="tonal" class="mb-6">
           {{ dataError }}
           <v-btn variant="text" @click="loadData" :loading="loadingData">Tentar novamente</v-btn>
         </v-alert>
 
-        <v-row>
-          <v-col cols="12" sm="6">
-            <v-autocomplete
-              v-model="form.licensePlate"
-              :items="vehicles"
-              item-title="label"
-              item-value="licensePlate"
-              label="Veículo*"
-              placeholder="Busque pelo modelo ou placa"
-              variant="outlined"
-              density="comfortable"
-              :loading="loadingData"
-              :disabled="loadingData || loading"
-              :rules="[(v) => !!v || 'Veículo é obrigatório']"
-              no-data-text="Nenhum veículo disponível"
-              hide-details="auto"
-              prepend-inner-icon="mdi-car-info"
-            />
-          </v-col>
+        <!-- O nome não é campo: vem de getUsuarioAutenticado e vai no payload sem
+             passar por nada que o colaborador possa editar. -->
+        <div v-else class="ocorrencia-autor" :aria-busy="loadingData">
+          <v-icon icon="mdi-account-outline" size="16" class="ocorrencia-autor__icone" />
+          <span>Registrando como:</span>
+          <strong v-if="!loadingData" class="ocorrencia-autor__nome">{{ userName }}</strong>
+          <span v-else class="ocorrencia-autor__carregando" aria-hidden="true" />
+        </div>
+        <p class="ocorrencia-dica">Campos marcados com * são obrigatórios.</p>
 
-          <!--Nome -->
-          <v-col cols="12" sm="6">
-            <v-text-field
-              :model-value="userName"
-              readonly
-              label="Nome*"
-              variant="outlined"
-              density="comfortable"
-              :rules="[(v) => !!v || 'Nome é obrigatório']"
-              prepend-inner-icon="mdi-account"
-            />
-          </v-col>
+        <section class="ocorrencia-secao" aria-labelledby="ocorrencia-secao-veiculo">
+          <h2 id="ocorrencia-secao-veiculo" class="ocorrencia-secao__titulo">Veículo</h2>
+          <v-autocomplete
+            v-model="form.licensePlate"
+            :items="vehicles"
+            item-title="label"
+            item-value="licensePlate"
+            label="Modelo ou placa*"
+            placeholder="Busque pelo modelo ou placa"
+            variant="outlined"
+            density="comfortable"
+            :loading="loadingData"
+            :disabled="loadingData || loading"
+            :rules="[(v) => !!v || 'Veículo é obrigatório']"
+            no-data-text="Nenhum veículo disponível"
+            hide-details="auto"
+            menu-icon="mdi-chevron-down"
+          >
+            <template #item="{ props: itemProps, item }">
+              <v-list-item v-bind="itemProps" :title="item.raw.model" role="option">
+                <template #append>
+                  <PlateBadge :placa="item.raw.licensePlate" />
+                </template>
+              </v-list-item>
+            </template>
+            <template #selection="{ item }">
+              <span class="veiculo-selecionado">
+                <span class="veiculo-selecionado__modelo">{{ item.raw.model }}</span>
+                <PlateBadge :placa="item.raw.licensePlate" />
+              </span>
+            </template>
+          </v-autocomplete>
+        </section>
 
-          <!-- Título -->
-          <v-col cols="12" sm="6">
-            <v-select
-              v-model="form.title"
-              :items="titleOptions"
-              label="Título*"
-              variant="outlined"
-              density="comfortable"
-              :rules="titleRules"
-              prepend-inner-icon="mdi-book-arrow-right"
-              menu-icon="mdi-chevron-down"
-            />
-          </v-col>
-
-          <v-col cols="12" sm="6">
-            <v-menu
-              v-model="dateMenu"
-              :close-on-content-click="false"
-              transition="scale-transition"
-              offset-y
-              max-width="300px"
-            >
-              <template #activator="{ props }">
-                <v-text-field
-                  v-model="form.date"
-                  label="Data*"
+        <section class="ocorrencia-secao" aria-labelledby="ocorrencia-secao-tipo">
+          <h2 id="ocorrencia-secao-tipo" class="ocorrencia-secao__titulo">
+            Tipo da ocorrência<span aria-hidden="true">*</span>
+          </h2>
+          <!-- O v-input registra o grupo no v-form: as mesmas titleRules do antigo
+               select validam o tipo, e a mensagem sai abaixo dos chips, ligada ao
+               grupo por aria-describedby. messagesId e isValid chegam como refs
+               (o slot não os desembrulha), daí o .value. -->
+          <v-input :model-value="form.title" :rules="titleRules" hide-details="auto">
+            <template #default="{ messagesId, isValid }">
+              <v-chip-group
+                v-model="form.title"
+                column
+                selected-class="tipo-chip--selecionado"
+                role="group"
+                aria-labelledby="ocorrencia-secao-tipo"
+                :aria-describedby="messagesId.value"
+                :aria-invalid="isValid.value === false ? 'true' : undefined"
+                class="tipo-grupo"
+              >
+                <v-chip
+                  v-for="opcao in titleOptions"
+                  :key="opcao"
+                  :value="opcao"
                   variant="outlined"
-                  density="comfortable"
-                  readonly
-                  v-bind="props"
-                  prepend-inner-icon="mdi-calendar"
-                  :rules="[(v) => !!v || 'Data é obrigatória']"
-                />
-              </template>
+                  role="button"
+                  :aria-pressed="form.title === opcao ? 'true' : 'false'"
+                  :prepend-icon="iconesTipo[opcao]"
+                  class="tipo-chip"
+                >
+                  {{ opcao }}
+                </v-chip>
+              </v-chip-group>
+            </template>
+          </v-input>
 
-              <v-date-picker
-                v-model="dateValue"
-                color="primary"
-                @update:model-value="onDateSelected"
+          <v-text-field
+            v-if="form.title === 'Outro'"
+            v-model="form.customTitle"
+            label="Qual o tipo?*"
+            placeholder="Ex.: pneu furado"
+            variant="outlined"
+            density="comfortable"
+            maxlength="40"
+            counter="40"
+            :rules="[(v) => !!v || 'Informe o título']"
+            hide-details="auto"
+            class="mt-4"
+          />
+        </section>
+
+        <section class="ocorrencia-secao" aria-labelledby="ocorrencia-secao-data">
+          <h2 id="ocorrencia-secao-data" class="ocorrencia-secao__titulo">Data</h2>
+          <v-menu
+            v-model="dateMenu"
+            :close-on-content-click="false"
+            transition="scale-transition"
+            max-width="300px"
+          >
+            <template #activator="{ props }">
+              <v-text-field
+                v-model="form.date"
+                label="Data da ocorrência*"
+                variant="outlined"
+                density="comfortable"
+                readonly
+                v-bind="props"
+                prepend-inner-icon="mdi-calendar-blank-outline"
+                :rules="[(v) => !!v || 'Data é obrigatória']"
+                hide-details="auto"
+                class="campo-data"
               />
-            </v-menu>
-          </v-col>
+            </template>
 
-          <v-col v-if="form.title === 'Outro'" cols="12" sm="12">
-            <v-text-field
-              v-model="form.customTitle"
-              label="Outro título"
-              placeholder="Digite o título..."
-              variant="outlined"
-              density="comfortable"
-              maxlength="40"
-              :rules="[(v) => !!v || 'Informe o título']"
-              prepend-inner-icon="mdi-text-box-edit"
+            <v-date-picker
+              v-model="dateValue"
+              color="primary"
+              @update:model-value="onDateSelected"
             />
-          </v-col>
+          </v-menu>
+        </section>
 
-          <!-- Descrição -->
-          <v-col cols="12" sm="12">
-            <v-textarea
-              v-model="form.description"
-              label="Descrição"
-              placeholder="Descreva a ocorrência com detalhes..."
-              variant="outlined"
-              density="comfortable"
-              hide-details="auto"
-              rows="5"
-              auto-grow
-              counter="500"
-              maxlength="500"
-              prepend-inner-icon="mdi-text-long"
-            />
-          </v-col>
-        </v-row>
+        <section class="ocorrencia-secao" aria-labelledby="ocorrencia-secao-descricao">
+          <h2 id="ocorrencia-secao-descricao" class="ocorrencia-secao__titulo">Descrição</h2>
+          <v-textarea
+            v-model="form.description"
+            label="Descrição"
+            placeholder="Descreva a ocorrência com detalhes..."
+            variant="outlined"
+            density="comfortable"
+            hide-details="auto"
+            rows="5"
+            auto-grow
+            counter="500"
+            maxlength="500"
+          />
+        </section>
 
-        <!-- Botões -->
-        <div class="form-actions">
+        <div class="ocorrencia-acoes">
           <v-btn
             variant="outlined"
-            @click="handleClear"
             :disabled="loading"
-            class="btn-dialog btn-dialog--cancelar"
+            class="btn-secundario"
+            @click="handleClear"
           >
             Cancelar
           </v-btn>
           <v-btn
-            variant="flat"
+            color="primary"
             :loading="loading"
             :disabled="loadingData || !!dataError"
             @click="handleSubmit"
-            class="btn-dialog btn-dialog--confirmar"
           >
-            Cadastrar
+            Registrar ocorrência
           </v-btn>
         </div>
       </div>
@@ -145,32 +173,44 @@
     <BaseStatusModal
       v-model="successDialog"
       type="success"
-      title="Sucesso!"
-      message="Ocorrência cadastrada com sucesso!"
+      title="Ocorrência registrada"
+      message="A ocorrência foi registrada com sucesso."
     />
 
     <BaseStatusModal
       v-model="errorDialog"
       type="error"
-      title="Erro!"
-      message="Não foi possível cadastrar a ocorrência. Tente novamente."
+      title="Não foi possível registrar"
+      message="A ocorrência não foi registrada. Tente novamente em instantes."
     />
-
   </div>
 </template>
 
 <script setup>
 import BaseStatusModal from '../app/BaseStatusModal.vue'
+import PlateBadge from '@/components/app/PlateBadge.vue'
 import { createOccurrences } from '@/services/occurrenceService'
 import { getAvailableCars } from '@/services/vehicleService'
 import { getUsuarioAutenticado } from '@/services/userService'
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
+
+// tests/occurrence-form.test.js executa este script numa VM sem as linhas de
+// import, com apenas ref, reactive, onMounted, nextTick e os três services.
+// Nada além disso pode ser usado aqui (nem computed, nem utils importados).
+
+// dd/mm/aaaa, o formato exibido no campo; formatDateToISO desfaz no envio.
+const formatarData = (date) => {
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  return `${day}/${month}/${year}`
+}
 
 const vehicles = ref([])
 const userName = ref('')
 const loadingData = ref(true)
 const dataError = ref('')
-const dateValue = ref(null)
+const dateValue = ref(new Date())
 
 const loadData = async () => {
   loadingData.value = true
@@ -206,12 +246,23 @@ const titleOptions = [
   'Outro',
 ]
 
+const iconesTipo = {
+  'Combustível Abaixo de Meio Tanque': 'mdi-gas-station-outline',
+  'Veículo com Itens Pessoais': 'mdi-bag-personal-outline',
+  'Veículo Sujo Internamente': 'mdi-spray-bottle',
+  'Devolução Fora do Estacionamento': 'mdi-parking',
+  Outro: 'mdi-dots-horizontal',
+}
+
+// A data já vem com hoje e continua editável pelo date picker. O veículo
+// começa null: com '', o Vuetify o trataria como selecionado (rótulo flutuando
+// e um PlateBadge vazio no campo).
 const form = reactive({
-  licensePlate: '',
+  licensePlate: null,
   title: '',
   customTitle: '',
   description: '',
-  date: '',
+  date: formatarData(new Date()),
 })
 
 const titleRules = [
@@ -221,11 +272,7 @@ const titleRules = [
 
 const onDateSelected = (val) => {
   if (val) {
-    const date = new Date(val)
-    const day = String(date.getDate()).padStart(2, '0')
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const year = date.getFullYear()
-    form.date = `${day}/${month}/${year}`
+    form.date = formatarData(new Date(val))
     dateMenu.value = false
   }
 }
@@ -259,194 +306,167 @@ const handleSubmit = async () => {
     handleClear()
     successDialog.value = true
   } catch (error) {
-    errorDialog.value = true 
+    errorDialog.value = true
   } finally {
     loading.value = false
   }
 }
 
-const handleClear = () => {
-  form.licensePlate = ''
+// Volta ao estado inicial, inclusive a data de hoje. O nome não é tocado.
+// O veículo volta a null, e não a '': o watcher de validação do Vuetify
+// revalida qualquer valor diferente de null, e com '' o "Veículo é
+// obrigatório" reaparecia depois do Cancelar. O reset espera o nextTick para
+// rodar depois desse watcher, e não antes.
+const handleClear = async () => {
+  form.licensePlate = null
   form.title = ''
   form.customTitle = ''
   form.description = ''
-  form.date = ''
-  dateValue.value = null
+  form.date = formatarData(new Date())
+  dateValue.value = new Date()
+  await nextTick()
   formRef.value?.resetValidation()
 }
 </script>
 
 <style scoped>
-.form-wrapper {
-  background-color: transparent;
-  max-width: 860px;
-  margin: 0 auto;
-}
-
-.form-card {
-  background-color: var(--color-surface);
+/* Card do design system (§4.6): borda, raio de 12px, sem sombra. O raio dos
+   campos e o contorno vêm das regras globais de main.css. */
+.ocorrencia-card {
+  padding: var(--space-6);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: 28px 32px 24px;
-}
-
-.form-section-header {
-  padding-bottom: 16px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.form-section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.form-section-hint {
-  font-size: 0.8125rem;
-  color: var(--color-text-muted);
-  margin: 2px 0 0;
-}
-
-:deep(.v-field) {
   background-color: var(--color-surface);
-  border-radius: var(--radius-md);
 }
 
-/* Erro discreto: sem cor de fundo, só a borda e a mensagem */
-:deep(.v-input--error .v-field__outline) {
-  --v-field-border-width: 1px;
+.ocorrencia-autor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
 }
 
-:deep(.v-messages__message) {
-  font-size: 0.75rem;
-  line-height: 1.4;
-  padding-top: 2px;
+.ocorrencia-autor__icone {
+  color: var(--color-neutral-500);
 }
 
-.form-actions {
+.ocorrencia-autor__nome {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.ocorrencia-autor__carregando {
+  display: inline-block;
+  width: 160px;
+  height: 14px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-neutral-100);
+}
+
+.ocorrencia-dica {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
+}
+
+.ocorrencia-secao {
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+}
+
+.ocorrencia-secao__titulo {
+  margin: 0 0 var(--space-3);
+  color: var(--color-neutral-900);
+  font-size: var(--text-card-title-size);
+  line-height: var(--text-card-title-line);
+  font-weight: var(--text-card-title-weight);
+}
+
+/* Modelo e placa na seleção do autocomplete. */
+.veiculo-selecionado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.veiculo-selecionado__modelo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Chips do tipo: `column` quebra linha em vez de rolar. O padding zerado
+   alinha o primeiro chip com a borda dos campos. */
+.tipo-grupo {
+  padding: 0;
+}
+
+.v-chip.tipo-chip {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+  font-size: var(--text-body-size);
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.v-chip.tipo-chip:hover {
+  border-color: var(--color-neutral-600);
+}
+
+.v-chip.tipo-chip.tipo-chip--selecionado {
+  border-color: var(--color-blue-700);
+  background-color: var(--color-blue-50);
+  color: var(--color-blue-700);
+  font-weight: 500;
+}
+
+.campo-data {
+  max-width: 280px;
+}
+
+.ocorrencia-acoes {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-  padding-top: 20px;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding-top: var(--space-6);
   border-top: 1px solid var(--color-border);
-  flex-wrap: wrap;
 }
 
-/* Forma e cor dos botões vêm de .btn-dialog*, em assets/main.css. Só os ajustes
-   de altura e tipografia por faixa de tela continuam aqui. */
-
-@media (max-width: 768px) {
-  .form-card {
-    padding: 20px 16px 16px;
-    border-radius: var(--radius-md);
-  }
-
-  :deep(.v-row) {
-    margin: -4px !important;
-  }
-
-  :deep(.v-col) {
-    padding: 4px !important;
-  }
-
-  :deep(.v-input) {
-    margin-bottom: 0 !important;
-  }
-
-  :deep(.v-field__prepend-inner) {
-    padding-top: 8px !important;
-  }
-
-  :deep(.v-textarea .v-field__input) {
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-    min-height: 60px !important;
-  }
-
-  :deep(.v-textarea textarea) {
-    line-height: 1.4 !important;
-  }
-
-  .form-actions {
-    justify-content: center;
-    margin-top: 8px;
-    margin-bottom: 0;
-    gap: 8px;
-  }
-
-  .btn-dialog {
-    flex: 1 1 48%;
-    min-width: unset;
-    font-size: 0.875rem;
-    height: 42px !important;
-  }
+/* Secundário (§4.6), o mesmo da Início. */
+.v-btn.btn-secundario {
+  border-color: var(--color-neutral-300);
+  color: var(--color-text);
+  background-color: var(--color-surface);
 }
 
-@media (max-width: 480px) {
-  .form-card {
-    padding: 16px 12px 12px;
-  }
-
-  :deep(.v-row) {
-    margin: -3px !important;
-  }
-
-  :deep(.v-col) {
-    padding: 3px !important;
-  }
-
-  :deep(.v-field) {
-    font-size: 0.9rem;
-  }
-
-  :deep(.v-field__input) {
-    padding: 8px 12px !important;
-    min-height: 44px !important;
-  }
-
-  :deep(.v-textarea .v-field__input) {
-    min-height: 50px !important;
-  }
-
-  .form-actions {
-    margin-top: 6px;
-    margin-bottom: 0;
-    gap: 6px;
-  }
-
-  .btn-dialog {
-    font-size: 0.8rem;
-    height: 40px !important;
-  }
-}
-.success-modal {
-  overflow: hidden;
+.v-btn.btn-secundario:hover {
+  border-color: var(--color-neutral-400);
 }
 
-.success-icon-wrapper {
-  animation: scaleIn 0.3s ease-out;
-}
+@media (max-width: 599px) {
+  .ocorrencia-card {
+    padding: var(--space-4);
+  }
 
-@keyframes scaleIn {
-  0% {
-    transform: scale(0);
-    opacity: 0;
+  .ocorrencia-secao,
+  .ocorrencia-acoes {
+    margin-top: var(--space-5);
+    padding-top: var(--space-5);
   }
-  50% {
-    transform: scale(1.1);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
 
-:deep(.v-dialog) {
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+  .campo-data {
+    max-width: none;
+  }
+
+  /* Primário em cima, os dois na largura toda. */
+  .ocorrencia-acoes {
+    flex-direction: column-reverse;
+  }
 }
 </style>
