@@ -1,9 +1,9 @@
 <template>
   <div class="map-wrapper">
-    <div class="map-container">
+    <div ref="areaMapa" class="map-container">
       <Map
-        v-if="loadedMarker"
         :user="userMarker"
+        :margem-superior="margemSuperiorMapa"
         :route="route"
         :stations="postos"
         @show-route="showStationRoute"
@@ -13,7 +13,7 @@
         @avaliar-neo="postoNeo = $event"
       />
 
-      <div v-if="loadedMarker && !popupOpen" :class="['route-panel', { 'route-panel--compact': route && !showRouteForm }]">
+      <div v-if="!popupOpen" :class="['route-panel', { 'route-panel--compact': route && !showRouteForm }]">
         <div class="route-panel-title">
           <v-icon icon="mdi-map-marker-path" size="20" />
           <span>Encontrar postos no trajeto</span>
@@ -26,7 +26,12 @@
           <div class="autocomplete-field">
           <div class="field-heading">
             <span>Origem</span>
-            <button type="button" @click="useCurrentLocation">Usar minha localização</button>
+            <button
+              type="button"
+              :disabled="!temLocalizacao"
+              :title="motivoSemLocalizacao || undefined"
+              @click="useCurrentLocation"
+            >Usar minha localização</button>
           </div>
           <v-text-field
             v-model="origin"
@@ -81,22 +86,19 @@
         </div>
       </div>
 
-      <div v-if="loadedMarker && carregandoPostos" class="postos-status" role="status">
-        <v-progress-circular indeterminate color="primary" size="16" width="2" />
-        <span>Carregando postos…</span>
-      </div>
-      <div v-else-if="loadedMarker && cargaIncompleta" class="postos-status postos-status--aviso" role="alert">
-        <v-icon icon="mdi-alert-outline" size="18" class="postos-status-icon" />
-        <span>Não foi possível carregar todos os postos. Recarregue a página.</span>
-      </div>
-
-      <div v-if="!loadedMarker && errorMarker" class="message-overlay">
-        <v-icon icon="mdi-map-marker-off-outline" size="28" class="message-icon"></v-icon>
-        <p>Para utilizar o recurso de Mapa verifique a permissão de localização!</p>
-      </div>
-      <div v-if="!loadedMarker && !errorMarker" class="message-overlay">
-        <v-progress-circular indeterminate color="primary" size="26" width="3" class="mb-1" />
-        <p>Carregando localização...</p>
+      <div class="mapa-avisos">
+        <div v-if="avisoSemLocalizacao" class="postos-status postos-status--aviso" role="status">
+          <v-icon icon="mdi-crosshairs-off" size="18" class="postos-status-icon" />
+          <span>{{ avisoSemLocalizacao }}</span>
+        </div>
+        <div v-if="carregandoPostos" class="postos-status" role="status">
+          <v-progress-circular indeterminate color="primary" size="16" width="2" />
+          <span>Carregando postos…</span>
+        </div>
+        <div v-else-if="cargaIncompleta" class="postos-status postos-status--aviso" role="alert">
+          <v-icon icon="mdi-alert-outline" size="18" class="postos-status-icon" />
+          <span>Não foi possível carregar todos os postos. Recarregue a página.</span>
+        </div>
       </div>
     </div>
     <AvaliacaoNeoDialog
@@ -113,11 +115,23 @@ import Map from '@/components/app/Map.vue'
 import AvaliacaoNeoDialog from '@/components/user/AvaliacaoNeoDialog.vue'
 import { onMounted, reactive, ref, computed, watch, onUnmounted } from 'vue'
 import { listarTodosPostosAtivos } from '@/services/stationService'
+import {
+  avisoLocalizacao,
+  estadoAposErro,
+  estadoAposPosicao,
+  estadoInicialLocalizacao,
+  localizacaoDisponivel,
+  motivoLocalizacaoIndisponivel,
+  origemNavegacao,
+} from '@/utils/geolocalizacao'
 
-const userMarker = reactive({ lat: 0, lon: 0 })
+// null até a primeira posição: 0,0 passaria por coordenada válida.
+const userMarker = reactive({ lat: null, lon: null })
 const postoNeo = ref(null)
-const loadedMarker = ref(false)
-const errorMarker = ref(false)
+const estadoLocalizacao = ref(estadoInicialLocalizacao('geolocation' in navigator))
+const temLocalizacao = computed(() => localizacaoDisponivel(estadoLocalizacao.value))
+const avisoSemLocalizacao = computed(() => avisoLocalizacao(estadoLocalizacao.value))
+const motivoSemLocalizacao = computed(() => motivoLocalizacaoIndisponivel(estadoLocalizacao.value))
 const origin = ref('')
 const destination = ref('')
 const route = ref(null)
@@ -130,6 +144,8 @@ const popupOpen = ref(false)
 const suggestions = reactive({ origin: [], destination: [] })
 const isMobile = computed(() => window.innerWidth <= 768)
 const postos = ref([])
+const areaMapa = ref(null)
+const margemSuperiorMapa = ref(0)
 const carregandoPostos = ref(true)
 const cargaIncompleta = ref(false)
 
@@ -149,13 +165,30 @@ async function carregarPostos() {
   carregandoPostos.value = false
 }
 
+// No celular o .map-wrapper é fixed a partir do topo da janela, e a barra
+// superior cobre o começo do mapa. O Map desconta essa faixa no autopan do
+// popup, que de outro modo o deixaria embaixo da barra.
+function medirMargemSuperiorMapa() {
+  const topoMapa = areaMapa.value?.getBoundingClientRect().top ?? 0
+  const alturaBarra = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-bar-height')) || 0
+  margemSuperiorMapa.value = Math.max(0, Math.round(alturaBarra - topoMapa))
+}
+
 onMounted(() => {
   isMounted = true
   carregarPostos()
+  medirMargemSuperiorMapa()
+  window.addEventListener('resize', medirMargemSuperiorMapa)
   if (isMobile.value) {
     document.body.style.overflow = 'hidden'
     document.documentElement.style.overflow = 'hidden'
   }
+
+  // O Map já nasce montado na visão inicial; a geolocalização só acrescenta
+  // o marcador do usuário e o flyTo quando chega.
+  setTimeout(() => {
+    if (isMounted) window.dispatchEvent(new Event('resize'))
+  }, 300)
 
   if ('geolocation' in navigator) {
     watchPositionId = navigator.geolocation.watchPosition(success, error, {
@@ -168,6 +201,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   isMounted = false
+  window.removeEventListener('resize', medirMargemSuperiorMapa)
   if (watchPositionId !== null) navigator.geolocation.clearWatch(watchPositionId)
   Object.values(suggestionTimers).forEach(clearTimeout)
   if (isMobile.value) {
@@ -177,20 +211,24 @@ onUnmounted(() => {
 })
 
 function success(pos) {
-  const wasLoaded = loadedMarker.value
-  userMarker.lat = pos.coords.latitude
-  userMarker.lon = pos.coords.longitude
-  if (Number.isFinite(userMarker.lat) && Number.isFinite(userMarker.lon)) {
-    loadedMarker.value = true
-    if (wasLoaded && followCurrentLocation.value && shouldReroute()) {
-      updateCurrentRoute()
-    }
+  const posicao = { lat: pos.coords.latitude, lon: pos.coords.longitude }
+  const tinhaLocalizacao = temLocalizacao.value
+  estadoLocalizacao.value = estadoAposPosicao(estadoLocalizacao.value, posicao)
+  if (!temLocalizacao.value) return
+  userMarker.lat = posicao.lat
+  userMarker.lon = posicao.lon
+  if (tinhaLocalizacao && followCurrentLocation.value && shouldReroute()) {
+    updateCurrentRoute()
   }
 }
 
 function error(err) {
-  if (err.code === 1 || err.code === 2) errorMarker.value = true
+  estadoLocalizacao.value = estadoAposErro(estadoLocalizacao.value, err.code)
   console.warn(`ERRO(${err.code}): ${err.message}`)
+}
+
+function origemEhMinhaLocalizacao() {
+  return origin.value.trim().toLowerCase() === 'minha localização'
 }
 
 async function geocode(query) {
@@ -216,7 +254,7 @@ async function getSuggestions(field, query) {
     q: query,
   })
 
-  if (Number.isFinite(userMarker.lat) && Number.isFinite(userMarker.lon)) {
+  if (temLocalizacao.value) {
     params.set('viewbox', `${userMarker.lon - 0.7},${userMarker.lat + 0.7},${userMarker.lon + 0.7},${userMarker.lat - 0.7}`)
   }
 
@@ -230,7 +268,7 @@ async function getSuggestions(field, query) {
 }
 
 function distanceToUser(location) {
-  if (!location.lat || !location.lon) return Number.MAX_SAFE_INTEGER
+  if (!temLocalizacao.value || !location.lat || !location.lon) return Number.MAX_SAFE_INTEGER
   return distanceBetween([userMarker.lon, userMarker.lat], [Number(location.lon), Number(location.lat)])
 }
 
@@ -264,6 +302,7 @@ function selectSuggestion(field, suggestion) {
 }
 
 function useCurrentLocation() {
+  if (!temLocalizacao.value) return
   suppressSuggestions.origin = true
   origin.value = 'Minha localização'
   suggestions.origin = []
@@ -325,14 +364,18 @@ async function updateCurrentRoute() {
 
 async function searchRoute() {
   if (!origin.value || !destination.value) return
+  if (origemEhMinhaLocalizacao() && !temLocalizacao.value) {
+    routeError.value = 'Sua localização não está disponível. Digite o endereço de origem.'
+    return
+  }
   loadingRoute.value = true
   routeError.value = ''
   try {
-    const start = origin.value.trim().toLowerCase() === 'minha localização'
+    const start = origemEhMinhaLocalizacao()
       ? [userMarker.lon, userMarker.lat]
       : await geocode(origin.value)
     const end = await geocode(destination.value)
-    followCurrentLocation.value = origin.value.trim().toLowerCase() === 'minha localização'
+    followCurrentLocation.value = origemEhMinhaLocalizacao()
     activeDestination.value = end
     lastReroutePosition = followCurrentLocation.value ? start : null
     route.value = await requestRoute(start, end)
@@ -345,7 +388,9 @@ async function searchRoute() {
   }
 }
 
+// Sem a posição do usuário não há de onde partir: o popup abre, sem rota.
 async function showStationRoute(station) {
+  if (!temLocalizacao.value) return
   setRouteField('origin', 'Minha localização')
   setRouteField('destination', `${station.address || station.name}, ${station.city || ''} - ${station.state || ''}`)
   loadingRoute.value = true
@@ -367,9 +412,7 @@ async function showStationRoute(station) {
 }
 
 function navigateToStation(station) {
-  const currentOrigin = Number.isFinite(userMarker.lat) && Number.isFinite(userMarker.lon)
-    ? `${userMarker.lat},${userMarker.lon}`
-    : ''
+  const currentOrigin = origemNavegacao(userMarker)
   const destination = `${station.latitude},${station.longitude}`
   const query = new URLSearchParams({
     api: '1',
@@ -390,16 +433,6 @@ function clearRoute() {
   lastReroutePosition = null
 }
 
-
-watch(loadedMarker, (val) => {
-  if (val && isMounted) {
-    setTimeout(() => {
-      if (isMounted) {
-        window.dispatchEvent(new Event('resize'))
-      }
-    }, 300)
-  }
-})
 </script>
 
 <style scoped>
@@ -418,36 +451,6 @@ watch(loadedMarker, (val) => {
   overflow: hidden;
   margin: 0;
   padding: 0;
-}
-
-.message-overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  max-width: 320px;
-  text-align: center;
-  background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
-  padding: 20px 24px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-}
-
-.message-overlay p {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  line-height: 1.5;
-}
-
-.message-icon {
-  color: var(--color-warning-icon);
 }
 
 .route-panel {
@@ -507,6 +510,10 @@ watch(loadedMarker, (val) => {
   font-size: 0.75rem;
   cursor: pointer;
 }
+.field-heading button:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
 .autocomplete-field { position: relative; }
 .route-field { background: rgb(255 255 255 / 72%); }
 .suggestions-list {
@@ -556,15 +563,23 @@ watch(loadedMarker, (val) => {
 }
 .route-actions button:hover { background: rgb(25 118 210 / 8%); }
 
-.postos-status {
+.mapa-avisos {
   position: absolute;
   z-index: 600;
   right: 16px;
   bottom: 16px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
   max-width: min(360px, calc(100% - 32px));
+  pointer-events: none;
+}
+
+.postos-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 8px 12px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);

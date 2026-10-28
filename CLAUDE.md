@@ -959,7 +959,7 @@ src/
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1660,13 +1660,42 @@ chamador).
 
 `views/admin/StationMap.vue` carrega os postos e cuida da geolocalização do
 navegador. `components/app/Map.vue` só apresenta: recebe os postos pela prop
-`stations`, inicializa o Leaflet e monta cada popup criando **uma aplicação Vue
-por marcador** (`createApp(PopupStation)`).
+`stations`, inicializa o Leaflet e cria o popup de cada marcador.
 
-O componente `Map` só é montado quando a geolocalização retorna com sucesso
-(`v-if="loadedMarker"`) — **negar a permissão de localização impede o mapa de
-renderizar**, exibindo um aviso no lugar. A carga dos postos não espera por isso:
-começa no `onMounted` do `StationMap`, junto com a geolocalização.
+**O popup é montado só quando abre.** O `bindPopup` recebe uma função, que o
+Leaflet chama ao abrir. É ela que cria a aplicação Vue (`createApp(PopupStation)`),
+e o `popupclose` a desmonta. Até a correção, os ~970 popups eram montados de
+antemão, numa long task de cerca de 2,6 s ao abrir o mapa. Hoje a maior long task
+fica em torno de 80 ms.
+
+- **O Leaflet chama a função de novo** a cada `update()` do popup aberto. Ela
+  devolve o mesmo contêiner enquanto o popup estiver aberto. Não troque isso por
+  "monta sempre": a segunda chamada abriria uma segunda aplicação.
+- **Ao mudar a rota, o `Map` chama `update()` no popup aberto.** A faixa de
+  distância e duração chega depois do OSRM e aumenta o popup para cima, depois do
+  autopan da abertura. Sem o `update()`, o topo do popup saía cortado.
+- **`margemSuperior`** é a faixa do topo do mapa encoberta pela barra superior.
+  No celular o `.map-wrapper` é `fixed` a partir do topo da janela. O
+  `StationMap` mede essa faixa e o `Map` a soma ao `autoPanPaddingTopLeft`, dentro
+  da função de conteúdo, que roda antes do autopan.
+
+**O mapa aparece em qualquer estado da geolocalização**, na visão inicial
+(Joinville, zoom 12). A carga dos postos começa no `onMounted` do `StationMap`,
+junto com a geolocalização.
+
+- O estado é calculado em `utils/geolocalizacao.js`, coberto por
+  `tests/geolocalizacao.test.js`. São seis estados: `aguardando`, `concedida`,
+  `negada`, `indisponivel`, `tempo-esgotado` e `sem-suporte`.
+- **Só `concedida` libera o que depende da posição:** o marcador do usuário, o
+  `flyTo`, "Usar minha localização", a rota ao clicar num posto e a origem do
+  link "Iniciar navegação". Nos estados de falha aparece um aviso discreto no
+  canto inferior direito, e o trajeto por endereço continua funcionando.
+- **Uma posição que chega depois de um timeout ou de uma falha concede.** O
+  `watchPosition` continua ativo. Com a localização já concedida, timeout e falha
+  momentânea não a derrubam; só a permissão retirada derruba.
+- **`userMarker` começa com `null`, e não com `0, 0`**, porque `Number.isFinite(0)`
+  passaria. Com `0, 0` o link do Google Maps sairia com `origin=0,0`, e as
+  sugestões do autocompletar seriam ordenadas pela distância até esse ponto.
 
 **O mapa precisa da base inteira.** Até a importação por planilha ele pedia
 `size=100` uma vez e lia só `content`. Como o `/filter` ordena por
@@ -1838,6 +1867,21 @@ Problemas reais já encontrados. Consultar antes de investigar comportamento est
    inválido fora de escopo. Foi removido junto com a padronização dos botões. Ao
    mexer em estilo de diálogo, confira que o bloco é `scoped` — ou que a regra é
    deliberadamente global e mora em `main.css`.
+
+8d. **A raiz de um componente filho recebe também o `data-v` do pai.** Por isso
+   um seletor escopado do pai casa com a raiz do filho se a classe tiver o mesmo
+   nome. Foi a causa do clique perdido nos marcadores do mapa em até 768px.
+
+   A raiz do `Map.vue` se chamava `.map-container`, igual ao contêiner do
+   `StationMap`, e herdava dele `position: relative` e, no `@media` mobile,
+   `margin-top: 6%`. O contêiner do Leaflet passava 23px da borda do pai, que tem
+   `overflow: hidden`.
+
+   No `mousedown`, o handler de teclado do Leaflet chama `_container.focus()`. O
+   foco rolava o pai, o mapa subia 23px antes do `mouseup`, e o `click` caía fora
+   do marcador. Hoje a raiz é `.mapa-leaflet`, com `<style scoped>`.
+
+   Ao dar classe à raiz de um componente, não reuse um nome que o pai estiliza.
 
 ### Ambiente
 
@@ -2074,12 +2118,14 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 19 arquivos e 139 testes depois do R8. Entre eles: `auth-routing.test.js`
+  - São 20 arquivos e 151 testes depois da correção do mapa (139 no R8). Entre
+    eles: `auth-routing.test.js`
     (guard do router), `importacao-postos.test.js`, `paginacao.test.js`,
     `perfil.test.js`, `coordenadas.test.js`, `whatsapp.test.js`, `sessao.test.js`,
     `dashboard.test.js`, `formatacao.test.js`, `usuario.test.js`,
-    `contatos-gestores.test.js` (script do `ContactSection`, ver §7) e
-    `contatos-seguro.test.js` (`config/contatosSeguro.js`).
+    `contatos-gestores.test.js` (script do `ContactSection`, ver §7),
+    `contatos-seguro.test.js` (`config/contatosSeguro.js`) e
+    `geolocalizacao.test.js` (estado da localização no mapa).
   - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
     com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
 

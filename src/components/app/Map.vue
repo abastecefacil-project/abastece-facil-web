@@ -1,5 +1,5 @@
 <template>
-  <div ref="mapContainer" class="map-container"></div>
+  <div ref="mapContainer" class="mapa-leaflet"></div>
 </template>
 
 <script setup>
@@ -28,6 +28,12 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  // Pixels do topo do mapa encobertos por outro elemento (a barra superior,
+  // no celular). O autopan do popup desconta essa faixa.
+  margemSuperior: {
+    type: Number,
+    default: 0,
+  },
 });
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -50,14 +56,22 @@ let allStations = [];
 let routeLayer = null;
 let hasInitialPosition = false;
 const routeContext = reactive({ value: null });
+// Popup montado no momento: uma aplicação Vue só enquanto o popup está aberto.
+let popupMontado = null;
 
 function createPopupContent(props = {}) {
   const container = document.createElement("div");
   const app = createApp(PopupStation, props);
   app.use(vuetify);
   app.mount(container);
-  return container;
+  return { app, container };
 };
+
+function desmontarPopup(popup) {
+  if (popup.app) popup.app.unmount();
+  popup.app = null;
+  if (popupMontado === popup) popupMontado = null;
+}
 
 function createRoutePopupContent(station) {
   return createPopupContent({
@@ -86,14 +100,33 @@ function renderStations(stations) {
   markersLayer.clearLayers();
   stations.forEach((station) => {
     const marker = L.marker([station.latitude, station.longitude], { icon: stationIcon });
-    marker.bindPopup(createRoutePopupContent(station), {
+    // Conteúdo como função: o Leaflet só a chama ao abrir o popup. Montar os
+    // ~970 popups de antemão travava a página por mais de 2 s ao abrir o mapa.
+    // O Leaflet pode chamá-la de novo com o popup aberto (update), e aí devolve
+    // o mesmo conteúdo em vez de montar outra aplicação.
+    let popup = null;
+    marker.bindPopup(() => {
+      if (!popup?.app) {
+        if (popupMontado) desmontarPopup(popupMontado);
+        popup = { ...createRoutePopupContent(station), marker };
+        popupMontado = popup;
+      }
+      // Lido aqui porque o Leaflet chama esta função dentro de update(),
+      // antes do autopan.
+      marker.getPopup().options.autoPanPaddingTopLeft = [5, 5 + props.margemSuperior];
+      return popup.container;
+    }, {
       maxWidth: 300,
       minWidth: 200,
       className: 'station-popup',
     });
     marker.on('click', () => emit('show-route', station));
     marker.on('popupopen', () => emit('popup-open'));
-    marker.on('popupclose', () => emit('popup-close'));
+    marker.on('popupclose', () => {
+      if (popup) desmontarPopup(popup);
+      popup = null;
+      emit('popup-close');
+    });
     markersLayer.addLayer(marker);
   });
 }
@@ -140,6 +173,15 @@ function drawRoute(route) {
 
 watch(() => props.route, (route) => {
   routeContext.value = route;
+  // A faixa de distância e duração muda a altura do popup aberto depois do
+  // autopan da abertura. update() refaz o layout e o autopan, e o conteúdo
+  // continua o mesmo (ver bindPopup em renderStations).
+  if (popupMontado) {
+    const { marker } = popupMontado;
+    nextTick(() => {
+      if (popupMontado?.marker === marker) marker.getPopup()?.update();
+    });
+  }
   if (route) {
     drawRoute(route);
     return;
@@ -241,6 +283,7 @@ function addUserMarker(user) {
 }
 
 onUnmounted(() => {
+  if (popupMontado) desmontarPopup(popupMontado);
   if (initialMap.value) {
     initialMap.value.off();
     initialMap.value.remove();
@@ -249,8 +292,8 @@ onUnmounted(() => {
 });
 </script>
 
-<style>
-.map-container {
+<style scoped>
+.mapa-leaflet {
   width: 100%;
   height: 100%;
   position: absolute;
