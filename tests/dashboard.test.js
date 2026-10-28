@@ -153,14 +153,23 @@ test('ranking de veículos usa a placa como rótulo, sem link', () => {
 })
 
 test('ranking de cidades leva a UF como detalhe e preserva a ordem', () => {
+  // Como a API devolve: a cidade em caixa alta e sem acento, como foi importada.
   const lista = [
-    { cidade: 'Joinville', uf: 'SC', total: 48 },
-    { cidade: 'Blumenau', uf: 'SC', total: 33 },
+    { cidade: 'JOINVILLE', uf: 'SC', total: 48 },
+    { cidade: 'SAO JOSE', uf: 'SC', total: 30 },
   ]
   assert.deepEqual(itensCidadesComPostos(lista), [
     { rotulo: 'Joinville', detalhe: 'SC', total: 48 },
-    { rotulo: 'Blumenau', detalhe: 'SC', total: 33 },
+    { rotulo: 'São José', detalhe: 'SC', total: 30 },
   ])
+})
+
+test('ranking de cidades fora de SC usa o nome próprio, e nulo segue nulo', () => {
+  assert.deepEqual(itensCidadesComPostos([{ cidade: 'SAO DOMINGOS', uf: 'GO', total: 2 }]), [
+    { rotulo: 'Sao Domingos', detalhe: 'GO', total: 2 },
+  ])
+  assert.equal(itensCidadesComPostos(null), null)
+  assert.deepEqual(itensCidadesComPostos([]), [])
 })
 
 test('usuários por perfil usam o rótulo completo, na ordem da API', () => {

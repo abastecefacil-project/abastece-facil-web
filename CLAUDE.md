@@ -1293,12 +1293,15 @@ mobile, com todos os componentes instanciados em dobro. Ordem:
    `DashboardSecao`: veículos com mais ocorrências, cidades com mais postos e
    usuários por perfil.
 
-Abaixo de 960px tudo ocupa a largura inteira: a lista cai para baixo do gráfico, e
-os rankings se empilham. Na mesma linha, os cards têm a mesma altura, porque o
-grid estica os itens (`align-items: stretch`).
+Abaixo de 1280px o gráfico e a lista ocupam a largura inteira, um sobre o outro,
+e os rankings passam a duas colunas, com "Usuários por perfil" (`area-perfis`) na
+largura inteira. Abaixo de 960px tudo empilha. Na mesma linha, os cards têm a
+mesma altura, porque o grid estica os itens (`align-items: stretch`).
 
 O `DashboardSecao` tem `titulo`, `subtitulo` opcional e o slot `acoes`, à direita
-do cabeçalho. O link do cabeçalho ("Ver todas", "Ver todos") usa a classe
+da última linha do cabeçalho: com subtítulo, o título ocupa a largura inteira e o
+link desce para a linha do subtítulo (sem isso, "Veículos com mais ocorrências" e
+o link não cabem juntos num terço em 1366px). O link do cabeçalho ("Ver todas", "Ver todos") usa a classe
 `dashboard-secao__link`, estilizada no próprio `DashboardSecao` com `:slotted()`:
 conteúdo de slot carrega o `data-v` de quem o passa, e um seletor escopado comum
 não o alcançaria. Não recrie esse estilo em quem usa o slot.
@@ -1318,9 +1321,8 @@ São barras feitas com CSS, sem biblioteca: o projeto não tem dependência de g
   do mês o destaque cairia na barra errada.
 - **Escala:** relativa ao maior valor (`alturasBarras`). Valor acima de zero nunca
   fica abaixo de 4%, e o zero vira uma linha de base de 2px.
-- **Cores:** o mês atual usa `--color-primary`. Os demais usam
-  `rgba(var(--v-theme-primary), 0.3)`, do tema, porque o `--color-primary-soft`
-  quase some sobre o card branco.
+- **Cores (REDESIGN §5.3):** o mês atual usa `--color-blue-700` e os demais
+  `--color-blue-200`. Os rótulos de mês são body-sm em `--color-neutral-500`.
 - **Estados:** sem resposta e carregando, skeleton. Sem resposta e sem carga, "—".
   Série toda zerada, "Nenhuma ocorrência nos últimos 6 meses".
 - Cada barra tem `role="img"` e `aria-label` com o mês por extenso e a quantidade
@@ -1332,15 +1334,16 @@ São barras feitas com CSS, sem biblioteca: o projeto não tem dependência de g
 
 - Usa `DashboardSecao` como invólucro, com "Ver todas" no slot `acoes`, apontando
   para `OccurrencesAdmin`.
-- Cada linha tem o título, a placa num selo discreto e a data. Não tem ícone.
-- **A altura é a do gráfico, não a da lista.** A partir de 960px a `<ul>` tem
+- Cada linha tem o título, a placa em `PlateBadge` e a data. Não tem ícone.
+- **A altura é a do gráfico, não a da lista.** A partir de 1280px a `<ul>` tem
   `height: 0` e `flex-grow: 1`. Com isso ela não contribui para a altura do card:
   o grid estica o card até a altura da linha, que o gráfico define, e a lista rola
   por dentro. Empilhada, a lista fica na altura natural.
 
   O mecanismo depende do corpo do `DashboardSecao` ser uma coluna flexível com
   `min-height: 0`. Não troque o `height: 0` por `max-height`: assim a lista volta
-  a esticar a linha.
+  a esticar a linha. A rolagem é discreta: barra fina e uma sombra suave na borda
+  só quando há item escondido (fundos `local`/`scroll`, sem JavaScript).
 
 **Rankings** (`components/admin/ListaComBarras.vue`). Lista genérica com barras
 horizontais.
@@ -1349,16 +1352,18 @@ horizontais.
   - `itens`: `{ rotulo, detalhe?, total }`, ou `null` sem resposta;
   - `carregando`;
   - `mensagemVazio`.
-- **Linha:** rótulo, detalhe em texto discreto e total. Embaixo, um trilho em
-  `--color-primary-soft` com o preenchimento em `--color-primary`.
+- **Slot `rotulo`** (recebe `linha`): troca a apresentação do rótulo. O Painel o
+  usa para mostrar a placa como `PlateBadge`.
+- **Linha:** rótulo, detalhe em body-sm e total. Embaixo, um trilho em
+  `--color-blue-50` com o preenchimento em `--color-blue-700`.
 - **Proporção:** `proporcoesRelativas`, a mesma regra das colunas do gráfico.
   `alturasBarras` só delega a ela.
 - **Estados:** skeleton, "—" e a mensagem de vazio.
 
 | Seção | Rótulo / detalhe | Subtítulo | Cabeçalho |
 |---|---|---|---|
-| Veículos com mais ocorrências | placa | "Últimos 90 dias" | "Ver todos" → `OccurrencesAdmin` |
-| Cidades com mais postos | cidade / UF | "Postos ativos" | "Ver todos" → `StationAdmin` |
+| Veículos com mais ocorrências | placa (`PlateBadge`) | "Últimos 90 dias" | "Ver todos" → `OccurrencesAdmin` |
+| Cidades com mais postos | cidade (`nomeCidadeExibicao`) / UF | "Postos ativos" | "Ver todos" → `StationAdmin` |
 | Usuários por perfil | `rotuloPerfil`, na ordem da API | — | nenhum |
 
 - **Por que não há link por linha.** `OccurrencesAnalysis` e `StationManagement`

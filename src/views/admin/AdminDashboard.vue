@@ -47,7 +47,11 @@
           :itens="veiculos"
           :carregando="carregando"
           :mensagem-vazio="`Nenhuma ocorrência nos últimos ${DIAS_RANKING_VEICULOS} dias`"
-        />
+        >
+          <template #rotulo="{ linha }">
+            <PlateBadge :placa="linha.rotulo" />
+          </template>
+        </ListaComBarras>
       </DashboardSecao>
 
       <DashboardSecao class="area-terco" titulo="Cidades com mais postos" subtitulo="Postos ativos">
@@ -57,7 +61,7 @@
         <ListaComBarras :itens="cidades" :carregando="carregando" mensagem-vazio="Nenhum posto ativo" />
       </DashboardSecao>
 
-      <DashboardSecao class="area-terco" titulo="Usuários por perfil">
+      <DashboardSecao class="area-terco area-perfis" titulo="Usuários por perfil">
         <ListaComBarras :itens="perfis" :carregando="carregando" mensagem-vazio="Nenhum usuário ativo" />
         <router-link v-if="avisoConvites" :to="{ name: 'UsersAdmin' }" class="aviso-convites">
           <v-icon icon="mdi-alert-outline" size="16" />
@@ -72,6 +76,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import PageHeader from '@/components/app/PageHeader.vue'
+import PlateBadge from '@/components/app/PlateBadge.vue'
 import DashboardSecao from '@/components/admin/DashboardSecao.vue'
 import StatsCards from '@/components/admin/StatsCards.vue'
 import OcorrenciasPorMesChart from '@/components/admin/OcorrenciasPorMesChart.vue'
@@ -132,11 +137,11 @@ onMounted(carregar)
 </script>
 
 <style scoped>
+/* Fundo e rolagem são do AppShell (.main-content / .main-container): um
+   min-height de 100vh aqui somaria a barra superior e a página sempre rolaria
+   56px a mais. */
 .dashboard-wrapper {
-  background-color: var(--color-background);
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  max-width: 1440px;
 }
 
 /* O grid já espaça os itens pelo gap; a margem própria do PageHeader dobraria
@@ -145,14 +150,14 @@ onMounted(carregar)
   margin-bottom: 0;
 }
 
-/* Um grid só para todas as larguras: 12 colunas, que viram uma abaixo de 960px. */
+/* Um grid só para todas as larguras, de 12 colunas. Padding e gutter da §4.3:
+   32 e 24px no desktop, 16px abaixo de md. */
 .dashboard-grid {
-  flex: 1;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   align-content: start;
-  gap: 16px;
-  padding: 24px;
+  gap: var(--space-6);
+  padding: var(--space-8);
 }
 
 .area-inteira {
@@ -176,19 +181,21 @@ onMounted(carregar)
 .aviso-convites {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
-  margin-top: 16px;
-  padding-top: 12px;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
   border-top: 1px solid var(--color-border);
-  font-size: 0.8125rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
   font-weight: 600;
-  line-height: 1.35;
-  color: rgb(var(--v-theme-warning));
+  color: var(--color-warning);
   text-decoration: none;
 }
 
 .aviso-convites .v-icon {
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .aviso-convites:hover span,
@@ -196,18 +203,29 @@ onMounted(carregar)
   text-decoration: underline;
 }
 
-@media (max-width: 959px) {
+/* Abaixo de 1280px a coluna lateral e os terços ficariam estreitos demais para
+   os títulos: gráfico e lista empilham, e os rankings passam a duas colunas,
+   com "Usuários por perfil" na largura inteira. */
+@media (max-width: 1279px) {
   .area-principal,
   .area-lateral,
-  .area-terco {
+  .area-perfis {
     grid-column: span 12;
+  }
+
+  .area-terco:not(.area-perfis) {
+    grid-column: span 6;
   }
 }
 
-@media (max-width: 599px) {
+@media (max-width: 959px) {
+  .area-terco:not(.area-perfis) {
+    grid-column: span 12;
+  }
+
   .dashboard-grid {
-    gap: 12px;
-    padding: 16px;
+    gap: var(--space-4);
+    padding: var(--space-4);
   }
 }
 </style>

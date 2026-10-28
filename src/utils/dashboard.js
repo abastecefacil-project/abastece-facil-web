@@ -4,6 +4,7 @@
  * Funções puras, sem import de Vue, para serem testadas com `node --test`.
  */
 import { formatarNumero } from './importacaoPostos.js'
+import { nomeCidadeExibicao } from './municipios.js'
 import { rotuloPerfil } from './perfil.js'
 
 /** Card sem número: a consulta falhou e não há valor anterior para mostrar. */
@@ -150,9 +151,15 @@ export function itensVeiculosComOcorrencias(lista) {
   return lista ? lista.map(({ placa, total }) => ({ rotulo: placa, total })) : null
 }
 
-/** `cidadesComMaisPostos` → itens da `ListaComBarras`, com a UF como detalhe. */
+/**
+ * `cidadesComMaisPostos` → itens da `ListaComBarras`, com a UF como detalhe. A
+ * API devolve a cidade como foi importada ("SAO JOSE"); o rótulo sai com a
+ * grafia oficial ("São José"). Só apresentação: a ordem e os totais não mudam.
+ */
 export function itensCidadesComPostos(lista) {
-  return lista ? lista.map(({ cidade, uf, total }) => ({ rotulo: cidade, detalhe: uf, total })) : null
+  return lista
+    ? lista.map(({ cidade, uf, total }) => ({ rotulo: nomeCidadeExibicao(cidade, uf), detalhe: uf, total }))
+    : null
 }
 
 /**

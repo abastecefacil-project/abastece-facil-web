@@ -94,7 +94,7 @@ defineProps({
 
 .stat-card__contexto {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-1);
   margin-top: var(--space-1) !important;
   color: var(--color-text-muted);
@@ -102,15 +102,17 @@ defineProps({
   line-height: var(--text-body-sm-line);
 }
 
+/* O contexto quebra linha em vez de ser truncado: em 1366px, com quatro cards
+   lado a lado, "Nenhum aguardando ativação" não cabe numa linha. Os cards da
+   mesma linha do grid ficam com a mesma altura. */
 .stat-card__contexto span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
+/* Centraliza o ícone de 14px na primeira linha de 20px do body-sm. */
 .stat-card__contexto .v-icon {
   flex-shrink: 0;
+  margin-top: 3px;
 }
 
 .stat-card__contexto--aviso {
