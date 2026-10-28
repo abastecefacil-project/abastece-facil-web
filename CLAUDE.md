@@ -959,7 +959,7 @@ src/
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1675,9 +1675,11 @@ fica em torno de 80 ms.
   distância e duração chega depois do OSRM e aumenta o popup para cima, depois do
   autopan da abertura. Sem o `update()`, o topo do popup saía cortado.
 - **`margemSuperior`** é a faixa do topo do mapa encoberta pela barra superior.
-  No celular o `.map-wrapper` é `fixed` a partir do topo da janela. O
-  `StationMap` mede essa faixa e o `Map` a soma ao `autoPanPaddingTopLeft`, dentro
-  da função de conteúdo, que roda antes do autopan.
+  O `StationMap` mede essa faixa e o `Map` a soma ao `autoPanPaddingTopLeft`,
+  dentro da função de conteúdo, que roda antes do autopan. Desde o R9 o
+  `.map-wrapper` do celular é `fixed` a partir de `--app-bar-height`, e não do
+  topo da janela, e a medida dá 0. O mecanismo ficou como rede de segurança,
+  caso a barra volte a cobrir o mapa.
 
 **O mapa aparece em qualquer estado da geolocalização**, na visão inicial
 (Joinville, zoom 12). A carga dos postos começa no `onMounted` do `StationMap`,
@@ -1689,7 +1691,8 @@ junto com a geolocalização.
 - **Só `concedida` libera o que depende da posição:** o marcador do usuário, o
   `flyTo`, "Usar minha localização", a rota ao clicar num posto e a origem do
   link "Iniciar navegação". Nos estados de falha aparece um aviso discreto no
-  canto inferior direito, e o trajeto por endereço continua funcionando.
+  canto inferior direito (no topo do mapa abaixo de 960px, ver *Apresentação do
+  mapa*), e o trajeto por endereço continua funcionando.
 - **Uma posição que chega depois de um timeout ou de uma falha concede.** O
   `watchPosition` continua ativo. Com a localização já concedida, timeout e falha
   momentânea não a derrubam; só a permissão retirada derruba.
@@ -1718,7 +1721,8 @@ do trajeto (`drawRoute`) herdava o corte, porque só filtra o que foi carregado.
   `StationMap` só atribui o array ao terminar, e o `watch` de `stations` no `Map`
   chama `renderStations` (ou o filtro de trajeto, se já houver rota). Enquanto
   isso, um selo "Carregando postos…" aparece no canto inferior direito.
-- O clustering (`markerClusterGroup`) é o que já existia. Não houve mudança nele.
+- O clustering (`markerClusterGroup`) é o que já existia. O R9 mudou só o ícone
+  dos grupos (`iconCreateFunction`), não o agrupamento.
 
 A lista de postos do usuário (`views/user/GasStations.vue`) usa a mesma função,
 pelo mesmo motivo: busca e ordenação A-Z são feitas no navegador e, sobre uma
@@ -1726,6 +1730,65 @@ página de 10 do servidor, a busca só enxergava aqueles 10. Ela carrega tudo um
 vez e **pagina no navegador**, 10 por página, voltando à primeira a cada busca.
 O contador acima da grade sai de `descreverQuantidadePostos` (`utils/posto.js`).
 A lista do admin continua com paginação e busca no servidor.
+
+### Apresentação do mapa (R9)
+
+O R9 (REDESIGN §5.12) mudou o que está dentro do mapa. A estrutura continua a
+mesma: mapa na área toda e painel flutuante. A lógica pura mora em
+`utils/mapa.js`, coberto por `tests/mapa.test.js`.
+
+**Nenhum ícone depende de rede.** O pino do posto era um PNG do freepik, e o
+marcador do usuário, o ícone padrão do Leaflet servido pelo unpkg. Hoje os dois
+são `L.divIcon` com HTML e SVG inline (`htmlMarcadorPosto`,
+`htmlMarcadorUsuario`). O SVG não tem cor: ela vem de classes estilizadas no
+`<style scoped>` do `Map.vue`, com os tokens. Tiles, Nominatim e OSRM continuam
+dependendo de internet.
+
+- **Tiles:** filtro CSS só em `.leaflet-tile-pane`
+  (`saturate(0.3) contrast(0.92) brightness(1.03)`). Marcadores, rota e popups
+  ficam em outros panes e mantêm a cor.
+- **Clusters:** `iconCreateFunction` com três níveis (`nivelCluster`): até 9
+  postos, `blue-500`; até 99, `blue-700`; de 100 em diante, `blue-900`. O texto
+  é branco nos três. O `MarkerCluster.Default.css` deixou de ser importado; só o
+  `MarkerCluster.css` (animações) continua. A classe `marker-cluster` foi mantida
+  no ícone porque o `docs/redesign/capturas.mjs` a usa como seletor.
+- **Pino selecionado:** no `popupopen` o elemento ganha
+  `.marcador-posto--selecionado` (maior, anel `blue-300`) e `setZIndexOffset`.
+  **Não troque por `setIcon`:** ele recriaria o elemento recém-clicado e o foco
+  se perderia. O que cresce é o wrapper interno `.marcador-posto__pino`. A raiz do
+  `divIcon` é posicionada pelo Leaflet com `transform`, e escalá-la desloca o
+  marcador.
+- **O ponto do usuário fica no pane `usuario`** (z-index 590), abaixo dos postos
+  (`markerPane`, 600). Por cima, ele escondia o número do cluster da cidade e
+  bloqueava o clique num pino no mesmo lugar.
+- **Rota:** o `L.geoJSON` só aceita cor literal, e ela é lida de
+  `--color-blue-600` com `getComputedStyle` (`corToken`).
+- **Popup:** o `PopupStation` lê `apresentacaoPopupPosto`, que aplica:
+  - `nomeProprio` no nome e no endereço;
+  - `nomeCidadeExibicao` na cidade;
+  - `telefoneExibicao` no telefone, com link `tel:` via `hrefTelefone`;
+  - `horarioExibicao` no horário.
+
+  O `Map` dá `aria-label="Fechar"` ao X do Leaflet, que vem em inglês.
+- **Painel de trajeto:** fundo sólido, raio de 16px, `--shadow-overlay` e sem
+  `backdrop-filter`.
+  - "Mostrar postos no trajeto" não tem a prop `color`: o `.bg-primary` é
+    `!important` e impediria o desabilitado de ficar `neutral-100`/`neutral-500`.
+  - **A lista de sugestões fica no fluxo do painel, e não absoluta.** Assim ela
+    empurra o botão em vez de cobri-lo.
+- **Abaixo de 960px o painel é uma folha inferior recolhível.**
+  - O recolhimento é o `folhaRecolhida`, e só tem efeito pelo CSS dessa faixa.
+    Recolhida, a folha mostra o título e, com rota, o resumo.
+  - Um `ResizeObserver` publica a altura da folha em `--folha-altura` no
+    `.map-container`, e a atribuição do Leaflet sobe acima dela.
+  - Os avisos vão para o topo do mapa, porque acima da folha disputariam o
+    espaço com a atribuição.
+  - Com o popup aberto, o painel continua saindo do DOM (`v-if="!popupOpen"`), e a
+    altura volta a 0.
+- **Celular (até 768px):** o `.map-wrapper` é `fixed` a partir de
+  `top: var(--app-bar-height)`, com `100dvh` (fallback `100vh`). Antes ele
+  começava no topo da janela, com `margin-top: 6%`, e a barra cobria 33px do
+  mapa. Com `100vh`, a barra do navegador móvel esconderia o pé da folha.
 
 ---
 
@@ -1882,6 +1945,17 @@ Problemas reais já encontrados. Consultar antes de investigar comportamento est
    do marcador. Hoje a raiz é `.mapa-leaflet`, com `<style scoped>`.
 
    Ao dar classe à raiz de um componente, não reuse um nome que o pai estiliza.
+
+8e. **Ícones do mapa: nunca aplique `transform` na raiz de um `divIcon`.** O
+   Leaflet posiciona o marcador com `transform: translate3d(...)` no próprio
+   elemento raiz, e um `scale` ali substitui a translação: o pino pula para o
+   canto do mapa. O estado selecionado escala o wrapper interno
+   (`.marcador-posto__pino`). O CSS dos ícones, popups e controles do Leaflet
+   mora no `<style scoped>` do `Map.vue` com `:deep()`, e funciona porque o
+   Leaflet cria tudo dentro de `.mapa-leaflet`. O conteúdo do popup é outra
+   aplicação Vue, com o próprio `scoped`, mas fica no DOM da página, então as
+   regras globais de `main.css` (`.v-application .v-btn` e afins) também valem
+   ali.
 
 ### Ambiente
 
@@ -2118,8 +2192,8 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 20 arquivos e 151 testes depois da correção do mapa (139 no R8). Entre
-    eles: `auth-routing.test.js`
+  - São 21 arquivos e 160 testes depois do R9 (151 na correção do mapa, 139 no
+    R8). Entre eles: `mapa.test.js` (`utils/mapa.js`), `auth-routing.test.js`
     (guard do router), `importacao-postos.test.js`, `paginacao.test.js`,
     `perfil.test.js`, `coordenadas.test.js`, `whatsapp.test.js`, `sessao.test.js`,
     `dashboard.test.js`, `formatacao.test.js`, `usuario.test.js`,
@@ -2164,7 +2238,8 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   Enquanto isso, a verificação é manual: rodar as próprias instruções do repository no
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
-- `npx eslint src` reporta **6 erros pré-existentes** (medido no R8). Não são
+- `npx eslint src` reporta **6 erros pré-existentes** (medido no R8 e de novo no
+  R9). Não são
   regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |

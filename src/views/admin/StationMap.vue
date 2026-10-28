@@ -1,6 +1,6 @@
 <template>
   <div class="map-wrapper">
-    <div ref="areaMapa" class="map-container">
+    <div ref="areaMapa" class="map-container" :style="{ '--folha-altura': `${alturaFolha}px` }">
       <Map
         :user="userMarker"
         :margem-superior="margemSuperiorMapa"
@@ -13,78 +13,136 @@
         @avaliar-neo="postoNeo = $event"
       />
 
-      <div v-if="!popupOpen" :class="['route-panel', { 'route-panel--compact': route && !showRouteForm }]">
+      <!-- Painel flutuante no desktop; abaixo de 960px, folha inferior
+           recolhível (o recolhimento só vale nessa faixa, pelo CSS). -->
+      <section
+        v-if="!popupOpen"
+        ref="painelTrajeto"
+        aria-labelledby="titulo-trajeto"
+        :class="[
+          'route-panel',
+          {
+            'route-panel--compact': route && !showRouteForm,
+            'route-panel--recolhido': folhaRecolhida,
+          },
+        ]"
+      >
         <div class="route-panel-title">
-          <v-icon icon="mdi-map-marker-path" size="20" />
-          <span>Encontrar postos no trajeto</span>
-          <button v-if="route && !showRouteForm" type="button" class="route-panel-toggle" @click="editRoute">
-            <v-icon icon="mdi-pencil-outline" size="18" />
-          </button>
+          <v-icon icon="mdi-map-marker-path" size="20" class="route-panel-icon" />
+          <div class="route-panel-heading">
+            <h2 id="titulo-trajeto">Encontrar postos no trajeto</h2>
+            <p v-if="route" class="route-panel-resumo-recolhido">
+              {{ formatarDistancia(route.distance) }} · {{ formatarDuracao(route.duration) }}
+            </p>
+          </div>
+          <v-tooltip v-if="route && !showRouteForm" text="Editar trajeto" location="bottom">
+            <template #activator="{ props: tooltip }">
+              <button
+                v-bind="tooltip"
+                type="button"
+                class="route-panel-icon-btn"
+                aria-label="Editar trajeto"
+                @click="editRoute"
+              >
+                <v-icon icon="mdi-pencil-outline" size="18" />
+              </button>
+            </template>
+          </v-tooltip>
+          <v-tooltip :text="folhaRecolhida ? 'Expandir painel' : 'Recolher painel'" location="top">
+            <template #activator="{ props: tooltip }">
+              <button
+                v-bind="tooltip"
+                type="button"
+                class="route-panel-icon-btn route-panel-alternar"
+                :aria-label="folhaRecolhida ? 'Expandir painel' : 'Recolher painel'"
+                :aria-expanded="!folhaRecolhida"
+                aria-controls="corpo-trajeto"
+                @click="folhaRecolhida = !folhaRecolhida"
+              >
+                <v-icon :icon="folhaRecolhida ? 'mdi-chevron-up' : 'mdi-chevron-down'" size="20" />
+              </button>
+            </template>
+          </v-tooltip>
         </div>
 
-        <template v-if="!route || showRouteForm">
-          <div class="autocomplete-field">
-          <div class="field-heading">
-            <span>Origem</span>
-            <button
-              type="button"
-              :disabled="!temLocalizacao"
-              :title="motivoSemLocalizacao || undefined"
-              @click="useCurrentLocation"
-            >Usar minha localização</button>
-          </div>
-          <v-text-field
-            v-model="origin"
-            placeholder="Ex.: Joinville, SC"
-            prepend-inner-icon="mdi-map-marker"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="route-field"
-            @keyup.enter="searchRoute"
-          />
-          <div v-if="suggestions.origin.length" class="suggestions-list">
-            <button v-for="suggestion in suggestions.origin" :key="suggestion.place_id" type="button" @mousedown.prevent="selectSuggestion('origin', suggestion)">
-              <span class="suggestion-name">{{ suggestion.display_name }}</span>
-              <span class="suggestion-distance">{{ formatSuggestionDistance(suggestion) }}</span>
-            </button>
-          </div>
-          </div>
-          <div class="autocomplete-field">
-          <div class="field-heading"><span>Destino</span></div>
-          <v-text-field
-            v-model="destination"
-            placeholder="Ex.: Florianópolis, SC"
-            prepend-inner-icon="mdi-flag-checkered"
-            variant="outlined"
-            density="compact"
-            hide-details
-            class="route-field"
-            @keyup.enter="searchRoute"
-          />
-          <div v-if="suggestions.destination.length" class="suggestions-list">
-            <button v-for="suggestion in suggestions.destination" :key="suggestion.place_id" type="button" @mousedown.prevent="selectSuggestion('destination', suggestion)">
-              <span class="suggestion-name">{{ suggestion.display_name }}</span>
-              <span class="suggestion-distance">{{ formatSuggestionDistance(suggestion) }}</span>
-            </button>
-          </div>
-          </div>
-          <v-btn color="primary" block :loading="loadingRoute" :disabled="!origin || !destination" @click="searchRoute">
-            Mostrar postos no trajeto
-          </v-btn>
-        </template>
+        <div id="corpo-trajeto" class="route-panel-corpo">
+          <template v-if="!route || showRouteForm">
+            <div class="autocomplete-field">
+              <div class="field-heading">
+                <span>Origem</span>
+                <button
+                  type="button"
+                  :disabled="!temLocalizacao"
+                  :title="motivoSemLocalizacao || undefined"
+                  @click="useCurrentLocation"
+                >Usar minha localização</button>
+              </div>
+              <v-text-field
+                v-model="origin"
+                placeholder="Ex.: Joinville, SC"
+                prepend-inner-icon="mdi-map-marker-outline"
+                variant="outlined"
+                density="compact"
+                hide-details
+                @keyup.enter="searchRoute"
+              />
+              <!-- No fluxo do painel, e não sobreposta: a lista empurra o
+                   botão para baixo em vez de cobri-lo. -->
+              <div v-if="suggestions.origin.length" class="suggestions-list">
+                <button v-for="suggestion in suggestions.origin" :key="suggestion.place_id" type="button" @mousedown.prevent="selectSuggestion('origin', suggestion)">
+                  <span class="suggestion-name">{{ suggestion.display_name }}</span>
+                  <span class="suggestion-distance">{{ formatSuggestionDistance(suggestion) }}</span>
+                </button>
+              </div>
+            </div>
+            <div class="autocomplete-field">
+              <div class="field-heading"><span>Destino</span></div>
+              <v-text-field
+                v-model="destination"
+                placeholder="Ex.: Florianópolis, SC"
+                prepend-inner-icon="mdi-flag-checkered"
+                variant="outlined"
+                density="compact"
+                hide-details
+                @keyup.enter="searchRoute"
+              />
+              <div v-if="suggestions.destination.length" class="suggestions-list">
+                <button v-for="suggestion in suggestions.destination" :key="suggestion.place_id" type="button" @mousedown.prevent="selectSuggestion('destination', suggestion)">
+                  <span class="suggestion-name">{{ suggestion.display_name }}</span>
+                  <span class="suggestion-distance">{{ formatSuggestionDistance(suggestion) }}</span>
+                </button>
+              </div>
+            </div>
+            <!-- Sem a prop `color`: o .bg-primary do Vuetify é !important e
+                 não deixaria o estado desabilitado mudar de fundo. -->
+            <v-btn
+              block
+              variant="flat"
+              class="btn-trajeto"
+              :loading="loadingRoute"
+              :disabled="!origin || !destination"
+              @click="searchRoute"
+            >
+              Mostrar postos no trajeto
+            </v-btn>
+          </template>
 
-        <v-alert v-if="routeError" type="error" variant="tonal" density="compact" class="route-alert">
-          {{ routeError }}
-        </v-alert>
-        <div v-if="route" class="route-summary">
-          {{ formatarDistancia(route.distance) }} · {{ formatarDuracao(route.duration) }}
-          <div class="route-actions">
-            <button v-if="!showRouteForm" type="button" @click="editRoute">Editar</button>
-            <button type="button" @click="clearRoute">Limpar</button>
+          <v-alert v-if="routeError" type="error" variant="tonal" density="compact" class="route-alert">
+            {{ routeError }}
+          </v-alert>
+          <div v-if="route" class="route-summary">
+            <p class="route-summary-numeros">
+              <strong>{{ formatarDistancia(route.distance) }}</strong>
+              <span aria-hidden="true">·</span>
+              <span>{{ formatarDuracao(route.duration) }}</span>
+            </p>
+            <div class="route-actions">
+              <button v-if="!showRouteForm" type="button" @click="editRoute">Editar</button>
+              <button type="button" @click="clearRoute">Limpar</button>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <div class="mapa-avisos">
         <div v-if="avisoSemLocalizacao" class="postos-status postos-status--aviso" role="status">
@@ -148,6 +206,13 @@ const areaMapa = ref(null)
 const margemSuperiorMapa = ref(0)
 const carregandoPostos = ref(true)
 const cargaIncompleta = ref(false)
+// Folha inferior (abaixo de 960px): recolhida ou não, e a altura que ela
+// ocupa, publicada em --folha-altura para os avisos e a atribuição do Leaflet
+// ficarem acima dela.
+const painelTrajeto = ref(null)
+const folhaRecolhida = ref(false)
+const alturaFolha = ref(0)
+let observadorFolha = null
 
 let isMounted = true
 let watchPositionId = null
@@ -199,8 +264,22 @@ onMounted(() => {
   }
 })
 
+// O painel sai do DOM com o popup aberto (v-if), e aí a folha não ocupa nada.
+watch(painelTrajeto, (painel) => {
+  observadorFolha?.disconnect()
+  if (!painel || typeof ResizeObserver === 'undefined') {
+    alturaFolha.value = 0
+    return
+  }
+  observadorFolha ??= new ResizeObserver(([entrada]) => {
+    alturaFolha.value = Math.round(entrada.target.getBoundingClientRect().height)
+  })
+  observadorFolha.observe(painel)
+})
+
 onUnmounted(() => {
   isMounted = false
+  observadorFolha?.disconnect()
   window.removeEventListener('resize', medirMargemSuperiorMapa)
   if (watchPositionId !== null) navigator.geolocation.clearWatch(watchPositionId)
   Object.values(suggestionTimers).forEach(clearTimeout)
@@ -440,6 +519,7 @@ function clearRoute() {
   display: flex;
   flex-direction: column;
   height: calc(100vh - var(--app-bar-height));
+  height: calc(100dvh - var(--app-bar-height));
   overflow: hidden;
   margin: 0;
   padding: 0;
@@ -453,125 +533,257 @@ function clearRoute() {
   padding: 0;
 }
 
+/* Painéis flutuantes (REDESIGN §5.12): fundo surface sólido, borda, sombra de
+   overlay. Sem backdrop-filter, que seria o glassmorphism vetado. */
 .route-panel {
   position: absolute;
   z-index: 600;
-  top: 16px;
-  left: 16px;
+  top: var(--space-4);
+  left: var(--space-4);
   width: min(360px, calc(100% - 32px));
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 18px;
-  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
-  backdrop-filter: blur(14px);
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 20px;
-  box-shadow: 0 14px 40px rgb(15 23 42 / 18%);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-overlay);
+}
+
+.route-panel--compact {
+  padding-bottom: var(--space-4);
 }
 
 .route-panel-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 2px;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--color-text);
+  gap: var(--space-2);
+  min-height: 32px;
 }
-.route-panel-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: auto;
-  padding: 4px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
+
+.route-panel-icon {
+  flex-shrink: 0;
   color: var(--color-primary);
-  cursor: pointer;
 }
-.route-panel-toggle:hover { background: rgb(25 118 210 / 10%); }
-.route-panel--compact { width: min(330px, calc(100% - 32px)); padding: 13px 15px; }
+
+.route-panel-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.route-panel-heading h2 {
+  margin: 0;
+  font-size: var(--text-section-title-size);
+  line-height: var(--text-section-title-line);
+  font-weight: var(--text-section-title-weight);
+  color: var(--color-neutral-900);
+}
+
+/* Resumo da rota no cabeçalho: só com a folha recolhida (ver o @media). */
+.route-panel-resumo-recolhido {
+  display: none;
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.route-panel-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Botões de ícone de 32px (§4.6), com tooltip e aria-label no template. */
+.route-panel-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-neutral-600);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition);
+}
+
+.route-panel-icon-btn:hover {
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-900);
+}
+
+/* O recolher só existe na folha inferior. */
+.route-panel-alternar {
+  display: none;
+}
 
 .field-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 2px 5px;
-  font-size: 0.75rem;
-  font-weight: 600;
+  gap: var(--space-2);
+  margin: 0 2px var(--space-1);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  font-weight: var(--text-caption-weight);
   color: var(--color-text-muted);
 }
+
+/* "Usar minha localização": botão terciário (§4.6), texto blue-600. */
 .field-heading button {
+  padding: 2px var(--space-1);
   border: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--color-primary);
-  font-size: 0.75rem;
+  color: var(--color-blue-600);
+  font-size: var(--text-caption-size);
+  font-weight: 500;
   cursor: pointer;
 }
+
+.field-heading button:hover:not(:disabled) {
+  color: var(--color-blue-800);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .field-heading button:disabled {
-  color: var(--color-text-muted);
+  color: var(--color-neutral-500);
   cursor: not-allowed;
 }
-.autocomplete-field { position: relative; }
-.route-field { background: rgb(255 255 255 / 72%); }
+
+/* Foco visível nos botões nativos do painel: a regra global de main.css cobre
+   .v-btn, links e [role=button], não <button> puro. */
+.route-panel button:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 1px;
+}
+
+.autocomplete-field {
+  display: flex;
+  flex-direction: column;
+}
+
+/* No fluxo do painel, logo abaixo do campo. */
 .suggestions-list {
-  position: absolute;
-  z-index: 1002;
-  top: 56px;
-  left: 0;
-  right: 0;
-  max-height: 220px;
+  max-height: 200px;
+  margin-top: var(--space-1);
   overflow-y: auto;
-  padding: 5px;
+  padding: var(--space-1);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
-  box-shadow: 0 12px 28px rgb(15 23 42 / 16%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-overlay);
 }
+
 .suggestions-list button {
   display: flex;
   flex-direction: column;
   gap: 2px;
   width: 100%;
   overflow: hidden;
-  padding: 10px 11px;
+  padding: var(--space-2) var(--space-3);
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--color-text);
-  font-size: 0.82rem;
-  line-height: 1.35;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
   text-align: left;
   cursor: pointer;
 }
-.suggestion-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.suggestion-distance { color: var(--color-text-muted); font-size: 0.72rem; }
-.suggestions-list button:hover { background: var(--color-background); }
-.route-alert { margin-top: 2px; }
-.route-summary { font-size: 0.85rem; color: var(--color-text-muted); }
-.route-actions { display: flex; gap: 10px; margin-top: 8px; }
-.route-actions button {
-  padding: 5px 10px;
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-primary);
-  font-size: 0.78rem;
-  cursor: pointer;
+
+.suggestions-list button:hover {
+  background: var(--color-blue-50);
 }
-.route-actions button:hover { background: rgb(25 118 210 / 8%); }
+
+.suggestion-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suggestion-distance { color: var(--color-text-muted); font-size: var(--text-caption-size); }
+
+/* Primário do painel. Desabilitado, inequívoco: fundo neutral-100 e texto
+   neutral-500, sem a opacidade do Vuetify, que deixava o botão "azul apagado". */
+.v-btn.btn-trajeto {
+  background-color: var(--color-primary);
+  color: var(--color-neutral-0);
+}
+
+.v-btn.btn-trajeto:hover {
+  background-color: var(--color-blue-800);
+}
+
+.v-btn.btn-trajeto.v-btn--disabled {
+  background-color: var(--color-neutral-100);
+  color: var(--color-neutral-500);
+  opacity: 1;
+}
+
+.v-btn.btn-trajeto.v-btn--disabled :deep(.v-btn__overlay) {
+  opacity: 0;
+}
+
+.route-alert { margin: 0; }
+
+.route-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.route-summary-numeros {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.route-summary-numeros strong {
+  font-size: var(--text-card-title-size);
+  line-height: var(--text-card-title-line);
+  font-weight: 600;
+  color: var(--color-neutral-900);
+}
+
+/* "Editar" e "Limpar": secundários pequenos (§4.6). */
+.route-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.route-actions button {
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-body-sm-size);
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.route-actions button:hover {
+  border-color: var(--color-neutral-400);
+  background: var(--color-neutral-50);
+}
 
 .mapa-avisos {
   position: absolute;
   z-index: 600;
-  right: 16px;
-  bottom: 16px;
+  right: var(--space-4);
+  bottom: var(--space-4);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: var(--space-2);
   max-width: min(360px, calc(100% - 32px));
   pointer-events: none;
 }
@@ -579,14 +791,14 @@ function clearRoute() {
 .postos-status {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  font-size: 0.8rem;
-  line-height: 1.4;
+  box-shadow: var(--shadow-overlay);
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
   color: var(--color-text-muted);
 }
 
@@ -604,27 +816,75 @@ function clearRoute() {
   height: 100%;
 }
 
+/* Folha inferior abaixo de md (960px). */
+@media (max-width: 959.98px) {
+  .route-panel,
+  .route-panel--compact {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: min(70%, 520px);
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+    border-width: 1px 0 0;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  /* Alça da folha: só indicação visual; quem recolhe é o botão do cabeçalho. */
+  .route-panel::before {
+    content: '';
+    align-self: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--color-neutral-300);
+  }
+
+  .route-panel-alternar {
+    display: inline-grid;
+  }
+
+  .route-panel-corpo {
+    min-height: 0;
+    overflow-y: auto;
+    padding-top: var(--space-1);
+  }
+
+  .route-panel--recolhido .route-panel-corpo {
+    display: none;
+  }
+
+  .route-panel--recolhido .route-panel-resumo-recolhido {
+    display: block;
+  }
+
+  /* A atribuição sobe acima da folha; os avisos vão para o topo do mapa, para
+     não disputar com ela o espaço logo acima da folha. */
+  .mapa-avisos {
+    top: var(--space-2);
+    right: var(--space-2);
+    bottom: auto;
+    max-width: calc(100% - 16px);
+  }
+
+  .map-container :deep(.leaflet-bottom) {
+    bottom: var(--folha-altura, 0px);
+  }
+}
+
+/* No celular o wrapper é fixed, abaixo da barra superior. Antes ele começava
+   no topo da janela e a barra cobria 33px do mapa. */
 @media (max-width: 768px) {
   .map-wrapper {
     position: fixed;
-    top: 0;
+    top: var(--app-bar-height);
     left: 0;
     width: 100%;
-    height: 100vh;
-  }
-
-  .map-container {
-    margin-top: 6%;
-  }
-
-  .route-panel {
-    top: 72px;
-    left: 8px;
-    width: calc(100% - 16px);
-  }
-
-  :deep(.leaflet-top.leaflet-right) {
-    top: 80px !important;
+    height: calc(100vh - var(--app-bar-height));
+    height: calc(100dvh - var(--app-bar-height));
   }
 }
 </style>
