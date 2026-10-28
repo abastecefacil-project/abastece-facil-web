@@ -1104,7 +1104,7 @@ onUnmounted(invalidarOperacoes)
    CSS (CLAUDE.md §9, item 1). Fixa o vermelho de main.css, apagado. O scoped
    alcança o conteúdo do v-dialog (§9, item 8b). */
 .v-btn.btn-dialog--perigo.v-btn--disabled {
-  background-color: #c50606;
+  background-color: var(--color-error);
   color: var(--color-surface);
   opacity: 0.6;
 }

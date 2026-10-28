@@ -66,7 +66,7 @@
 }
 
 :deep(.acesso-icone) {
-  color: var(--color-warning);
+  color: var(--color-warning-icon);
 }
 
 :deep(.acesso-btn) {

@@ -1,69 +1,245 @@
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
+/* Tokens do Abastece Fácil — fonte da verdade: docs/redesign/REDESIGN.md §4.
 
-/* Tokens do Abastece Fácil.
-   Os valores partem das cores que o projeto já usava: #16496E (barra superior),
-   #0F324C (menu lateral) e os cinzas do Material. */
+   Este é o único lugar do projeto com cor, tipografia, raio, sombra e
+   espaçamento literais (além do tema em plugins/vuetify.js, que repete as cores
+   porque o Vuetify não lê custom properties). Componentes e páginas consomem
+   os tokens; nunca hex ou rgb.
+
+   Os nomes que já existiam (--color-primary, --color-border, --radius-md...)
+   foram mantidos e receberam os valores novos. As escalas e as semânticas
+   entraram ao lado deles. As fontes vêm do @fontsource, importado em main.js. */
 :root {
-  --color-primary: #16496e;
-  --color-primary-soft: #e8eff5;
+  /* Escala azul (marca) */
+  --color-blue-50: #eef4fa;
+  --color-blue-100: #d9e6f3;
+  --color-blue-200: #b3cce6;
+  --color-blue-300: #84abd4;
+  --color-blue-400: #5487be;
+  --color-blue-500: #2f6aa5;
+  --color-blue-600: #20558c;
+  --color-blue-700: #16496e;
+  --color-blue-800: #123659;
+  --color-blue-900: #0c2741;
+  --color-blue-950: #071a2d;
 
-  --color-background: #f7f8fa;
-  --color-surface: #ffffff;
-  --color-border: #b8c3cf;
-  --color-border-strong: #7b8a9b;
+  /* Escala neutra. neutral-400 é #7b8a9b, e não o #8d9aa8 do REDESIGN: este dá
+     2,87:1 sobre branco e reprovaria a borda de input, que precisa de 3:1. */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f5f7fa;
+  --color-neutral-100: #ebeff4;
+  --color-neutral-200: #d9e0e8;
+  --color-neutral-300: #bcc6d1;
+  --color-neutral-400: #7b8a9b;
+  --color-neutral-500: #667585;
+  --color-neutral-600: #4b5866;
+  --color-neutral-700: #36414d;
+  --color-neutral-800: #232c36;
+  --color-neutral-900: #151c24;
 
-  --color-text: #1f2933;
-  --color-text-muted: #6b7785;
+  /* Papéis — nomes anteriores ao redesign, apontando para as escalas */
+  --color-primary: var(--color-blue-700);
+  --color-primary-soft: var(--color-blue-50);
+  --color-background: var(--color-neutral-50);
+  --color-surface: var(--color-neutral-0);
+  --color-border: var(--color-neutral-200);
+  /* Borda de input: 3,53:1 sobre branco, 3,29:1 sobre o background. */
+  --color-border-strong: var(--color-neutral-400);
+  --color-text: var(--color-neutral-800);
+  --color-text-muted: var(--color-neutral-600);
 
-  /* success/error saem do tema do Vuetify (plugins/vuetify.js);
-     warning fica aqui porque é usado direto em CSS no overlay do mapa. */
-  --color-warning: #ed6c02;
+  /* Semânticas. O nome sem sufixo é a cor de TEXTO, a mesma do tema do
+     Vuetify; -bg é o fundo e -icon vale para ícone, borda e preenchimento.
+     Texto sobre -bg: success 4,69, warning 5,12, error 5,75, info 6,92 (:1). */
+  --color-success: #1e7a4f;
+  --color-success-bg: #e7f4ec;
+  --color-success-icon: #2e9b66;
+  --color-warning: #8f5b0a;
+  --color-warning-bg: #fdf1dc;
+  /* #b07a16, e não o #c98a1b original: este dá 2,94:1 sobre branco e o ícone,
+     a borda e o preenchimento precisam de 3:1 (este dá 3,72:1). */
+  --color-warning-icon: #b07a16;
+  --color-error: #b42318;
+  --color-error-bg: #fdecea;
+  --color-error-icon: #d9362b;
+  --color-info: #20558c;
+  --color-info-bg: #eef4fa;
+  --color-info-icon: #2f6aa5;
 
+  /* Tipografia (REDESIGN §4.2). Tamanho e altura de linha em rem (base 16px). */
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+
+  --text-page-title-size: 1.5rem;
+  --text-page-title-line: 2rem;
+  --text-page-title-weight: 600;
+  --text-section-title-size: 1.125rem;
+  --text-section-title-line: 1.625rem;
+  --text-section-title-weight: 600;
+  --text-card-title-size: 1rem;
+  --text-card-title-line: 1.5rem;
+  --text-card-title-weight: 600;
+  --text-body-lg-size: 1rem;
+  --text-body-lg-line: 1.5rem;
+  --text-body-size: 0.875rem;
+  --text-body-line: 1.375rem;
+  --text-body-sm-size: 0.8125rem;
+  --text-body-sm-line: 1.25rem;
+  --text-caption-size: 0.75rem;
+  --text-caption-line: 1rem;
+  --text-caption-weight: 500;
+  --text-overline-size: 0.6875rem;
+  --text-overline-line: 1rem;
+  --text-overline-weight: 600;
+  --text-overline-tracking: 0.06em;
+  --text-kpi-size: 1.75rem;
+  --text-kpi-line: 2.25rem;
+  --text-kpi-weight: 600;
+  --text-mono-size: 0.8125rem;
+  --text-mono-line: 1.25rem;
+  --text-mono-weight: 500;
+  --text-mono-tracking: 0.04em;
+
+  /* Espaçamento, base 4px */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Raios: chips e badges / botões e inputs / cards e tabelas / diálogos */
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
+  /* Sombras: só overlays (menus, diálogos, painéis flutuantes do mapa). Card
+     não tem sombra. --shadow-md mantém o nome antigo e vale o mesmo que o
+     overlay; --shadow-sm fica para elementos flutuantes pequenos. */
+  --shadow-overlay: 0 8px 24px rgb(7 26 45 / 14%), 0 2px 6px rgb(7 26 45 / 8%);
+  --shadow-md: var(--shadow-overlay);
+  --shadow-sm: 0 1px 2px rgb(7 26 45 / 6%);
 
-  --transition: 180ms ease;
+  /* Foco: anel de 3px blue-400 a 45%. */
+  --focus-ring-color: rgb(84 135 190 / 45%);
+  --focus-ring-width: 3px;
+  --focus-ring: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
+
+  --transition: 150ms ease-out;
 }
 
 html,
 body,
 #app {
   height: 100%;
-  font-family: 'Manrope', sans-serif !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* As classes tipográficas do Vuetify (.text-h1 a .text-overline) e o badge
+   declaram font-family: "Roboto". O projeto não carrega Roboto, então o
+   navegador caía numa fonte do sistema — era isso que deixava o botão "Entrar"
+   (text-h6) e os títulos de diálogo (text-h5) fora da família. O prefixo duplo
+   dá especificidade para vencer a regra de uma classe, e o .v-overlay-container
+   alcança o conteúdo dos diálogos, que fica fora de .v-application. */
+:is(.v-application, .v-overlay-container)
+  :is(
+    .text-h1,
+    .text-h2,
+    .text-h3,
+    .text-h4,
+    .text-h5,
+    .text-h6,
+    .text-subtitle-1,
+    .text-subtitle-2,
+    .text-body-1,
+    .text-body-2,
+    .text-button,
+    .text-caption,
+    .text-overline,
+    .v-badge__badge
+  ) {
+  font-family: var(--font-sans);
+}
+
+/* O leaflet.css impõe "Helvetica Neue", Arial no mapa inteiro, popups inclusive. */
+.v-application .leaflet-container {
+  font-family: var(--font-sans);
 }
 
 /* Títulos de página — usados pelas views que já tinham .page-title/.page-subtitle */
 .page-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--color-text);
-  letter-spacing: -0.02em;
-  line-height: 1.25;
+  font-size: var(--text-page-title-size);
+  line-height: var(--text-page-title-line);
+  font-weight: var(--text-page-title-weight);
+  color: var(--color-neutral-900);
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
 .page-subtitle {
-  font-size: 0.9375rem;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
   font-weight: 400;
   color: var(--color-text-muted);
   margin: 0;
 }
 
 /* A especificidade evita que o CSS do Vuetify, injetado depois no dev server,
-   sobrescreva os estilos compartilhados. */
+   sobrescreva os estilos compartilhados. Toda regra que precisa valer também
+   dentro de diálogo e menu usa :is(.v-application, .v-overlay-container): o
+   Vuetify teleporta esse conteúdo para .v-overlay-container, filho direto de
+   <body>, fora de .v-application (CLAUDE.md §9, item 8b). */
 
-/* Inclui os modais, que são teleportados para fora de .v-application. */
-.v-application .v-card,
-.v-overlay-container .v-card {
+/* Card: borda, raio de 12px e nenhuma sombra. Vale também para os cards sem
+   `elevation` explícita, que o Vuetify desenha como `elevated`. Quem passa
+   `elevation="N"` no template continua com sombra, porque .elevation-N é
+   !important — esses saem nas etapas de cada tela. */
+:is(.v-application, .v-overlay-container) .v-card {
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
 }
 
-/* O Vuetify aplica 38% de opacidade à borda; campos desabilitados ainda
-   preservam a opacidade própria do componente. */
+/* Diálogo: raio de 16px e sombra de overlay. O !important no raio vence o
+   rounded="lg" que alguns diálogos passam no card; o VDialog não tem prop de
+   raio que resolva isso pelo default. */
+.v-overlay-container .v-dialog > .v-overlay__content > .v-card,
+.v-overlay-container .v-dialog > .v-overlay__content > form > .v-card {
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-overlay);
+}
+
+/* Menus (select, filtros, notificações): sombra de overlay. */
+.v-overlay-container .v-menu > .v-overlay__content {
+  border-radius: var(--radius-lg);
+}
+
+.v-overlay-container .v-menu > .v-overlay__content > :is(.v-card, .v-list, .v-sheet) {
+  box-shadow: var(--shadow-overlay);
+}
+
+/* Tooltip legível: o fundo é surface-variant (neutral-800, no tema). */
+.v-overlay-container .v-tooltip > .v-overlay__content {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
+  font-weight: 500;
+}
+
+/* Chip: raio de 6px. A escala `rounded` do Vuetify não tem esse valor, por
+   isso não é default. A segunda linha alcança o chip `label`. */
+:is(.v-application, .v-overlay-container) .v-chip,
+:is(.v-application, .v-overlay-container) .v-chip.v-chip--label {
+  border-radius: var(--radius-sm);
+}
+
+/* Campos outlined. O Vuetify aplica 38% de opacidade à borda; campos
+   desabilitados ainda preservam a opacidade própria do componente. */
 .v-field.v-field--variant-outlined .v-field__outline {
   --v-field-border-opacity: 1;
 }
@@ -75,18 +251,33 @@ body,
 }
 
 .v-field.v-field--variant-outlined:not(.v-field--error):hover .v-field__outline {
-  color: var(--color-text-muted);
+  color: var(--color-neutral-600);
 }
 
 .v-field.v-field--variant-outlined.v-field--focused:not(.v-field--error) .v-field__outline {
   color: var(--color-primary);
 }
 
-/* Botões: sem caixa-alta forçada e com peso consistente */
-.v-application .v-btn {
+/* Botões: sentence case e peso 500, inclusive em diálogos e menus, que antes
+   escapavam desta regra e saíam em caixa alta. */
+:is(.v-application, .v-overlay-container) .v-btn {
   text-transform: none;
   letter-spacing: 0;
-  font-weight: 600;
+  font-weight: 500;
+}
+
+/* Altura de 40px pela variável que o próprio Vuetify usa. Botões de ícone
+   ficam de fora, porque o Vuetify deriva a largura deles da mesma variável. */
+:is(.v-application, .v-overlay-container) .v-btn--size-default:not(.v-btn--icon) {
+  --v-btn-height: 40px;
+}
+
+/* Foco visível em todo elemento interativo (REDESIGN §4.4). O campo de texto
+   já sinaliza o foco pela borda primary. */
+:is(.v-application, .v-overlay-container)
+  :is(.v-btn, .v-list-item, .v-chip, a, [role='button']):focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 1px;
 }
 
 /* Ações de diálogo — forma e tipografia comuns a todo par confirmar/cancelar,
@@ -107,15 +298,15 @@ body,
    Vuetify a converte em .bg-<cor>, que é !important e venceria estas regras. */
 .v-btn.btn-dialog {
   min-width: 130px;
-  height: 42px;
+  height: 40px;
   padding: 0 24px;
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
-  /* !important porque o default `rounded: 'md'` do VBtn (plugins/vuetify.js)
-     injeta .rounded-md, e as utilitárias de raio do Vuetify são !important. */
-  border-radius: var(--radius-lg) !important;
+  /* !important porque o default `rounded: 'lg'` do VBtn (plugins/vuetify.js)
+     injeta .rounded-lg, e as utilitárias de raio do Vuetify são !important. */
+  border-radius: var(--radius-md) !important;
 }
 
 /* Neutro: "Cancelar" e "Fechar". Dispensar não é confirmar, então não ganha
@@ -127,29 +318,30 @@ body,
 }
 
 .v-btn.btn-dialog--cancelar:hover {
-  border-color: var(--color-text-muted);
-  background-color: rgba(31, 41, 51, 0.04);
+  border-color: var(--color-neutral-600);
+  background-color: var(--color-neutral-50);
 }
 
-/* Confirmação não destrutiva: azul da marca. O hover escurece por filtro para
-   não inventar um segundo azul fora dos tokens. */
+/* Confirmação não destrutiva: azul da marca. */
 .v-btn.btn-dialog--confirmar {
   background-color: var(--color-primary);
   color: var(--color-surface);
 }
 
 .v-btn.btn-dialog--confirmar:hover {
-  filter: brightness(0.92);
+  background-color: var(--color-blue-800);
 }
 
-/* Confirmação destrutiva. O vermelho é semântico e não muda de valor. */
+/* Confirmação destrutiva: o vermelho semântico de erro (branco sobre ele,
+   6,57:1). O hover escurece por filtro para não inventar um vermelho fora dos
+   tokens. */
 .v-btn.btn-dialog--perigo {
-  background-color: #c50606;
+  background-color: var(--color-error);
   color: var(--color-surface);
 }
 
 .v-btn.btn-dialog--perigo:hover {
-  background-color: #920606;
+  filter: brightness(0.88);
 }
 
 /* Linha de ações, alinhada à direita em todos os diálogos. */
@@ -165,14 +357,7 @@ body,
    nenhuma regra do Vuetify disputa a classe, e o popup é uma app Vue à parte
    (createApp em Map.vue). Não combine com text-grey-*, que é !important. */
 .horario-nao-informado {
-  color: var(--color-text-muted);
-  font-style: italic;
-}
-
-@media (max-width: 768px) {
-  .page-title {
-    font-size: 1.5rem;
-  }
+  color: var(--color-neutral-500);
 }
 
 @media (max-width: 600px) {
@@ -183,5 +368,17 @@ body,
   .v-btn.btn-dialog {
     flex: 1 1 48%;
     min-width: unset;
+  }
+}
+
+/* Movimento reduzido: sem animação nem transição perceptível. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -15,6 +15,8 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
     "@mdi/font": "^7.4.47",
     "@vueuse/core": "^13.9.0",
     "axios": "^1.12.2",

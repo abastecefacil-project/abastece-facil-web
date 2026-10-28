@@ -455,7 +455,7 @@ watch(loadedMarker, (val) => {
 }
 
 .message-icon {
-  color: var(--color-warning);
+  color: var(--color-warning-icon);
 }
 
 .route-panel {
@@ -589,7 +589,7 @@ watch(loadedMarker, (val) => {
 
 .postos-status-icon {
   flex-shrink: 0;
-  color: var(--color-warning);
+  color: var(--color-warning-icon);
 }
 
 :deep(.leaflet-container) {

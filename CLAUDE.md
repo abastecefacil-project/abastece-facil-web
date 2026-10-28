@@ -1715,6 +1715,24 @@ Problemas reais já encontrados. Consultar antes de investigar comportamento est
 4. **Ao estilizar bordas de campo, preservar o estado de erro** com
    `:not(.v-field--error)`, senão o vermelho de validação é sobrescrito.
 5. Vuetify 3 usa `.v-pagination__item--is-active`, não `--active`.
+5a. **As classes tipográficas do Vuetify trazem `font-family: "Roboto"`.** Vale para
+   `.text-h1` a `.text-h6`, `.text-subtitle-*`, `.text-body-*`, `.text-button`,
+   `.text-caption`, `.text-overline` e também para `.v-badge__badge`. O projeto não
+   carrega Roboto, então qualquer elemento com uma dessas classes cai numa fonte do
+   sistema, sem erro nenhum. Foi o que deixou o botão "Entrar" do login (`text-h6`) e
+   os títulos de diálogo (`text-h5`) fora da família. A correção mora em `main.css`,
+   numa regra com prefixo `:is(.v-application, .v-overlay-container)`, que ganha das
+   regras de uma classe do Vuetify e alcança os diálogos. Ao usar outra classe do
+   Vuetify que declare fonte, acrescente-a ali. O `leaflet.css` faz o mesmo no mapa
+   (`"Helvetica Neue", Arial` no `.leaflet-container`), e tem regra própria.
+5b. **`.rounded-md` não existe no Vuetify 3.9.** A escala de `rounded` é `0`, `sm`
+   (2px), padrão (4px), `lg` (8px), `xl` (24px), `pill`, `circle` e `shaped`.
+   `rounded: 'md'` gera a classe `rounded-md`, que não tem CSS nenhum, e o componente
+   fica com o raio base. O default do `VBtn` foi `'md'` até o redesign, e o
+   comentário do `.btn-dialog` dizia que essa classe era `!important`; não era. Quem
+   é `!important` são as classes que existem (`.rounded-lg` e afins), e o mesmo vale
+   para `.elevation-N`: um default de `rounded` ou `elevation` no `VCard` anularia o
+   raio e a sombra definidos no CSS.
 
 ### Estrutura
 

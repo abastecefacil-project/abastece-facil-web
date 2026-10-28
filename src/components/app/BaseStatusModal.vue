@@ -58,12 +58,14 @@ const icon = computed(() => {
   return "mdi-close-circle"
 })
 
-// O amarelo sai do token --color-warning do main.css, e não de um literal, para
-// continuar amarrado ao design system se o valor mudar. O Vuetify aceita
-// var(--...) em prop de cor: isCssColor reconhece o prefixo e aplica por style.
+// O amarelo sai do token --color-warning-icon do main.css, e não de um literal,
+// para continuar amarrado ao design system se o valor mudar. É a variante de
+// ícone, e não a de texto, porque a cor pinta o ícone e o fundo do botão. O
+// Vuetify aceita var(--...) em prop de cor: isCssColor reconhece o prefixo e
+// aplica por style.
 const iconColor = computed(() => {
   if (props.type === "success") return "#4CAF50"
-  if (props.type === "warning") return "var(--color-warning)"
+  if (props.type === "warning") return "var(--color-warning-icon)"
   return "#F44336"
 })
 </script>

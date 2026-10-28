@@ -55,7 +55,7 @@ defineProps({
 }
 
 .contador--alerta {
-  border-color: var(--color-warning);
+  border-color: var(--color-warning-icon);
 }
 
 .contador--alerta .contador-valor {
