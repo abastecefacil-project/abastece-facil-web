@@ -954,12 +954,12 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (15)  user/ (7)  app/ (12 compartilhados)  public/ (2)
+├── components/  admin/ (14)  user/ (7)  app/ (12 compartilhados)  public/ (2)
 ├── config/      navegacao.js, contatosSeguro.js
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ajuda.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ocorrenciaExibicao.js, ajuda.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1416,7 +1416,7 @@ horizontais.
 
 - **Por que não há link por linha.** `OccurrencesAnalysis` e `StationManagement`
   não leem filtro da query string: a busca é um `ref` local, e a de ocorrências
-  filtra por título, não por placa. Clicar numa placa ou cidade levaria a uma
+  filtra por título, não por placa (continua assim depois do R13). Clicar numa placa ou cidade levaria a uma
   lista genérica, o que confunde. Por isso o link fica só no cabeçalho, e o
   componente nem tem prop de destino.
 
@@ -1853,6 +1853,54 @@ de 32px e 16px abaixo de 960px.
 código-fonte e falha se os quatro arquivos voltarem a ter cor literal, gradiente
 ou `box-shadow`, se o FAQ ganhar `elevation`, ou se o 0800 do `SeguroInfo` deixar
 de vir de `config/contatosSeguro.js`.
+
+### Ocorrências do admin (R13)
+
+`/admin/occurrences` é `views/admin/OccurrencesAnalysis.vue` (REDESIGN §5.6),
+no padrão de tabela de Postos do admin: card com toolbar, `<table>`, estados e
+`PaginationBar` no rodapé. O `OccurrenceCard.vue` (tile amarelo, `elevation`,
+hover por `translateY`) foi removido.
+
+- **Colunas:** "Registrada em", Tipo (o `title`), Veículo (`PlateBadge`),
+  Colaborador (`userName`, "Não informado" quando vazio), Descrição truncada com
+  `v-tooltip` do texto completo, e a ação.
+- **"Registrada em" é o `createdAt`** (dd/mm/aaaa HH:mm), porque é a ordem real
+  da tabela. Quando o `occurrenceDate` cai **em outro dia**, uma segunda linha
+  em body-sm diz "Ocorrida em dd/mm/aaaa"; no mesmo dia ela não aparece. A regra
+  é `ocorridaEm` de `apresentacaoLinhaOcorrencia` (`utils/ocorrenciaExibicao.js`,
+  coberta por `tests/ocorrencia-exibicao.test.js`): compara o dia local do
+  `createdAt`, o mesmo que `formatarDataHora` exibe, com o `LocalDate` lido pelas
+  partes, sem fuso.
+- **Ordem:** o controle "Mais recentes / Mais antigas" saiu. Ele entrava no
+  `watchDebounced`, mas nunca chegava ao service, e a ordem é fixa no backend
+  (`created_at DESC`). No lugar, o texto "Mais recentes primeiro" na toolbar.
+  **Não recoloque um controle de ordem** sem o backend aceitar o parâmetro.
+- **A busca não mudou:** `getOccurrences(page, title)`, debounce de 400 ms,
+  filtra pelo título no servidor.
+- **Detalhe:** a linha inteira abre o diálogo com o mouse; pelo teclado, o
+  botão `mdi-chevron-right` ("Ver detalhes", `aria-label` com tipo, placa e
+  data), com `@click.stop`. O mesmo padrão da lista de postos do colaborador.
+  O diálogo segue a §4.6 (560px, ficha com Veículo, Colaborador, Data da
+  ocorrência e Registrada em, descrição num bloco neutro com as quebras
+  originais) e continua inline na view.
+- **Foco ao fechar.** O `v-dialog` não tem `activator`, e o foco caía no
+  `<body>`. O `@after-leave` chama `devolverFoco`, que leva o foco ao botão
+  "Ver detalhes" da linha que abriu, mas só se ele ainda estiver no diálogo ou
+  no `<body>`.
+- **Estados:** skeleton de 10 linhas, `EmptyState` (texto diferente com busca),
+  e erro com "Tentar novamente", que antes não existia (a falha só ia ao
+  console).
+- **Responsivo:** abaixo de 1280px a coluna Descrição sai e vira a segunda
+  linha da célula Tipo. Abaixo de 600px cada linha vira um bloco (tipo e
+  descrição; placa e colaborador; "Registrada em" e, se houver, "Ocorrida em"),
+  com o rótulo "Registrada em" visível só ali, porque o cabeçalho some.
+
+**Esc colado na abertura do diálogo é ignorado, e é do Vuetify.** O `useStack`
+só marca o overlay como `globalTop` num `setTimeout`, e o Chrome prioriza
+eventos de entrada sobre timers: um Esc enviado poucos milissegundos depois de
+abrir chega antes e não fecha. Nenhuma pessoa é rápida assim, mas um script de
+Playwright é. Nos testes de navegador, espere uns 250 ms entre abrir e
+pressionar Esc.
 
 ### Apresentação do mapa (R9)
 
@@ -2318,8 +2366,9 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 23 arquivos e 182 testes depois do R12 (173 no F3, 172 no R11, 166 no R10, 160 no
-    R9, 151 na correção do mapa, 139 no R8). Entre eles: `central-ajuda.test.js`
+  - São 24 arquivos e 188 testes depois do R13 (182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
+    R9, 151 na correção do mapa, 139 no R8). Entre eles: `ocorrencia-exibicao.test.js`
+    (`utils/ocorrenciaExibicao.js`, ver §7), `central-ajuda.test.js`
     (`utils/ajuda.js` e o código-fonte da Central, ver §7), `occurrence-form.test.js`
     (script e template do `OccurrenceForm`, ver §7), `posto-exibicao.test.js`
     (`utils/postoExibicao.js`), `mapa.test.js` (`utils/mapa.js`), `auth-routing.test.js`
@@ -2368,7 +2417,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
 - `npx eslint src` reporta **6 erros pré-existentes** (medido no R8, no R9, no
-  R10, no R11 e de novo no R12). Não são
+  R10, no R11, no R12 e de novo no R13). Não são
   regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |
@@ -2377,7 +2426,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   | `no-unused-vars` (2) | `err` (VehicleDialog), `error` (OccurrenceForm) |
 
   Caíram de 9 para 6 nas etapas anteriores do redesign (sem `Footer`, sem o
-  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11 e o R12 não mudaram a contagem.
+  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11, o R12 e o R13 não mudaram a contagem.
 
   Caíram de **10 para 9** com as coordenadas no cadastro de posto: o `catch (err)`
   do `PostoDialog` passou a ler o erro para separar `COORDINATES_NOT_FOUND` do modal
