@@ -260,6 +260,37 @@ body,
   color: var(--color-primary);
 }
 
+/* Alerta: texto em body (14/22). O Vuetify não define tamanho e o alerta
+   herdava os 16px da página, maior que o texto ao redor. O título
+   (.v-alert-title) tem tamanho próprio e não é afetado. */
+:is(.v-application, .v-overlay-container) .v-alert {
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+}
+
+/* Rótulo flutuante de campo preenchido. No outlined ele mora dentro do
+   contorno e herda a cor dele (neutral-400) com a opacidade média do Vuetify,
+   o que dava cinza-claro abaixo de 3:1. Em foco continua primary e, com erro,
+   vermelho: as duas exclusões preservam esses estados. */
+:is(.v-application, .v-overlay-container)
+  .v-field:not(.v-field--focused):not(.v-field--error)
+  .v-field-label--floating {
+  color: var(--color-neutral-600);
+  opacity: 1;
+}
+
+/* Autopreenchimento do navegador: o Chrome pinta o input de amarelo-claro com
+   um background-color que CSS comum não sobrescreve. A sombra interna cobre o
+   fundo com surface, e o text-fill-color mantém o texto em neutral-800. */
+:is(.v-application, .v-overlay-container) .v-field input:-webkit-autofill,
+:is(.v-application, .v-overlay-container) .v-field input:-webkit-autofill:hover,
+:is(.v-application, .v-overlay-container) .v-field input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--color-surface) inset;
+  box-shadow: 0 0 0 1000px var(--color-surface) inset;
+  -webkit-text-fill-color: var(--color-text);
+  caret-color: var(--color-text);
+}
+
 /* Botões: sentence case e peso 500, inclusive em diálogos e menus, que antes
    escapavam desta regra e saíam em caixa alta. */
 :is(.v-application, .v-overlay-container) .v-btn {

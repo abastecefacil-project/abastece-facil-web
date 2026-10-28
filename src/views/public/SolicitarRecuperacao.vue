@@ -3,9 +3,11 @@
     <!-- Confirmação. É a MESMA tela e o MESMO texto para e-mail cadastrado e
          não cadastrado — a resposta do backend é um corpo único, e é ela que
          aparece aqui. -->
-    <div v-if="estado === 'enviado'" class="text-center">
-      <v-icon icon="mdi-email-check-outline" size="44" class="acesso-icone" />
-      <h1 class="acesso-titulo mt-3">Verifique seu e-mail</h1>
+    <div v-if="estado === 'enviado'">
+      <span class="acesso-icone acesso-icone--info">
+        <v-icon icon="mdi-email-check-outline" size="24" />
+      </span>
+      <h1 class="acesso-titulo mt-4">Verifique seu e-mail</h1>
       <p class="acesso-texto mt-2">{{ mensagemConfirmacao }}</p>
       <router-link to="/login" class="acesso-link d-inline-block mt-6">
         Voltar para o login
@@ -13,8 +15,8 @@
     </div>
 
     <div v-else>
-      <h1 class="acesso-titulo text-center">Esqueci minha senha</h1>
-      <p class="acesso-texto text-center mt-2 mb-6">
+      <h1 class="acesso-titulo">Esqueci minha senha</h1>
+      <p class="acesso-texto mt-1 mb-8">
         Informe o e-mail da sua conta e enviaremos um link para você definir uma senha nova.
       </p>
 
@@ -25,7 +27,7 @@
       <v-form ref="form" @submit.prevent="handleSubmit">
         <v-text-field
           v-model="email"
-          label="E-mail*"
+          label="E-mail"
           prepend-inner-icon="mdi-email-outline"
           variant="outlined"
           autocomplete="email"
@@ -33,13 +35,7 @@
           :rules="[regras.obrigatorio, regras.formato]"
         />
 
-        <v-btn
-          type="submit"
-          color="primary"
-          size="large"
-          class="acesso-btn mt-8"
-          :loading="enviando"
-        >
+        <v-btn type="submit" color="primary" class="acesso-btn mt-6" :loading="enviando">
           Enviar link
         </v-btn>
       </v-form>

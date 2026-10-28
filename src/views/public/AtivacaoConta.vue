@@ -7,22 +7,22 @@
     </div>
 
     <!-- Falha da consulta, não do token: dizer "expirado" aqui seria mentira. -->
-    <div v-else-if="estado === 'indisponivel'" class="text-center">
-      <v-icon icon="mdi-wifi-off" size="44" class="acesso-icone" />
-      <h1 class="acesso-titulo mt-3">Não foi possível verificar o link</h1>
+    <div v-else-if="estado === 'indisponivel'">
+      <span class="acesso-icone"><v-icon icon="mdi-wifi-off" size="24" /></span>
+      <h1 class="acesso-titulo mt-4">Não foi possível verificar o link</h1>
       <p class="acesso-texto mt-2">
         Houve uma falha na comunicação com o sistema. Verifique sua conexão e tente novamente.
       </p>
-      <v-btn color="primary" size="large" class="acesso-btn mt-6" @click="validarToken">
+      <v-btn color="primary" class="acesso-btn mt-6" @click="validarToken">
         Tentar novamente
       </v-btn>
     </div>
 
     <!-- Inexistente, expirado, já usado: a API responde igual para todos, de
          propósito, e a tela não tenta adivinhar qual foi. -->
-    <div v-else-if="estado === 'invalido'" class="text-center">
-      <v-icon icon="mdi-link-variant-off" size="44" class="acesso-icone" />
-      <h1 class="acesso-titulo mt-3">Link inválido ou expirado</h1>
+    <div v-else-if="estado === 'invalido'">
+      <span class="acesso-icone"><v-icon icon="mdi-link-variant-off" size="24" /></span>
+      <h1 class="acesso-titulo mt-4">Link inválido ou expirado</h1>
       <p class="acesso-texto mt-2">
         Este link de ativação não vale mais — ele pode ter expirado ou já ter sido usado. Procure o
         gestor da sua regional para receber um novo convite.
@@ -33,8 +33,8 @@
     </div>
 
     <div v-else>
-      <h1 class="acesso-titulo text-center">{{ saudacao }}</h1>
-      <p class="acesso-texto text-center mt-2 mb-6">
+      <h1 class="acesso-titulo">{{ saudacao }}</h1>
+      <p class="acesso-texto mt-1 mb-8">
         Crie uma senha para ativar sua conta no Abastece Fácil.
       </p>
 
@@ -45,13 +45,7 @@
       <v-form ref="form" @submit.prevent="handleSubmit">
         <CampoNovaSenha v-model="senha" />
 
-        <v-btn
-          type="submit"
-          color="primary"
-          size="large"
-          class="acesso-btn mt-8"
-          :loading="enviando"
-        >
+        <v-btn type="submit" color="primary" class="acesso-btn mt-6" :loading="enviando">
           Ativar conta
         </v-btn>
       </v-form>
