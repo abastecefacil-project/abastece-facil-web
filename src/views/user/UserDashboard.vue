@@ -25,11 +25,9 @@
       </div>
     </div>
   </div>
-  <Footer />
 </template>
 
 <script setup>
-import Footer from '@/components/app/Footer.vue'
 import DashboardCard from '@/components/user/DashboardCard.vue'
 
 const guideSteps = [

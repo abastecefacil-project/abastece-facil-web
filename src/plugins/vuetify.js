@@ -46,6 +46,9 @@ export default createVuetify({
           // flat/elevated. Branco sobre neutral-800 dá 14,1:1.
           'surface-variant': '#232C36', // neutral-800
           'on-surface-variant': '#FFFFFF',
+          // Fundo da sidebar do AppShell (blue-900). Como cor do tema, o
+          // Vuetify calcula sozinho o texto branco por cima.
+          sidebar: '#0C2741',
         },
       },
     },

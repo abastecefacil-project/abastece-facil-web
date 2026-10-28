@@ -8,12 +8,10 @@
     <!-- Formulário -->
     <OccurrenceForm />
   </div>
-  <Footer />
 </template>
 
 <script setup>
 import OccurrenceForm from '@/components/user/OccurrenceForm.vue'
-import Footer from '@/components/app/Footer.vue'
 </script>
 
 <style scoped>

@@ -130,6 +130,23 @@
   --focus-ring: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
 
   --transition: 150ms ease-out;
+
+  /* Shell (REDESIGN §5.1). A sidebar é a única superfície escura do app, por
+     isso tem papéis próprios. Contrastes medidos sobre blue-900: texto do item
+     8,48:1 (7,43:1 sob o hover); rótulo de grupo 6,33:1; item ativo, branco
+     sobre o fundo de 10%, 11,27:1. O anel de foco global (blue-400 a 45%) some
+     sobre o blue-900, então a sidebar usa blue-200 cheio: 9,19:1, acima dos
+     3:1 exigidos para contorno de componente. */
+  --app-bar-height: 56px;
+  --color-sidebar-bg: var(--color-blue-900);
+  --color-sidebar-text: rgb(255 255 255 / 72%);
+  --color-sidebar-text-active: var(--color-neutral-0);
+  --color-sidebar-overline: rgb(255 255 255 / 60%);
+  --color-sidebar-hover: rgb(255 255 255 / 6%);
+  --color-sidebar-active: rgb(255 255 255 / 10%);
+  --color-sidebar-indicator: var(--color-blue-300);
+  --color-sidebar-divider: rgb(255 255 255 / 10%);
+  --color-sidebar-focus-ring: var(--color-blue-200);
 }
 
 html,

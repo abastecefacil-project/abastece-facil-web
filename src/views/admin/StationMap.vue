@@ -414,7 +414,7 @@ watch(loadedMarker, (val) => {
 .map-wrapper {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 50px);
+  height: calc(100vh - var(--app-bar-height));
   overflow: hidden;
   margin: 0;
   padding: 0;

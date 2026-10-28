@@ -128,7 +128,6 @@
     @update:modelValue="(page) => loadingOccurrences(page - 1)"
   />
 
-  <Footer />
 </template>
 
 <script setup>
@@ -137,7 +136,6 @@ import { watchDebounced } from '@vueuse/core'
 import OccurrenceCard from '../../components/admin/OccurrenceCard.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
-import Footer from '@/components/app/Footer.vue'
 import { getOccurrences } from '@/services/occurrenceService.js'
 
 // Estados reativos

@@ -114,7 +114,6 @@
     @update:modelValue="(page) => loadingStations(page - 1)"
   />
 
-  <Footer />
 </template>
 
 <script setup>
@@ -123,7 +122,6 @@ import { watchDebounced } from '@vueuse/core'
 import PostoCard from '../../components/admin/PostoCard.vue'
 import PostoDialog from '../../components/admin/PostoDialog.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
-import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import {
   getStations,

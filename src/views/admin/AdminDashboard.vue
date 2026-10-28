@@ -66,13 +66,11 @@
       </DashboardSecao>
     </div>
 
-    <Footer />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import Footer from '@/components/app/Footer.vue'
 import DashboardHeader from '@/components/admin/DashboardHeader.vue'
 import DashboardSecao from '@/components/admin/DashboardSecao.vue'
 import StatsCards from '@/components/admin/StatsCards.vue'

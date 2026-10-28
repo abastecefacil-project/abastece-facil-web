@@ -55,7 +55,6 @@
     </div>
     <ContactSection />
   </div>
-  <Footer />
 </template>
 
 <script setup>
@@ -64,7 +63,6 @@ import AbastecimentoGuide from '@/components/user/AbastecimentoGuide.vue'
 import SeguroInfo from '@/components/user/SeguroInfo.vue'
 import FaqItem from '@/components/user/FaqItem.vue'
 import ContactSection from '@/components/user/ContactSection.vue'
-import Footer from '@/components/app/Footer.vue'
 
 const searchQuery = ref('')
 

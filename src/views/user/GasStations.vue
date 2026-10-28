@@ -61,7 +61,6 @@
 
   <PaginationBar v-model="paginaAtual" :length="totalPages" />
 
-  <Footer />
 </template>
 
 <script setup>
@@ -69,7 +68,6 @@ import { ref, computed, onMounted, watch } from 'vue'
 import GasStationCard from '@/components/user/GasStationCard.vue'
 import GasStationModal from '@/components/user/GasStationModal.vue'
 import SearchFilterBar from '@/components/app/SearchFilterBar.vue'
-import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import { listarTodosPostosAtivos } from '@/services/stationService'
 import { descreverQuantidadePostos, nomeExibicaoPosto } from '@/utils/posto'

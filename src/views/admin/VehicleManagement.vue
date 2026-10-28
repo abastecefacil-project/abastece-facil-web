@@ -69,7 +69,6 @@
     @update:modelValue="(page) => loadingCars(page - 1)"
   />
 
-  <Footer />
 </template>
 
 <script setup>
@@ -78,7 +77,6 @@ import { watchDebounced } from '@vueuse/core'
 import VehicleCard from '../../components/admin/VehicleCard.vue'
 import VehicleDialog from '../../components/admin/VehicleDialog.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
-import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import { getCars, deleteCar } from '@/services/vehicleService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'

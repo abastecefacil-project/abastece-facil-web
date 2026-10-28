@@ -108,7 +108,6 @@
   />
 
 
-  <Footer />
 </template>
 
 <script setup>
@@ -116,7 +115,6 @@ import { computed, ref, watch, onMounted } from 'vue'
 import UserCard from '@/components/admin/UserCard.vue'
 import UserDialog from '@/components/admin/UserDialog.vue'
 import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
-import Footer from '@/components/app/Footer.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import { watchDebounced } from '@vueuse/core'
 import { inativarUser, reativarUser, getUsers, getUsuarioAutenticado, reenviarAtivacao } from '@/services/userService'
