@@ -49,7 +49,7 @@
         <p class="empty-subtitle">Tente ajustar sua pesquisa</p>
       </div>
     </div>
-    <ContactSection />
+    <ContactSection class="help-contatos" />
   </div>
 </template>
 
@@ -135,6 +135,13 @@ const filteredFaqs = computed(() => {
   font-weight: 600;
   color: #424242;
   margin: 0;
+}
+
+/* Largura e margem que o ContactSection tinha no próprio invólucro até o R8,
+   quando ele passou a ser só o card, compartilhado com a Início. */
+.help-contatos {
+  max-width: 900px;
+  margin: var(--space-8) auto 0;
 }
 
 .faq-section {

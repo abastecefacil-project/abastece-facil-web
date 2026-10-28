@@ -61,7 +61,11 @@
         <ListaComBarras :itens="cidades" :carregando="carregando" mensagem-vazio="Nenhum posto ativo" />
       </DashboardSecao>
 
-      <DashboardSecao class="area-terco area-perfis" titulo="Usuários por perfil">
+      <DashboardSecao
+        class="area-terco area-perfis"
+        titulo="Usuários por perfil"
+        :subtitulo="subtituloUsuariosPorPerfil(authStore.perfil)"
+      >
         <ListaComBarras :itens="perfis" :carregando="carregando" mensagem-vazio="Nenhum usuário ativo" />
         <router-link v-if="avisoConvites" :to="{ name: 'UsersAdmin' }" class="aviso-convites">
           <v-icon icon="mdi-alert-outline" size="16" />
@@ -90,6 +94,7 @@ import {
   itensVeiculosComOcorrencias,
   subtituloOcorrenciasPorMes,
   subtituloPainel,
+  subtituloUsuariosPorPerfil,
   textoConvitesAntigos,
 } from '@/utils/dashboard'
 import { useAuthStore } from '@/stores/auth'

@@ -954,12 +954,12 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (17)  user/ (8)  app/ (8 compartilhados)  public/ (2)
-├── config/      navegacao.js, whatsapp.js
+├── components/  admin/ (15)  user/ (8)  app/ (12 compartilhados)  public/ (2)
+├── config/      navegacao.js, contatosSeguro.js
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1170,7 +1170,54 @@ banco, sem parâmetro do cliente. Não existe número global por variável de am
 telefone é válido; mostra estados de carregamento, erro e ausência de gestores.
 `utils/whatsapp.js` aceita telefones nacionais com DDD (10/11 dígitos) ou com país
 55 (12/13), e monta a URL com mensagem inicial. Cobertura: `tests/whatsapp.test.js`.
-O verde do ícone de WhatsApp é `#25D366`, igual ao contato da seguradora.
+
+**Os contatos do seguro moram só em `config/contatosSeguro.js`** (R8):
+`ASSISTENCIA_24H` (`tel:08006020088`) e `WHATSAPP_SEGURO` (`wa.me` com mensagem
+própria, montado por `utils/whatsapp.js`), cada um com `rotulo`, `telefone` e
+`href`. Os consumidores são o `ContactSection` e o banner do `SeguroInfo`. Até o R8
+o 0800 estava escrito à mão nos dois e o WhatsApp do seguro era só texto. O link
+`tel:` sai de `hrefTelefone` (`utils/formatacao.js`). O módulo importa com caminho
+relativo, e não `@/`, para ser testável com `node --test`
+(`tests/contatos-seguro.test.js`).
+
+**`ContactSection` é um card compartilhado** pela Início e pela Central de Ajuda.
+O título e a descrição são os slots `titulo` e `descricao`, com o texto da Central
+como default. O componente não tem largura nem margem próprias: quem usa decide
+(`.help-contatos` na Central). Os ícones ficam em tile neutro `blue-50`/`blue-700`
+(REDESIGN §4.5), sem o verde de marca do WhatsApp, e o telefone do gestor sai
+formatado por `telefoneExibicao`.
+
+**O `<script setup>` dele não pode usar nada importado fora do template.**
+`tests/contatos-gestores.test.js` executa esse script numa VM, depois de apagar as
+linhas de `import` (só as de uma linha), e fornece apenas `ref`, `computed`,
+`onMounted`, o service e as duas funções de `utils/whatsapp.js`. Um uso no script de
+`telefoneExibicao` ou dos contatos do seguro quebraria o teste com `ReferenceError`.
+
+### Início do colaborador
+
+`/user/dashboardUser` é `views/user/UserDashboard.vue`, reescrita no R8 (REDESIGN
+§5.8). Os quatro cards numerados (`DashboardCard.vue`, removido) deram lugar a:
+
+- **Saudação** "Olá, {primeiro nome}" no `PageHeader`, com `primeiroNome` de
+  `utils/usuario.js`. Sem nome (carregando ou com falha), "Olá!".
+- **Busca de postos.** O envio, por Enter ou pelo botão "Buscar" (secundário,
+  outlined), leva a `UserGasStations` com `?busca=termo`. Sem termo, vai sem query.
+  `GasStations.vue` lê `route.query.busca` **só na inicialização** do campo:
+  digitar lá não reescreve a URL.
+- **Card "Registrar ocorrência"**, com o único botão primário da tela.
+- **`ContactSection`** com "Precisa de ajuda agora?".
+- **Atalho "Ver postos no mapa"**, um card clicável (`router-link`) para `MapUser`.
+
+O layout é um grid de áreas. A ordem do DOM é a da §5.8 e a do mobile (busca,
+ocorrência, ajuda, mapa). A partir de 960px a ajuda vai para a coluna lateral
+(7fr/5fr), e a última linha (`1fr`) absorve a sobra para os cards não esticarem.
+Padding de 32px no desktop e 16px abaixo de 960px, como o Painel. Largura máxima
+de 1120px. Abaixo de 600px, a busca empilha (lado a lado o rótulo do campo seria
+cortado) e o botão de ocorrência ocupa a largura toda.
+
+**O nome não gera segunda chamada a `/api/users/me`.** O `AppShell`, que já o
+carrega para o menu do usuário, faz `provide('nomeUsuario', readonly(nomeUsuario))`,
+e a Início lê com `inject`. Qualquer página dentro do shell pode fazer o mesmo.
 
 ### Nome e horário do posto
 
@@ -1364,7 +1411,7 @@ horizontais.
 |---|---|---|---|
 | Veículos com mais ocorrências | placa (`PlateBadge`) | "Últimos 90 dias" | "Ver todos" → `OccurrencesAdmin` |
 | Cidades com mais postos | cidade (`nomeCidadeExibicao`) / UF | "Postos ativos" | "Ver todos" → `StationAdmin` |
-| Usuários por perfil | `rotuloPerfil`, na ordem da API | — | nenhum |
+| Usuários por perfil | `rotuloPerfil`, na ordem da API | `subtituloUsuariosPorPerfil` | nenhum |
 
 - **Por que não há link por linha.** `OccurrencesAnalysis` e `StationManagement`
   não leem filtro da query string: a busca é um `ref` local, e a de ocorrências
@@ -1384,6 +1431,10 @@ horizontais.
   abaixo da lista de perfis aparece "X usuários aguardam ativação há mais de 7
   dias" (`textoConvitesAntigos`, com singular). É um link para `/admin/user` em
   `warning`, no mesmo padrão do contexto do `StatsCards`.
+- **Subtítulo de "Usuários por perfil"** (R8): "Usuários ativos" para o
+  administrador e "Usuários ativos da sua regional" para o gestor. O backend conta
+  só `is_active = true`, o que inclui quem aguarda ativação
+  (`UserRepository.contarAtivosPorPerfil*`), e escopa o gestor pela regional.
 - **"Usuários por perfil" sempre traz os 3 perfis**, com zero nos ausentes. A
   linha zerada aparece, com a linha de base de 2px. Para o gestor, os números são
   da própria regional.
@@ -2023,13 +2074,12 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São oito arquivos, 59 testes: `auth-routing.test.js` (guard do router),
-    `importacao-postos.test.js` (`utils/importacaoPostos.js`),
-    `paginacao.test.js` (`utils/paginacao.js` e o contador de postos),
-    `perfil.test.js` (`utils/perfil.js`), `coordenadas.test.js`
-    (`utils/coordenadas.js`), `whatsapp.test.js` (`utils/whatsapp.js`),
-    `sessao.test.js` (`utils/sessao.js`) e `dashboard.test.js`
-    (`utils/dashboard.js`).
+  - São 19 arquivos e 139 testes depois do R8. Entre eles: `auth-routing.test.js`
+    (guard do router), `importacao-postos.test.js`, `paginacao.test.js`,
+    `perfil.test.js`, `coordenadas.test.js`, `whatsapp.test.js`, `sessao.test.js`,
+    `dashboard.test.js`, `formatacao.test.js`, `usuario.test.js`,
+    `contatos-gestores.test.js` (script do `ContactSection`, ver §7) e
+    `contatos-seguro.test.js` (`config/contatosSeguro.js`).
   - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
     com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
 
@@ -2068,14 +2118,16 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   Enquanto isso, a verificação é manual: rodar as próprias instruções do repository no
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
-- `npx eslint src` reporta **9 erros pré-existentes**. Não são regressões; usar essa
-  contagem como linha de base. A lista completa, que antes estava incompleta neste
-  documento:
+- `npx eslint src` reporta **6 erros pré-existentes** (medido no R8). Não são
+  regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |
   |---|---|
-  | `vue/multi-word-component-names` (5) | `Footer`, `Map`, `Reports`, `Login`, `Occurrences` |
-  | `no-unused-vars` (4) | `err` (VehicleDialog), `response` e `error` (OccurrenceForm), `deletarPosto` (StationManagement) |
+  | `vue/multi-word-component-names` (4) | `Map`, `Reports`, `Login`, `Occurrences` |
+  | `no-unused-vars` (2) | `err` (VehicleDialog), `error` (OccurrenceForm) |
+
+  Caíram de 9 para 6 nas etapas anteriores do redesign (sem `Footer`, sem o
+  `response` do OccurrenceForm e sem o `deletarPosto`). O R8 não mudou a contagem.
 
   Caíram de **10 para 9** com as coordenadas no cadastro de posto: o `catch (err)`
   do `PostoDialog` passou a ler o erro para separar `COORDINATES_NOT_FOUND` do modal

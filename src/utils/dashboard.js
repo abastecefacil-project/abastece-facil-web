@@ -197,3 +197,12 @@ export function subtituloPainel(perfil, carregadoEm) {
   }
   return partes.filter(Boolean).join(' · ')
 }
+
+/**
+ * Subtítulo de "Usuários por perfil". A contagem do backend é só de usuários
+ * ativos (`is_active`), o que inclui quem ainda aguarda ativação, e o gestor
+ * recebe só a própria regional (`UserRepository.contarAtivosPorPerfil*`).
+ */
+export function subtituloUsuariosPorPerfil(perfil) {
+  return perfil === 'GESTOR_FROTA' ? 'Usuários ativos da sua regional' : 'Usuários ativos'
+}

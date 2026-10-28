@@ -65,6 +65,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import GasStationCard from '@/components/user/GasStationCard.vue'
 import GasStationModal from '@/components/user/GasStationModal.vue'
 import SearchFilterBar from '@/components/app/SearchFilterBar.vue'
@@ -78,9 +79,13 @@ import { descreverQuantidadePostos, nomeExibicaoPosto } from '@/utils/posto'
 // enxergaria os 10 postos dela.
 const POSTOS_POR_PAGINA = 10
 
+const route = useRoute()
+
 // Estados reativos
 const loading = ref(false)
-const searchQuery = ref('')
+// A busca da Início chega como `?busca=` (REDESIGN §5.8) e preenche o campo. Só
+// na entrada: digitar aqui não reescreve a URL.
+const searchQuery = ref(typeof route.query.busca === 'string' ? route.query.busca : '')
 const statusFilter = ref('todos')
 const postos = ref([])
 const cargaIncompleta = ref(false)

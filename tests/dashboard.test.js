@@ -20,6 +20,7 @@ import {
   formatarDataOcorrencia,
   formatarValorKpi,
   subtituloPainel,
+  subtituloUsuariosPorPerfil,
   variacaoMensal,
 } from '../src/utils/dashboard.js'
 
@@ -199,4 +200,10 @@ test('aviso de convites antigos concorda em número e some sem convites', () => 
   for (const quantidade of [0, -1, null, undefined]) {
     assert.equal(textoConvitesAntigos(quantidade), '', `quantidade ${quantidade}`)
   }
+})
+
+test('subtítulo de usuários por perfil diz que conta ativos, e da regional para o gestor', () => {
+  assert.equal(subtituloUsuariosPorPerfil('ADMINISTRADOR'), 'Usuários ativos')
+  assert.equal(subtituloUsuariosPorPerfil('GESTOR_FROTA'), 'Usuários ativos da sua regional')
+  assert.equal(subtituloUsuariosPorPerfil(null), 'Usuários ativos')
 })

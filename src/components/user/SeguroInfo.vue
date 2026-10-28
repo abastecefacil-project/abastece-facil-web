@@ -3,7 +3,11 @@
     <div class="assistencia-banner">
       <div class="banner-content">
         <h3 class="banner-title">Assistência 24 horas</h3>
-        <div class="phone-number">0800 602 0088</div>
+        <a
+          class="phone-number"
+          :href="ASSISTENCIA_24H.href"
+          :aria-label="`Ligar para a ${ASSISTENCIA_24H.rotulo}: ${ASSISTENCIA_24H.telefone}`"
+        >{{ ASSISTENCIA_24H.telefone }}</a>
       </div>
       <div class="banner-logo">
         <v-icon icon="mdi-phone-in-talk" size="48" color="white"></v-icon>
@@ -43,6 +47,9 @@
 </template>
 
 <script setup>
+// O número vem do módulo único dos contatos do seguro (R8). O resto do visual
+// desta seção é do R12.
+import { ASSISTENCIA_24H } from '@/config/contatosSeguro'
 </script>
 
 <style scoped>
@@ -73,10 +80,16 @@
 }
 
 .phone-number {
+  display: inline-block;
   font-size: 1.75rem;
   font-weight: 700;
   color: white;
   letter-spacing: 1px;
+  text-decoration: none;
+}
+
+.phone-number:hover {
+  text-decoration: underline;
 }
 
 .banner-logo {

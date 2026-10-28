@@ -32,6 +32,16 @@ export function telefoneExibicao(telefone) {
   return nacional ? formatarTelefone(digitos) : texto
 }
 
+/**
+ * Link `tel:` para um telefone exibido com máscara: só os dígitos, que é o que
+ * o discador espera ("0800 602 0088" vira "tel:08006020088"). Sem dígitos
+ * devolve null, e quem exibe mostra o número sem link.
+ */
+export function hrefTelefone(telefone) {
+  const digitos = String(telefone ?? '').replace(/\D/g, '')
+  return digitos ? `tel:${digitos}` : null
+}
+
 // ── Horário ─────────────────────────────────────────────────────────────────
 
 /**

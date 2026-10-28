@@ -145,7 +145,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, provide, readonly } from 'vue'
 import '@/assets/main.css'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
@@ -182,6 +182,11 @@ const perfilLongo = computed(() => rotuloPerfil(authStore.perfil))
 // redesign. A store não guarda o nome de propósito (REDESIGN §5.1).
 const nomeUsuario = ref(null)
 let desmontado = false
+
+// As páginas dentro do shell leem o mesmo nome por `inject('nomeUsuario')`, sem
+// uma segunda chamada a `/api/users/me` (a saudação da Início, R8). Somente
+// leitura: quem carrega o nome é este componente.
+provide('nomeUsuario', readonly(nomeUsuario))
 
 async function carregarNomeUsuario() {
   try {

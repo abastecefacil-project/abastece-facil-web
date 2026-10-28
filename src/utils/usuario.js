@@ -22,3 +22,13 @@ export function iniciaisDoNome(nome) {
   const ultima = palavras.length > 1 ? palavras.at(-1).charAt(0) : ''
   return (primeira + ultima).toLocaleUpperCase('pt-BR')
 }
+
+/**
+ * Primeiro nome, para a saudação da Início ("Olá, Mariana"). É a primeira
+ * palavra do nome como foi cadastrado. Nome ausente ou em branco devolve null,
+ * e quem exibe cai numa saudação sem nome.
+ */
+export function primeiroNome(nome) {
+  if (typeof nome !== 'string') return null
+  return nome.trim().split(/\s+/)[0] || null
+}
