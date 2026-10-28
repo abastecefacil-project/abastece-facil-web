@@ -1,21 +1,31 @@
 <template>
   <v-dialog
     :model-value="modelValue"
-    max-width="800px"
+    max-width="720px"
     scrollable
     persistent
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <v-card rounded="lg">
-      <!-- Título -->
-      <v-card-title class="pa-6 pb-4">
-        <span class="text-h5 font-weight-bold">
-          {{ props.isEditing ? 'Editar Posto' : 'Novo Posto' }}
-        </span>
+    <v-card>
+      <!-- Cabeçalho (REDESIGN §4.6): título e fechar. O X emite o mesmo `close`
+           do botão Cancelar. -->
+      <v-card-title class="dialogo-cabecalho">
+        <h2 class="dialogo-titulo">{{ props.isEditing ? 'Editar posto' : 'Novo posto' }}</h2>
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          density="comfortable"
+          aria-label="Fechar"
+          class="dialogo-fechar"
+          @click="$emit('close')"
+        >
+          <v-icon icon="mdi-close" size="20" />
+        </v-btn>
       </v-card-title>
 
       <!-- Conteúdo -->
-      <v-card-text class="px-6 py-4">
+      <v-card-text class="dialogo-corpo">
         <v-form ref="form">
           <!-- Nome e Nome Fantasia -->
           <v-row dense>
@@ -33,7 +43,7 @@
               <v-text-field
                 v-model="localPosto.fantasyName"
                 class="small-input"
-                label="Nome Fantasia"
+                label="Nome fantasia"
                 variant="outlined"
                 density="comfortable"
               ></v-text-field>
@@ -70,7 +80,6 @@
                 v-model="localPosto.cep"
                 class="small-input"
                 label="CEP*"
-                style="font-size: 2px;"
                 variant="outlined"
                 density="comfortable"
                 maxlength="9"
@@ -81,7 +90,7 @@
                 @blur="searchCep"
               />
             </v-col>
-            <v-col cols="8" sm="9" md="7">
+            <v-col cols="8" sm="9" md="6">
               <v-text-field
                 v-model="localPosto.address"
                 class="small-input"
@@ -91,14 +100,14 @@
                 :rules="[(v) => !!v || 'Endereço é obrigatório']"
               ></v-text-field>
             </v-col>
-            <v-col cols="4" sm="3" md="2">
+            <v-col cols="4" sm="3" md="3">
               <v-text-field
                 v-model="localPosto.number"
                 class="small-input"
-                label="Numero*"
+                label="Número*"
                 variant="outlined"
                 density="comfortable"
-                :rules="[(v) => !!v || 'Numero é obrigatório']"
+                :rules="[(v) => !!v || 'Número é obrigatório']"
               ></v-text-field>
             </v-col>          
 
@@ -220,7 +229,7 @@
               <v-text-field
                 v-model="localPosto.openTime"
                 class="small-input"
-                label="Horário de Abertura"
+                label="Horário de abertura"
                 type="time"
                 variant="outlined"
                 density="comfortable"
@@ -236,7 +245,7 @@
               <v-text-field
                 v-model="localPosto.closeTime"
                 class="small-input"
-                label="Horário de Fechamento"
+                label="Horário de fechamento"
                 type="time"
                 variant="outlined"
                 density="comfortable"
@@ -244,27 +253,19 @@
               ></v-text-field>
             </v-col>
             
-            <!-- Switch de Ativação Compacto -->
-            <v-col v-if="isEditing" cols="12" sm="4" md="4">
-              <v-card
-                :color="localPosto.active ? '#008109' : '#C62828'"
-                variant="outlined"
-                class="pa-3 activation-card-compact"
-                :class="{ 'active-card': localPosto.active }"
-                height="50"
-              >
-                <div class="d-flex align-center justify-space-between h-100">
-                  <span class="text-body-2 font-weight-medium">
-                    {{ localPosto.active ? 'Posto Ativo' : 'Posto Inativo' }}
-                  </span>
-                  <v-switch
-                    v-model="localPosto.active"
-                    color="success"
-                    hide-details
-                    density="compact"
-                  />
-                </div>
-              </v-card>
+            <!-- Status: switch simples, na altura dos campos ao lado. Só na
+                 edição, de propósito (F2): na criação o backend ignora isActive
+                 e o @PrePersist grava true, então um switch ali não teria efeito. -->
+            <v-col v-if="isEditing" cols="12" sm="4" md="4" class="d-flex align-center">
+              <v-switch
+                v-model="localPosto.active"
+                color="primary"
+                label="Posto ativo"
+                hide-details
+                inset
+                density="compact"
+                class="campo-status"
+              />
             </v-col>
           </v-row>
         </v-form>
@@ -303,7 +304,7 @@
     v-model="errorDialog"
     type="error"
     title="Erro!"
-    message="Não foi possível cadastrar o Posto. Tente novamente."
+    :message="mensagemErro"
   />
 
 </template>
@@ -313,6 +314,7 @@ import BaseStatusModal from '../app/BaseStatusModal.vue';
 import { computed, nextTick, ref, watch } from 'vue'
 import { createStation, updateStation, getAddressByCep } from '@/services/stationService';
 import { formatarTelefone } from '@/utils/mascaras'
+import { statusInicialPosto } from '@/utils/posto'
 import {
   coordenadasParaEnvio,
   interpretarParCoordenadas,
@@ -334,13 +336,20 @@ const props = defineProps({
   },
 })
 
+// Na edição o verbo é "salvar": "cadastrar" sugeria que a falha era de criação.
+const mensagemErro = computed(() =>
+  props.isEditing
+    ? 'Não foi possível salvar o posto. Tente novamente.'
+    : 'Não foi possível cadastrar o posto. Tente novamente.',
+)
+
 const cepNotFound = ref(false);
 const form = ref(null)
 const localPosto = ref({
   ...props.posto,
   openTime: props.posto.openTime || '06:00',
   closeTime: props.posto.closeTime || '22:00',
-  active: props.posto.active ?? false
+  active: statusInicialPosto(props.posto),
 })  
 
 //Busca dados pelo cep
@@ -512,7 +521,7 @@ watch(
       ...newPosto,
       openTime: newPosto.openTime || horarioPadrao,
       closeTime: newPosto.closeTime || horarioPadrao,
-      active: newPosto.status ?? true,
+      active: statusInicialPosto(newPosto),
       latitude: newPosto.latitude ?? '',
       longitude: newPosto.longitude ?? '',
     }
@@ -565,23 +574,40 @@ const formatPhone = (event) => {
 </script>
 
 <style scoped>
-:deep(.v-dialog .v-card) {
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+/* Raio de 16px e sombra de overlay vêm da regra global de diálogo em main.css.
+   Forma, cor e responsividade dos botões vêm de .btn-dialog* e .dialog-actions. */
+
+.dialogo-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4) var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
 }
 
-/* Forma, cor e responsividade dos botões vêm de .btn-dialog* e .dialog-actions,
-   em assets/main.css, compartilhadas com os demais diálogos do sistema. */
-
-/* Estilos do Card de Ativação Compacto */
-.activation-card-compact {
-  transition: all 0.3s ease;
-  border-width: 2px;
-  
+.dialogo-titulo {
+  margin: 0;
+  font-size: var(--text-section-title-size);
+  line-height: var(--text-section-title-line);
+  font-weight: var(--text-section-title-weight);
+  color: var(--color-neutral-900);
 }
 
-.activation-card-compact.active-card {
-  border-color: #4CAF50 !important;
-  background-color: rgba(76, 175, 80, 0.08) !important;
+.dialogo-fechar {
+  color: var(--color-text-muted);
+}
+
+.dialogo-corpo {
+  padding: var(--space-6) !important;
+}
+
+/* O switch não tem contorno nem rótulo flutuante: o texto fica em body, na
+   cor do texto principal, alinhado ao centro da linha dos horários. */
+.campo-status :deep(.v-label) {
+  color: var(--color-text);
+  opacity: 1;
+  font-size: var(--text-body-size);
 }
 
 /* Localização no mapa */
@@ -592,20 +618,20 @@ const formatPhone = (event) => {
 
 .secao-coordenadas-titulo {
   min-height: 48px;
-  font-size: 0.9375rem;
+  font-size: var(--text-body-size);
   font-weight: 600;
   color: var(--color-text);
 }
 
 .secao-coordenadas-icone {
-  margin-right: 8px;
+  margin-right: var(--space-2);
   color: var(--color-primary);
 }
 
 .coordenadas-ajuda {
-  margin: 0 0 8px;
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
   color: var(--color-text-muted);
 }
 
@@ -613,9 +639,9 @@ const formatPhone = (event) => {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-right: 4px;
-  font-weight: 600;
-  color: var(--color-primary);
+  margin-right: var(--space-1);
+  font-weight: 500;
+  color: var(--color-blue-600);
   text-decoration: none;
 }
 
@@ -624,20 +650,12 @@ const formatPhone = (event) => {
 }
 
 .coordenadas-erro {
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 
-.activation-card-compact :deep(.v-switch) {
-  flex: 0 0 auto;
-}
-
-.activation-card-compact :deep(.v-switch__track) {
-  height: 20px;
-  width: 40px;
-}
-
-.activation-card-compact :deep(.v-switch__thumb) {
-  height: 16px;
-  width: 16px;
+@media (max-width: 600px) {
+  .dialogo-corpo {
+    padding: var(--space-5) !important;
+  }
 }
 </style>

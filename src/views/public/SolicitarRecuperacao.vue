@@ -9,9 +9,9 @@
       </span>
       <h1 class="acesso-titulo mt-4">Verifique seu e-mail</h1>
       <p class="acesso-texto mt-2">{{ mensagemConfirmacao }}</p>
-      <router-link to="/login" class="acesso-link d-inline-block mt-6">
+      <v-btn to="/login" variant="outlined" class="acesso-btn acesso-btn--secundario mt-6">
         Voltar para o login
-      </router-link>
+      </v-btn>
     </div>
 
     <div v-else>

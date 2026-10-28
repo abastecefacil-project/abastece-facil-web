@@ -1,5 +1,7 @@
 <template>
-  <div class="contadores">
+  <!-- Uma coluna por contador: com auto-fit, os 7 do relatório final não
+       cabiam numa linha e "Avisos" caía sozinho na segunda. -->
+  <div class="contadores" :style="{ '--contadores-colunas': contadores.length }">
     <div
       v-for="contador in contadores"
       :key="contador.rotulo"
@@ -28,29 +30,32 @@ defineProps({
 <style scoped>
 .contadores {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(var(--contadores-colunas), minmax(0, 1fr));
+  gap: var(--space-2);
 }
 
 .contador {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 12px;
+  min-width: 0;
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
 }
 
 .contador-valor {
-  font-size: 1.375rem;
-  font-weight: 700;
+  font-size: var(--text-section-title-size);
+  line-height: var(--text-section-title-line);
+  font-weight: 600;
   color: var(--color-text);
-  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
 }
 
 .contador-rotulo {
-  font-size: 0.75rem;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
   color: var(--color-text-muted);
 }
 
@@ -63,10 +68,55 @@ defineProps({
 }
 
 .contador--erro {
-  border-color: rgb(var(--v-theme-error));
+  border-color: var(--color-error-icon);
 }
 
 .contador--erro .contador-valor {
-  color: rgb(var(--v-theme-error));
+  color: var(--color-error);
+}
+
+/* Até 720px (diálogo estreito ou celular) a grade vira lista: rótulo à
+   esquerda, número à direita, um contador por linha. Nenhum fica órfão. */
+@media (max-width: 720px) {
+  .contadores {
+    grid-template-columns: 1fr;
+    gap: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .contador {
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    border-radius: 0;
+    border-left: 3px solid transparent;
+  }
+
+  .contador + .contador {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .contador-valor {
+    font-size: var(--text-body-size);
+    line-height: var(--text-body-line);
+  }
+
+  .contador-rotulo {
+    font-size: var(--text-body-size);
+    line-height: var(--text-body-line);
+    color: var(--color-text);
+  }
+
+  .contador--alerta {
+    border-left-color: var(--color-warning-icon);
+  }
+
+  .contador--erro {
+    border-left-color: var(--color-error-icon);
+  }
 }
 </style>

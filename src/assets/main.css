@@ -268,13 +268,16 @@ body,
   line-height: var(--text-body-line);
 }
 
-/* Rótulo flutuante de campo preenchido. No outlined ele mora dentro do
-   contorno e herda a cor dele (neutral-400) com a opacidade média do Vuetify,
-   o que dava cinza-claro abaixo de 3:1. Em foco continua primary e, com erro,
-   vermelho: as duas exclusões preservam esses estados. */
+/* Rótulo de campo, flutuante (campo preenchido) e em repouso (campo vazio),
+   em neutral-600. O flutuante mora dentro do contorno e herdava a cor dele
+   (neutral-400) com a opacidade média do Vuetify, abaixo de 3:1. O em repouso
+   saía preto a 87% com opacidade 0,6, o que dá ~#858585 sobre branco, 3,7:1
+   (medido no R6). Em foco continua primary e, com erro, vermelho: as duas
+   exclusões preservam esses estados. Campo desabilitado continua apagado pela
+   opacidade do próprio .v-field--disabled. */
 :is(.v-application, .v-overlay-container)
   .v-field:not(.v-field--focused):not(.v-field--error)
-  .v-field-label--floating {
+  .v-field-label {
   color: var(--color-neutral-600);
   opacity: 1;
 }

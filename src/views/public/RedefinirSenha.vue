@@ -30,9 +30,9 @@
       </p>
       <!-- Diferente da ativação, onde a saída é procurar o gestor: aqui a
            pessoa se resolve sozinha, e o caminho é a própria tela do pedido. -->
-      <router-link to="/esqueci-senha" class="acesso-link d-inline-block mt-6">
+      <v-btn to="/esqueci-senha" variant="outlined" class="acesso-btn acesso-btn--secundario mt-6">
         Pedir um novo link
-      </router-link>
+      </v-btn>
     </div>
 
     <div v-else>

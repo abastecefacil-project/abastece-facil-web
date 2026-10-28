@@ -27,9 +27,11 @@
         Este link de ativação não vale mais — ele pode ter expirado ou já ter sido usado. Procure o
         gestor da sua regional para receber um novo convite.
       </p>
-      <router-link to="/login" class="acesso-link d-inline-block mt-6">
+      <!-- Navegação, não recuperação: botão secundário. "Tentar novamente", no
+           estado indisponível, é que é primário. -->
+      <v-btn to="/login" variant="outlined" class="acesso-btn acesso-btn--secundario mt-6">
         Ir para o login
-      </router-link>
+      </v-btn>
     </div>
 
     <div v-else>

@@ -6,12 +6,28 @@
     scrollable
     @update:model-value="$emit('update:modelValue', $event)"
   >
-    <v-card rounded="lg">
-      <v-card-title class="pa-6 pb-2">
-        <span class="text-h5 font-weight-bold">Importar planilha de postos</span>
+    <v-card>
+      <!-- Cabeçalho (REDESIGN §4.6). O X é o mesmo `fechar` do botão do rodapé,
+           travado nas mesmas condições: durante o startImport, fechar descartaria
+           o 202. No progresso, fechar só encerra o polling, como o "Fechar e
+           acompanhar depois". -->
+      <v-card-title class="dialogo-cabecalho">
+        <h2 class="dialogo-titulo">Importar planilha de postos</h2>
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          density="comfortable"
+          aria-label="Fechar"
+          class="dialogo-fechar"
+          :disabled="iniciando"
+          @click="fechar"
+        >
+          <v-icon icon="mdi-close" size="20" />
+        </v-btn>
       </v-card-title>
 
-      <v-card-text class="px-6 py-4">
+      <v-card-text class="dialogo-corpo">
         <v-alert
           v-if="erroApi"
           type="error"
@@ -91,7 +107,7 @@
             :text="textoAlertaDesativacao"
           />
 
-          <v-expansion-panels v-if="haDetalhesPrevia" multiple variant="accordion" class="mb-4">
+          <v-expansion-panels v-if="haDetalhesPrevia" multiple variant="accordion" flat class="paineis mb-4">
             <v-expansion-panel v-for="grupo in gruposItens" :key="grupo.chave">
               <v-expansion-panel-title>
                 <span class="painel-titulo">{{ grupo.titulo }}</span>
@@ -127,7 +143,7 @@
           </v-expansion-panels>
 
           <p class="tempo-estimado">
-            <v-icon icon="mdi-timer-outline" size="18" class="mr-1" />
+            <v-icon icon="mdi-timer-outline" size="16" class="mr-1" />
             {{ tempoEstimado }}
           </p>
           <p class="texto-apoio">
@@ -208,7 +224,7 @@
 
           <ImportacaoContadores :contadores="contadoresResultado" class="mb-4" />
 
-          <v-expansion-panels v-if="gruposOcorrenciasResultado.length" multiple variant="accordion">
+          <v-expansion-panels v-if="gruposOcorrenciasResultado.length" multiple variant="accordion" flat class="paineis">
             <ImportacaoOcorrencias
               v-for="grupo in gruposOcorrenciasResultado"
               :key="grupo.chave"
@@ -987,85 +1003,129 @@ onUnmounted(invalidarOperacoes)
 </script>
 
 <style scoped>
-/* Forma e cor dos botões vêm de .btn-dialog* e .dialog-actions, em
-   assets/main.css. Aqui só se permite quebrar linha: na prévia são três botões,
-   e no mobile cada um ocupa 48%. */
+/* Raio de 16px e sombra de overlay vêm da regra global de diálogo em main.css.
+   Forma e cor dos botões vêm de .btn-dialog* e .dialog-actions. Aqui só se
+   permite quebrar linha: na prévia são três botões, e no mobile cada um ocupa
+   48%. */
 .acoes-importacao {
   flex-wrap: wrap;
 }
 
-.texto-apoio {
-  font-size: 0.875rem;
+.dialogo-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4) var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dialogo-titulo {
+  margin: 0;
+  font-size: var(--text-section-title-size);
+  line-height: var(--text-section-title-line);
+  font-weight: var(--text-section-title-weight);
+  color: var(--color-neutral-900);
+}
+
+.dialogo-fechar {
   color: var(--color-text-muted);
-  line-height: 1.5;
+}
+
+.dialogo-corpo {
+  padding: var(--space-6) !important;
+}
+
+.texto-apoio {
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  color: var(--color-text-muted);
 }
 
 .carregando {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 24px 0;
+  gap: var(--space-3);
+  padding: var(--space-6) 0;
 }
 
 /* Análise da planilha */
 .analise-status {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: 4px;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 .analise-texto {
-  font-size: 0.9375rem;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
   font-weight: 600;
   color: var(--color-text);
 }
 
-/* Prévia */
+/* Prévia e resultado: painéis planos, com borda e sem sombra (§4.6). */
+.paineis {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.paineis :deep(.v-expansion-panel + .v-expansion-panel) {
+  border-top: 1px solid var(--color-border);
+}
+
+.paineis :deep(.v-expansion-panel-title) {
+  min-height: 48px;
+  padding: var(--space-3) var(--space-4);
+}
+
 .painel-titulo {
+  font-size: var(--text-body-size);
   font-weight: 600;
   color: var(--color-text);
 }
 
 .painel-contagem {
-  margin-left: 8px;
-  padding: 0 8px;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-size: 0.75rem;
+  background: var(--color-neutral-100);
+  color: var(--color-text-muted);
+  font-size: var(--text-caption-size);
   font-weight: 600;
   line-height: 20px;
+  font-variant-numeric: tabular-nums;
 }
 
 .linha-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 4px;
+  padding: var(--space-2) var(--space-1);
   border-bottom: 1px solid var(--color-border);
 }
 
 .linha-titulo {
-  font-size: 0.875rem;
+  font-size: var(--text-body-size);
   font-weight: 600;
   color: var(--color-text);
 }
 
 .linha-meta {
-  font-size: 0.8125rem;
+  font-size: var(--text-body-sm-size);
   color: var(--color-text-muted);
 }
 
 .linha-campos {
-  font-size: 0.75rem;
-  color: var(--color-primary);
+  font-size: var(--text-caption-size);
+  color: var(--color-blue-600);
 }
 
 .tempo-estimado {
   display: flex;
   align-items: center;
-  font-size: 0.875rem;
+  font-size: var(--text-body-size);
   font-weight: 600;
   color: var(--color-text);
 }
@@ -1075,26 +1135,28 @@ onUnmounted(invalidarOperacoes)
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 
 .progresso-texto {
-  font-size: 0.9375rem;
+  font-size: var(--text-body-size);
   font-weight: 600;
   color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 
 .progresso-percentual {
-  font-size: 0.9375rem;
-  font-weight: 700;
+  font-size: var(--text-body-size);
+  font-weight: 600;
   color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
 }
 
 .aviso-cancelamento {
   display: flex;
   align-items: center;
-  margin-top: 8px;
-  font-size: 0.875rem;
+  margin-top: var(--space-2);
+  font-size: var(--text-body-size);
   font-weight: 600;
   color: var(--color-warning);
 }
@@ -1119,15 +1181,22 @@ onUnmounted(invalidarOperacoes)
   display: flex;
   align-items: center;
   margin-top: 6px;
-  font-size: 0.8125rem;
+  font-size: var(--text-body-sm-size);
   color: var(--color-warning);
 }
 
 /* Resultado */
 .secao-titulo {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--text-card-title-size);
+  line-height: var(--text-card-title-line);
+  font-weight: var(--text-card-title-weight);
   color: var(--color-text);
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
+}
+
+@media (max-width: 600px) {
+  .dialogo-corpo {
+    padding: var(--space-5) !important;
+  }
 }
 </style>

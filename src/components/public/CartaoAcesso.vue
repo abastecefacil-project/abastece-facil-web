@@ -216,6 +216,18 @@ const funcionalidades = [
   width: 100%;
 }
 
+/* Secundário (§4.6): ação de navegação nas telas de estado ("Ir para o login",
+   "Pedir um novo link"). Ação de recuperação ("Tentar novamente") continua
+   primária. */
+:deep(.acesso-btn--secundario) {
+  border-color: var(--color-neutral-300);
+  color: var(--color-text);
+}
+
+:deep(.acesso-btn--secundario:hover) {
+  border-color: var(--color-neutral-400);
+}
+
 /* Link terciário. O foco visível vem da regra global de main.css. */
 :deep(.acesso-link) {
   color: var(--color-blue-600);

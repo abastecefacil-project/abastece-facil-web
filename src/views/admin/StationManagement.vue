@@ -1,39 +1,14 @@
 <template>
   <div class="postos-container">
-    <PageHeader titulo="Postos" subtitulo="Gerenciar postos de combustível" />
-
-    <!-- Base inteira: busca, filtro e paginação não alteram estes números. -->
-    <IndicadoresPostos
-      :total="indicadores.total"
-      :ativos="indicadores.ativos"
-      :inativos="indicadores.inativos"
-      :carregando="carregandoIndicadores"
-    />
-
-    <!-- Barra de Pesquisa, Filtros e Novo Posto -->
-    <SearchFilterBar
-      v-model:search-query="searchQuery"
-      v-model:status-filter="statusFilter"
-      search-label="Pesquisar postos..."
-      :filter-options="[
-        { label: 'Todos', value: 'todos' },
-        { label: 'Ativos', value: 'ativo' },
-        { label: 'Inativos', value: 'inativo' },
-      ]"
-      action-label="NOVO POSTO"
-      action-icon="mdi-plus"
-      @action="openDialog"
-    >
-      <!-- Conveniência de tela: quem autoriza a importação é o backend
-           (403 PERFIL_NAO_PERMITIDO para quem não é administrador). -->
-      <template v-if="isAdministrador" #acoes-extras>
-        <!-- Em andamento continua clicável: o dialog retoma o progresso sozinho. -->
+    <PageHeader titulo="Postos" subtitulo="Gerenciar postos de combustível">
+      <template #acoes>
+        <!-- Conveniência de tela: quem autoriza a importação é o backend
+             (403 PERFIL_NAO_PERMITIDO para quem não é administrador).
+             Em andamento continua clicável: o dialog retoma o progresso sozinho. -->
         <v-btn
+          v-if="isAdministrador"
           variant="outlined"
-          color="primary"
-          size="large"
-          rounded="lg"
-          class="importar-btn"
+          class="btn-secundario"
           :title="importacaoEmAndamento ? ROTULO_IMPORTANDO : undefined"
           @click="dialogImportacao = true"
         >
@@ -52,35 +27,157 @@
             </template>
           </span>
         </v-btn>
+        <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog">Novo posto</v-btn>
       </template>
-    </SearchFilterBar>
+    </PageHeader>
 
-    <!-- Lista de Postos em Cards -->
-    <v-alert v-if="erroNotificacao" type="error" variant="tonal" closable class="mb-4" @click:close="erroNotificacao = ''">{{ erroNotificacao }}</v-alert>
-    <div class="postos-grid">
-      <v-row>
-        <v-col v-for="posto in postos" :key="posto.id" cols="12" md="6" lg="6" xl="4">
-          <PostoCard :posto="posto" @edit="editarPosto" @delete="abrirModalExclusao" />
-        </v-col>
-      </v-row>
-    </div>
+    <v-alert
+      v-if="erroNotificacao"
+      type="error"
+      variant="tonal"
+      closable
+      class="mb-4"
+      @click:close="erroNotificacao = ''"
+    >{{ erroNotificacao }}</v-alert>
 
-    <!-- Mensagem quando não há resultados -->
-    <div v-if="postos.length === 0" class="empty-state">
-      <div class="empty-state-content">
-        <v-icon icon="mdi-gas-station-off" size="64" class="empty-icon"></v-icon>
-        <h3 class="empty-title">
-          {{ searchQuery ? 'Nenhum posto encontrado' : 'Nenhum posto cadastrado' }}
-        </h3>
-        <p class="empty-subtitle">
-          {{
-            searchQuery
-              ? 'Tente ajustar os filtros de pesquisa'
-              : 'Clique em "NOVO POSTO" para adicionar o primeiro posto'
-          }}
-        </p>
+    <section class="tabela-postos" aria-label="Lista de postos">
+      <div class="tabela-toolbar">
+        <v-text-field
+          v-model="searchQuery"
+          label="Buscar postos"
+          prepend-inner-icon="mdi-magnify"
+          density="compact"
+          clearable
+          hide-details
+          class="tabela-busca"
+        />
+
+        <!-- Contagens da base inteira: busca e paginação não as alteram. -->
+        <v-btn-toggle
+          v-model="statusFilter"
+          mandatory
+          variant="text"
+          density="compact"
+          class="segmentado"
+          aria-label="Filtrar postos por status"
+        >
+          <v-btn v-for="opcao in opcoesStatus" :key="opcao.valor" :value="opcao.valor">
+            {{ opcao.rotulo }}
+            <span v-if="opcao.contagem" class="segmentado__contagem">{{ opcao.contagem }}</span>
+          </v-btn>
+        </v-btn-toggle>
       </div>
-    </div>
+
+      <div v-if="erroCarregamento && !loading" class="tabela-erro" role="alert">
+        <v-icon icon="mdi-alert-circle-outline" size="40" class="tabela-erro__icone" />
+        <p class="tabela-erro__titulo">Não foi possível carregar os postos</p>
+        <p class="tabela-erro__texto">Verifique a conexão e tente novamente.</p>
+        <v-btn variant="outlined" class="btn-secundario mt-4" @click="loadingStations(currentPage)">
+          Tentar novamente
+        </v-btn>
+      </div>
+
+      <EmptyState
+        v-else-if="!loading && postos.length === 0"
+        icone="mdi-gas-station-off-outline"
+        :titulo="filtrando ? 'Nenhum posto encontrado' : 'Nenhum posto cadastrado'"
+        :texto="filtrando ? 'Ajuste a busca ou o filtro de status.' : 'Use o botão Novo posto para cadastrar o primeiro.'"
+      />
+
+      <table v-else class="tabela" :aria-busy="loading">
+        <thead>
+          <tr>
+            <th scope="col">Posto</th>
+            <th scope="col" class="col-endereco">Endereço</th>
+            <th scope="col">Telefone</th>
+            <th scope="col">Horário</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="col-acoes">Ações</th>
+          </tr>
+        </thead>
+
+        <tbody v-if="loading">
+          <tr v-for="n in LINHAS_ESQUELETO" :key="n" class="linha-esqueleto" aria-hidden="true">
+            <td class="col-posto">
+              <span class="esqueleto esqueleto--titulo" />
+              <span class="esqueleto esqueleto--meta" />
+            </td>
+            <td class="col-endereco"><span class="esqueleto" /></td>
+            <td class="col-telefone"><span class="esqueleto esqueleto--curto" /></td>
+            <td class="col-horario"><span class="esqueleto esqueleto--curto" /></td>
+            <td class="col-status"><span class="esqueleto esqueleto--chip" /></td>
+            <td class="col-acoes" />
+          </tr>
+        </tbody>
+
+        <tbody v-else>
+          <tr v-for="linha in linhas" :key="linha.posto.id">
+            <td class="col-posto">
+              <span class="posto-nome">{{ linha.nome }}</span>
+              <span class="posto-local">{{ linha.cidadeUf }}</span>
+              <!-- Abaixo de 1280px a coluna Endereço some e o endereço vem para cá. -->
+              <span class="posto-local posto-local--compacto">
+                {{ linha.enderecoCompleto }}
+                <v-tooltip activator="parent" location="top" :text="linha.enderecoCompleto" />
+              </span>
+            </td>
+            <td class="col-endereco">
+              <span class="truncado">
+                {{ linha.endereco }}
+                <v-tooltip activator="parent" location="top" :text="linha.enderecoCompleto" />
+              </span>
+            </td>
+            <td class="col-telefone">
+              <span v-if="linha.telefone" class="tabular">{{ linha.telefone }}</span>
+              <span v-else class="horario-nao-informado">{{ TELEFONE_NAO_INFORMADO }}</span>
+            </td>
+            <td class="col-horario">
+              <span v-if="linha.horario" class="tabular">{{ linha.horario }}</span>
+              <span v-else class="horario-nao-informado">{{ HORARIO_NAO_INFORMADO }}</span>
+            </td>
+            <td class="col-status">
+              <StatusChip :status="linha.posto.status ? 'ativo' : 'inativo'" />
+            </td>
+            <td class="col-acoes">
+              <v-btn
+                variant="text"
+                size="small"
+                density="compact"
+                icon
+                class="acao"
+                :aria-label="`Editar posto ${linha.nome}`"
+                @click="editarPosto(linha.posto)"
+              >
+                <v-icon icon="mdi-pencil-outline" size="20" />
+                <v-tooltip activator="parent" location="top" text="Editar" />
+              </v-btn>
+              <v-btn
+                variant="text"
+                size="small"
+                density="compact"
+                icon
+                class="acao acao--perigo"
+                :aria-label="`Excluir posto ${linha.nome}`"
+                @click="abrirModalExclusao(linha.posto.id)"
+              >
+                <v-icon icon="mdi-trash-can-outline" size="20" />
+                <v-tooltip activator="parent" location="top" text="Excluir" />
+              </v-btn>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div v-if="!erroCarregamento && postos.length > 0" class="tabela-rodape">
+        <PaginationBar
+          v-model="currentPageUi"
+          :length="totalPages"
+          :total="totalElements"
+          :por-pagina="pageSize"
+          @update:modelValue="(page) => loadingStations(page - 1)"
+        />
+      </div>
+    </section>
 
     <!-- Dialog para Adicionar/Editar Posto -->
     <PostoDialog
@@ -102,25 +199,16 @@
       @importacao-finalizada="aoFinalizarImportacaoPeloDialog"
     />
   </div>
-
-  <PaginationBar
-    v-model="currentPageUi"
-    :length="totalPages"
-    :total="totalElements"
-    :por-pagina="pageSize"
-    @update:modelValue="(page) => loadingStations(page - 1)"
-  />
-
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { watchDebounced } from '@vueuse/core'
-import PostoCard from '../../components/admin/PostoCard.vue'
 import PostoDialog from '../../components/admin/PostoDialog.vue'
-import SearchFilterBar from '../../components/app/SearchFilterBar.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import PageHeader from '@/components/app/PageHeader.vue'
+import StatusChip from '@/components/app/StatusChip.vue'
+import EmptyState from '@/components/app/EmptyState.vue'
 import {
   getStations,
   getStationById,
@@ -129,10 +217,21 @@ import {
   getCurrentImport,
 } from '@/services/stationService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
-import { nomeExibicaoPosto, prepararPostoParaEdicao } from '@/utils/posto'
+import {
+  HORARIO_NAO_INFORMADO,
+  nomeExibicaoPosto,
+  postoVazio,
+  prepararPostoParaEdicao,
+} from '@/utils/posto'
+import {
+  TELEFONE_NAO_INFORMADO,
+  horarioExibicao,
+  nomeProprio,
+  telefoneExibicao,
+} from '@/utils/formatacao'
+import { formatarNumero } from '@/utils/importacaoPostos'
 import { useRoute, useRouter } from 'vue-router'
 import ImportacaoPostosDialog from '@/components/admin/ImportacaoPostosDialog.vue'
-import IndicadoresPostos from '@/components/admin/IndicadoresPostos.vue'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -144,6 +243,10 @@ const erroNotificacao = ref('')
 // tela normalmente. Mesmo critério do UserDialog.
 const isAdministrador = computed(() => authStore.perfil === 'ADMINISTRADOR')
 
+// Mesma quantidade da página do backend (size 10), para a tabela não mudar de
+// altura quando os dados chegam.
+const LINHAS_ESQUELETO = 10
+
 // Estados reativos
 const dialog = ref(false)
 const dialogImportacao = ref(false)
@@ -152,6 +255,7 @@ const searchQuery = ref('')
 const statusFilter = ref('todos')
 const postos = ref([])
 const loading = ref(false)
+const erroCarregamento = ref(false)
 const currentPage = ref(0)
 const totalPages = ref(0)
 const totalElements = ref(null)
@@ -160,12 +264,51 @@ const currentPageUi = ref(1)
 const modalExclusao = ref(false)
 const postoParaExcluir = ref(null)
 
-// null = sem número ainda (skeleton) ou consulta que falhou ("—").
+const filtrando = computed(() => !!searchQuery.value || statusFilter.value !== 'todos')
+
+// null = sem número ainda (carregando) ou consulta que falhou ("—").
 const indicadores = ref({ total: null, ativos: null, inativos: null })
 const carregandoIndicadores = ref(false)
 // Duas recargas sobrepostas (excluir e logo em seguida fim de importação, por
 // exemplo): só a resposta da mais recente vale.
 let consultaIndicadores = 0
+
+// Segmentado de status. Sem número ainda, o botão mostra só o rótulo; com a
+// consulta falha, "—".
+const opcoesStatus = computed(() =>
+  [
+    { valor: 'todos', rotulo: 'Todos', numero: indicadores.value.total },
+    { valor: 'ativo', rotulo: 'Ativos', numero: indicadores.value.ativos },
+    { valor: 'inativo', rotulo: 'Inativos', numero: indicadores.value.inativos },
+  ].map((opcao) => {
+    let contagem = ''
+    if (opcao.numero !== null) contagem = formatarNumero(opcao.numero)
+    else if (!carregandoIndicadores.value) contagem = '—'
+    return { ...opcao, contagem }
+  }),
+)
+
+// Só apresentação: nome, endereço e cidade em caixa alta (postos importados)
+// viram Title Case, telefone e horário ganham formato legível. O posto original
+// segue intacto para o PostoDialog.
+const linhas = computed(() =>
+  postos.value.map((posto) => {
+    // Parte a parte: nomeProprio devolve intacto o texto que já tem minúscula,
+    // e o número ("km200") ou o bairro ("Serraria") travariam o logradouro todo.
+    const logradouro = [posto.address, posto.number].filter(Boolean).map(nomeProprio).join(', ')
+    const endereco = [logradouro, nomeProprio(posto.district)].filter(Boolean).join(' - ')
+    const cidadeUf = [nomeProprio(posto.city), posto.state].filter(Boolean).join('/')
+    return {
+      posto,
+      nome: nomeProprio(nomeExibicaoPosto(posto)),
+      endereco,
+      cidadeUf,
+      enderecoCompleto: [endereco, cidadeUf].filter(Boolean).join(' · '),
+      telefone: telefoneExibicao(posto.phone),
+      horario: horarioExibicao(posto.businessHours),
+    }
+  }),
+)
 
 watch(currentPage, (newVal) => {
   currentPageUi.value = newVal + 1
@@ -182,6 +325,7 @@ watchDebounced(
 //GET- Busca postos
 async function loadingStations(page = 0) {
   loading.value = true
+  erroCarregamento.value = false
   try {
     const search = searchQuery.value || undefined
     let active
@@ -201,6 +345,7 @@ async function loadingStations(page = 0) {
 
   } catch (err) {
     console.log('Erro ao buscar postos', err)
+    erroCarregamento.value = true
   } finally {
     loading.value = false
   }
@@ -301,22 +446,7 @@ watch(dialogImportacao, (aberto) => {
   else if (importacaoEmAndamento.value) verificarImportacao()
 })
 
-const formPosto = ref({
-  id: null,
-  name: '',
-  cnpj: '',
-  cep: '',
-  city: '',
-  state: '',
-  address: '',
-  number: '',
-  phone: '',
-  status: '',
-  openTime: '',
-  closeTime: '',
-  latitude: '',
-  longitude: '',
-})
+const formPosto = ref(postoVazio())
 
 // Funções
 const openDialog = () => {
@@ -332,22 +462,7 @@ const closeDialog = () => {
 }
 
 const resetForm = () => {
-  formPosto.value = {
-    id: null,
-    name: '',
-    cnpj: '',
-    cep: '',
-    city: '',
-    state: '',
-    address: '',
-    number: '',
-    phone: '',
-    status: '',
-    openTime: '',
-    closeTime: '',
-    latitude: '',
-    longitude: '',
-  }
+  formPosto.value = postoVazio()
 }
 
 const editarPosto = (posto) => {
@@ -372,10 +487,11 @@ const abrirModalExclusao = (id) => {
   modalExclusao.value = true
 }
 
-// "Excluir o posto Posto Delta?": a confirmação nomeia o que vai ser apagado.
+// "Excluir o posto Posto Delta?": a confirmação nomeia o que vai ser apagado,
+// com o mesmo nome exibido na tabela.
 const objetoExclusao = computed(() => {
   const posto = postos.value.find((item) => item.id === postoParaExcluir.value)
-  return posto ? `o posto ${nomeExibicaoPosto(posto)}` : ''
+  return posto ? `o posto ${nomeProprio(nomeExibicaoPosto(posto))}` : ''
 })
 
 const fecharModalExclusao = () => {
@@ -392,10 +508,6 @@ const confirmarExclusao = async () => {
   } catch (err) {
     console.error('Erro ao deletar posto:', err)
   }
-}
-
-const deletarPosto = async (id) => {
-  abrirModalExclusao(id)
 }
 
 onMounted(() => {
@@ -422,24 +534,21 @@ watch(() => route.query.posto, async (id) => {
 
 <style scoped>
 .postos-container {
-  padding: 24px;
-  background-color: #fafafa;
-  min-height: 100vh;
+  max-width: 1440px;
+  padding: var(--space-8);
 }
 
-.postos-grid {
-  margin-top: 8px;
+/* Botão secundário (REDESIGN §4.6): contornado, borda neutral-300, texto
+   neutral-800. A classe dobrada vence o outlined do Vuetify, que herdaria a
+   cor do texto na borda. */
+.v-btn.btn-secundario {
+  border-color: var(--color-neutral-300);
+  color: var(--color-text);
+  background-color: var(--color-surface);
 }
 
-/* Botão passado pelo slot acoes-extras do SearchFilterBar: o conteúdo do slot
-   carrega o data-v desta view, então o estilo scoped daqui o alcança. Mesma
-   altura e tipografia do botão principal (.new-item-btn). */
-.importar-btn {
-  flex-shrink: 0;
-  font-weight: 600;
-  text-transform: none;
-  letter-spacing: 0;
-  height: 46px;
+.v-btn.btn-secundario:hover {
+  border-color: var(--color-neutral-400);
 }
 
 /* Rótulos empilhados na mesma célula: a largura é a do maior, e a referência
@@ -461,8 +570,7 @@ watch(() => route.query.posto, async (id) => {
   display: none;
 }
 
-/* Até 1280px a barra ainda fica numa linha só com o menu lateral aberto, e o
-   texto longo apertaria a busca e o "Novo posto". */
+/* Até 1280px o texto longo apertaria o "Novo posto" ao lado. */
 @media (max-width: 1280px) {
   .importar-rotulo-longo {
     display: none;
@@ -473,72 +581,336 @@ watch(() => route.query.posto, async (id) => {
   }
 }
 
-.empty-state {
+/* ── container da tabela ─────────────────────────────────────────────────── */
+
+.tabela-postos {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.tabela-toolbar {
   display: flex;
-  justify-content: center;
+  flex-wrap: wrap;
   align-items: center;
-  padding: 64px 24px;
-  min-height: 300px;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.empty-state-content {
-  text-align: center;
-  max-width: 400px;
+.tabela-busca {
+  flex: 1 1 240px;
+  max-width: 360px;
 }
 
-.empty-icon {
-  color: #bdbdbd;
-  margin-bottom: 24px;
+/* Segmentado: o contorno é do grupo, e as divisórias ficam entre os botões.
+   Com variant outlined, cada botão desenhava a própria borda e o raio do grupo
+   cortava a da ponta. O selecionado ganha o fundo blue-50 e o texto primary,
+   sem o preenchimento cheio do Vuetify. */
+.segmentado {
+  flex-shrink: 0;
+  height: 40px;
+  border: 1px solid var(--color-neutral-300);
+  border-radius: var(--radius-md);
 }
 
-.empty-title {
-  font-size: 1.25rem;
+.segmentado :deep(.v-btn) {
+  height: 38px !important;
+  padding-inline: var(--space-3);
+  color: var(--color-text-muted);
+  border-radius: 0 !important;
+}
+
+.segmentado :deep(.v-btn + .v-btn) {
+  border-inline-start: 1px solid var(--color-neutral-300);
+}
+
+.segmentado :deep(.v-btn--active) {
+  background-color: var(--color-blue-50);
+  color: var(--color-primary);
+}
+
+.segmentado :deep(.v-btn.v-btn--active > .v-btn__overlay) {
+  opacity: 0;
+}
+
+.segmentado__contagem {
+  margin-left: var(--space-2);
+  color: var(--color-neutral-500);
+  font-variant-numeric: tabular-nums;
+}
+
+.segmentado :deep(.v-btn--active) .segmentado__contagem {
+  color: inherit;
+}
+
+/* ── tabela ──────────────────────────────────────────────────────────────── */
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.tabela th {
+  height: 40px;
+  padding: 0 var(--space-4);
+  background: var(--color-neutral-50);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
   font-weight: 600;
-  color: #616161;
-  margin: 0 0 12px 0;
-  line-height: 1.3;
+  text-align: left;
+  white-space: nowrap;
 }
 
-.empty-subtitle {
-  font-size: 0.95rem;
-  color: #9e9e9e;
+.tabela td {
+  height: 52px;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  vertical-align: middle;
+}
+
+.tabela tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tabela tbody tr:not(.linha-esqueleto):hover td {
+  background: var(--color-neutral-50);
+}
+
+.tabela th:nth-child(1) { width: 25%; }
+.tabela th:nth-child(3) { width: 150px; }
+.tabela th:nth-child(4) { width: 170px; }
+.tabela th:nth-child(5) { width: 104px; }
+.tabela th.col-acoes { width: 104px; }
+
+.col-acoes {
+  text-align: right !important;
+  white-space: nowrap;
+}
+
+.col-posto {
+  min-width: 0;
+}
+
+.posto-nome,
+.posto-local,
+.truncado {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.posto-nome {
+  font-size: var(--text-card-title-size);
+  line-height: var(--text-card-title-line);
+  font-weight: var(--text-card-title-weight);
+  color: var(--color-neutral-900);
+}
+
+.posto-local {
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
+  color: var(--color-text-muted);
+}
+
+.posto-local--compacto {
+  display: none;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.col-telefone,
+.col-horario {
+  white-space: nowrap;
+}
+
+/* Botões de ícone de 32px (size small + density compact). */
+.acao {
+  color: var(--color-text-muted);
+}
+
+.acao:hover {
+  color: var(--color-text);
+}
+
+.acao--perigo:hover {
+  color: var(--color-error);
+}
+
+/* Esqueleto de linha: blocos estáticos, sem animação (§4.4). */
+.esqueleto {
+  display: block;
+  height: 12px;
+  width: 80%;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-100);
+}
+
+.esqueleto--titulo {
+  height: 14px;
+  width: 70%;
+  margin-bottom: 6px;
+}
+
+.esqueleto--meta {
+  width: 40%;
+}
+
+.esqueleto--curto {
+  width: 96px;
+}
+
+.esqueleto--chip {
+  width: 56px;
+  height: 20px;
+}
+
+/* ── estados e rodapé ────────────────────────────────────────────────────── */
+
+.tabela-erro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-12) var(--space-6);
+  text-align: center;
+}
+
+.tabela-erro p {
   margin: 0;
-  line-height: 1.4;
 }
 
-/* Responsividade */
-@media (max-width: 1200px) {
-  .postos-container {
-    max-width: 100%;
+.tabela-erro__icone {
+  color: var(--color-error-icon);
+  margin-bottom: var(--space-3);
+}
+
+.tabela-erro__titulo {
+  font-size: var(--text-card-title-size);
+  line-height: var(--text-card-title-line);
+  font-weight: var(--text-card-title-weight);
+  color: var(--color-text);
+}
+
+.tabela-erro__texto {
+  margin-top: var(--space-1) !important;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  color: var(--color-text-muted);
+}
+
+.tabela-rodape {
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.tabela-rodape :deep(.pagination-bar) {
+  padding: 0;
+}
+
+/* ── responsividade ──────────────────────────────────────────────────────── */
+
+/* Com o menu aberto, 1024px deixa ~700px de conteúdo: a coluna Endereço sai e
+   o endereço vira a segunda linha da célula Posto. */
+@media (max-width: 1279px) {
+  .col-endereco {
+    display: none;
+  }
+
+  .tabela th,
+  .tabela td {
+    padding-inline: var(--space-3);
+  }
+
+  .tabela th:nth-child(1) { width: auto; }
+  .tabela th:nth-child(3) { width: 136px; }
+  .tabela th:nth-child(4) { width: 168px; }
+  .tabela th:nth-child(5) { width: 88px; }
+  .tabela th.col-acoes { width: 88px; }
+
+  .posto-local {
+    display: none;
+  }
+
+  .posto-local--compacto {
+    display: block;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 959px) {
   .postos-container {
-    padding: 16px;
-  }
-
-  .empty-state {
-    padding: 48px 16px;
-    min-height: 250px;
-  }
-
-  .empty-title {
-    font-size: 1.1rem;
-  }
-
-  .empty-subtitle {
-    font-size: 0.9rem;
+    padding: var(--space-4);
   }
 }
 
-@media (max-width: 480px) {
-  .postos-container {
-    padding: 12px;
+/* Celular: cada linha vira um bloco empilhado, sem rolagem horizontal. */
+@media (max-width: 599px) {
+  .tabela-busca {
+    max-width: none;
+    flex-basis: 100%;
   }
 
-  .empty-state {
-    padding: 32px 12px;
+  .segmentado {
+    width: 100%;
+    flex-shrink: 1;
+  }
+
+  .segmentado :deep(.v-btn) {
+    flex: 1 1 0;
+    padding-inline: var(--space-1);
+  }
+
+  .tabela,
+  .tabela tbody {
+    display: block;
+  }
+
+  .tabela thead {
+    display: none;
+  }
+
+  .tabela tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'posto status'
+      'telefone acoes'
+      'horario acoes';
+    column-gap: var(--space-3);
+    row-gap: 2px;
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .tabela tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .tabela td {
+    height: auto;
+    padding: 0;
+    border-bottom: none;
+    background: none !important;
+  }
+
+  .tabela .col-posto { grid-area: posto; margin-bottom: var(--space-1); }
+  .tabela .col-status { grid-area: status; }
+  .tabela .col-telefone { grid-area: telefone; font-size: var(--text-body-sm-size); }
+  .tabela .col-horario { grid-area: horario; font-size: var(--text-body-sm-size); }
+  .tabela .col-acoes { grid-area: acoes; align-self: end; }
+
+  .tabela tbody tr.linha-esqueleto .col-acoes {
+    display: none;
   }
 }
 </style>
