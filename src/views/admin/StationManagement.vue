@@ -223,14 +223,9 @@ import {
   postoVazio,
   prepararPostoParaEdicao,
 } from '@/utils/posto'
-import {
-  TELEFONE_NAO_INFORMADO,
-  horarioExibicao,
-  nomeProprio,
-  telefoneExibicao,
-} from '@/utils/formatacao'
+import { TELEFONE_NAO_INFORMADO, nomeProprio } from '@/utils/formatacao'
+import { apresentacaoLinhaPosto } from '@/utils/postoExibicao'
 import { formatarNumero } from '@/utils/importacaoPostos'
-import { nomeCidadeExibicao } from '@/utils/municipios'
 import { useRoute, useRouter } from 'vue-router'
 import ImportacaoPostosDialog from '@/components/admin/ImportacaoPostosDialog.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -292,24 +287,9 @@ const opcoesStatus = computed(() =>
 // Só apresentação: nome, endereço e cidade em caixa alta (postos importados)
 // viram Title Case, telefone e horário ganham formato legível. O posto original
 // segue intacto para o PostoDialog.
+// A montagem é a mesma da lista do colaborador (utils/postoExibicao.js).
 const linhas = computed(() =>
-  postos.value.map((posto) => {
-    // Parte a parte: nomeProprio devolve intacto o texto que já tem minúscula,
-    // e o número ("km200") ou o bairro ("Serraria") travariam o logradouro todo.
-    const logradouro = [posto.address, posto.number].filter(Boolean).map(nomeProprio).join(', ')
-    const endereco = [logradouro, nomeProprio(posto.district)].filter(Boolean).join(' - ')
-    // Cidade de SC pelo nome oficial do IBGE ("SAO JOSE" vira "São José").
-    const cidadeUf = [nomeCidadeExibicao(posto.city, posto.state), posto.state].filter(Boolean).join('/')
-    return {
-      posto,
-      nome: nomeProprio(nomeExibicaoPosto(posto)),
-      endereco,
-      cidadeUf,
-      enderecoCompleto: [endereco, cidadeUf].filter(Boolean).join(' · '),
-      telefone: telefoneExibicao(posto.phone),
-      horario: horarioExibicao(posto.businessHours),
-    }
-  }),
+  postos.value.map((posto) => ({ posto, ...apresentacaoLinhaPosto(posto) })),
 )
 
 watch(currentPage, (newVal) => {

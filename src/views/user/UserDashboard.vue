@@ -87,10 +87,10 @@ function buscarPostos() {
 </script>
 
 <style scoped>
-/* Fundo e rolagem são do AppShell. Padding e gutter da §4.3, iguais aos do
-   Painel: 32 e 24px no desktop, 16px abaixo de md. */
+/* Fundo e rolagem são do AppShell. Largura, padding e gutter da §4.3, iguais
+   aos do Painel: 1440px, 32 e 24px no desktop, 16px abaixo de md. */
 .inicio {
-  max-width: 1120px;
+  max-width: 1440px;
   padding: var(--space-8);
 }
 

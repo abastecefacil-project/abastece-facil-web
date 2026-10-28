@@ -954,12 +954,12 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (15)  user/ (8)  app/ (12 compartilhados)  public/ (2)
+├── components/  admin/ (15)  user/ (7)  app/ (12 compartilhados)  public/ (2)
 ├── config/      navegacao.js, contatosSeguro.js
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1212,7 +1212,8 @@ O layout é um grid de áreas. A ordem do DOM é a da §5.8 e a do mobile (busca
 ocorrência, ajuda, mapa). A partir de 960px a ajuda vai para a coluna lateral
 (7fr/5fr), e a última linha (`1fr`) absorve a sobra para os cards não esticarem.
 Padding de 32px no desktop e 16px abaixo de 960px, como o Painel. Largura máxima
-de 1120px. Abaixo de 600px, a busca empilha (lado a lado o rótulo do campo seria
+de 1440px, a mesma do Painel e dos Postos do admin (era 1120px até o R10, e a
+grade terminava antes da borda direita em 1440px). Abaixo de 600px, a busca empilha (lado a lado o rótulo do campo seria
 cortado) e o botão de ocorrência ocupa a largura toda.
 
 **O nome não gera segunda chamada a `/api/users/me`.** O `AppShell`, que já o
@@ -1226,8 +1227,8 @@ Postos importados por planilha têm `name` = razão social ("POSTO Z21 LTDA"),
 isso, **nunca leia esses campos direto para exibição**: use `utils/posto.js`.
 
 - `nomeExibicaoPosto(posto)` → `fantasyName` e, se vazio, `name`. É o título no
-  card admin, no card do usuário e no popup do mapa. O `GasStationModal` é exceção
-  deliberada: é a ficha e mostra os dois campos rotulados.
+  tabela do admin, na lista do usuário e no popup do mapa. O `GasStationModal` é
+  exceção deliberada: é a ficha e mostra os dois campos rotulados.
 - `lerHorarioFuncionamento(businessHours)` → `{ abertura, fechamento }` ou `null`.
   Tolera espaços em volta do hífen (`"07:00  -  21:00"`, gravado pelo formulário
   antigo) e nunca lança. `split('-')` direto quebrava a tela de postos inteira com
@@ -1728,8 +1729,38 @@ A lista de postos do usuário (`views/user/GasStations.vue`) usa a mesma funçã
 pelo mesmo motivo: busca e ordenação A-Z são feitas no navegador e, sobre uma
 página de 10 do servidor, a busca só enxergava aqueles 10. Ela carrega tudo uma
 vez e **pagina no navegador**, 10 por página, voltando à primeira a cada busca.
-O contador acima da grade sai de `descreverQuantidadePostos` (`utils/posto.js`).
+O contador da toolbar sai de `descreverQuantidadePostos` (`utils/posto.js`).
 A lista do admin continua com paginação e busca no servidor.
+
+### Postos do colaborador (R10)
+
+`/user/postos` é uma lista densa (REDESIGN §5.9), não uma grade de cards: o
+`GasStationCard.vue` foi removido. Um card do design system com toolbar (busca e
+contador), `<ul>` de linhas e rodapé com o `PaginationBar` ("Mostrando X a Y de
+Z").
+
+- **Linha:** nome, cidade/UF e endereço em body-sm; telefone como link `tel:`
+  (`hrefTelefone`); horário (`horarioExibicao`); e um chevron rotulado
+  ("Ver detalhes do posto X") que abre o `GasStationModal`. A linha inteira abre
+  o detalhe com o mouse; pelo teclado, o chevron. O `tel:` tem `@click.stop`.
+- **A formatação é a mesma da tabela do admin:** `apresentacaoLinhaPosto`
+  (`utils/postoExibicao.js`, coberta por `tests/posto-exibicao.test.js`), usada
+  pela `StationManagement`, pela lista e pelo modal. Ela recebe o posto com o
+  endereço já partido em `address` e `number`. Mora num arquivo próprio porque
+  `formatacao.js` importa `posto.js`, e pô-la em `posto.js` criaria ciclo.
+- **Só a página visível é formatada.** A busca continua comparando os dados
+  crus (`name`, `fantasyName`, `completeAddress`, `phone`, `cnpj`).
+- **Abaixo de 960px a toolbar é `sticky`** no topo do `.main-container`, que é
+  quem rola. Por isso o card usa `overflow: clip`, e não `hidden`: com `hidden`
+  ele viraria o contêiner de rolagem do sticky, e a busca não prenderia.
+- **O A-Z continua sem controle na tela**, de propósito: o `statusFilter` nunca
+  vale `'az'`. Não exponha a ordenação sem decidir antes como ela convive com a
+  paginação.
+- Busca sem resultado mostra o `EmptyState`; com resultado, o contador diz
+  "N postos encontrados".
+- O `GasStationModal` segue a §4.6: 560px, cabeçalho com nome e cidade/UF,
+  ficha com rótulos em sentence case, telefone `tel:`, horário e o endereço num
+  bloco neutro com "Copiar endereço" (que copia o mesmo texto cru de antes).
 
 ### Apresentação do mapa (R9)
 
@@ -1779,6 +1810,9 @@ dependendo de internet.
 - **Abaixo de 960px o painel é uma folha inferior recolhível.**
   - O recolhimento é o `folhaRecolhida`, e só tem efeito pelo CSS dessa faixa.
     Recolhida, a folha mostra o título e, com rota, o resumo.
+  - **Editar o trajeto é só o "Editar" do resumo.** Até o R10 havia também um
+    lápis no cabeçalho do painel, com a mesma ação; saiu por duplicar o botão.
+    Com a folha recolhida, a pessoa expande e usa o "Editar".
   - Um `ResizeObserver` publica a altura da folha em `--folha-altura` no
     `.map-container`, e a atribuição do Leaflet sobe acima dela.
   - Os avisos vão para o topo do mapa, porque acima da folha disputariam o
@@ -2192,8 +2226,9 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 21 arquivos e 160 testes depois do R9 (151 na correção do mapa, 139 no
-    R8). Entre eles: `mapa.test.js` (`utils/mapa.js`), `auth-routing.test.js`
+  - São 22 arquivos e 166 testes depois do R10 (160 no R9, 151 na correção do
+    mapa, 139 no R8). Entre eles: `posto-exibicao.test.js`
+    (`utils/postoExibicao.js`), `mapa.test.js` (`utils/mapa.js`), `auth-routing.test.js`
     (guard do router), `importacao-postos.test.js`, `paginacao.test.js`,
     `perfil.test.js`, `coordenadas.test.js`, `whatsapp.test.js`, `sessao.test.js`,
     `dashboard.test.js`, `formatacao.test.js`, `usuario.test.js`,
@@ -2238,8 +2273,8 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   Enquanto isso, a verificação é manual: rodar as próprias instruções do repository no
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
-- `npx eslint src` reporta **6 erros pré-existentes** (medido no R8 e de novo no
-  R9). Não são
+- `npx eslint src` reporta **6 erros pré-existentes** (medido no R8, no R9 e de
+  novo no R10). Não são
   regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |
@@ -2248,7 +2283,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   | `no-unused-vars` (2) | `err` (VehicleDialog), `error` (OccurrenceForm) |
 
   Caíram de 9 para 6 nas etapas anteriores do redesign (sem `Footer`, sem o
-  `response` do OccurrenceForm e sem o `deletarPosto`). O R8 não mudou a contagem.
+  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9 e o R10 não mudaram a contagem.
 
   Caíram de **10 para 9** com as coordenadas no cadastro de posto: o `catch (err)`
   do `PostoDialog` passou a ler o erro para separar `COORDINATES_NOT_FOUND` do modal

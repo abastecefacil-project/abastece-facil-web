@@ -35,19 +35,8 @@
               {{ formatarDistancia(route.distance) }} · {{ formatarDuracao(route.duration) }}
             </p>
           </div>
-          <v-tooltip v-if="route && !showRouteForm" text="Editar trajeto" location="bottom">
-            <template #activator="{ props: tooltip }">
-              <button
-                v-bind="tooltip"
-                type="button"
-                class="route-panel-icon-btn"
-                aria-label="Editar trajeto"
-                @click="editRoute"
-              >
-                <v-icon icon="mdi-pencil-outline" size="18" />
-              </button>
-            </template>
-          </v-tooltip>
+          <!-- Editar o trajeto é só o "Editar" do resumo (R10): o lápis aqui no
+               cabeçalho repetia a mesma ação. -->
           <v-tooltip :text="folhaRecolhida ? 'Expandir painel' : 'Recolher painel'" location="top">
             <template #activator="{ props: tooltip }">
               <button
