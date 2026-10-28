@@ -959,7 +959,7 @@ src/
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ajuda.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1174,7 +1174,7 @@ telefone é válido; mostra estados de carregamento, erro e ausência de gestore
 **Os contatos do seguro moram só em `config/contatosSeguro.js`** (R8):
 `ASSISTENCIA_24H` (`tel:08006020088`) e `WHATSAPP_SEGURO` (`wa.me` com mensagem
 própria, montado por `utils/whatsapp.js`), cada um com `rotulo`, `telefone` e
-`href`. Os consumidores são o `ContactSection` e o banner do `SeguroInfo`. Até o R8
+`href`. Os consumidores são o `ContactSection` e o card de assistência do `SeguroInfo`. Até o R8
 o 0800 estava escrito à mão nos dois e o WhatsApp do seguro era só texto. O link
 `tel:` sai de `hrefTelefone` (`utils/formatacao.js`). O módulo importa com caminho
 relativo, e não `@/`, para ser testável com `node --test`
@@ -1807,6 +1807,53 @@ Data e Descrição, e "Registrar ocorrência" é a única ação primária.
   `setTimeout` ou utils importados quebra o teste. Um `Date` da VM é de outro
   realm, então `instanceof Date` falha no teste.
 
+### Central de Ajuda (R12)
+
+`/user/HelpCenter` é `views/user/HelpCenter.vue` (REDESIGN §5.11), com
+`AbastecimentoGuide`, `SeguroInfo`, `FaqItem` e o `ContactSection` compartilhado
+com a Início. Largura máxima de 1120px (§4.3), alinhada à esquerda, com padding
+de 32px e 16px abaixo de 960px.
+
+- **Duas colunas a partir de 960px** (`minmax(0, 2fr) minmax(280px, 1fr)`): as
+  três seções à esquerda e o `ContactSection` num `<aside>` à direita, com
+  `position: sticky` e `top: 24px`. O sticky se prende ao `.main-container` do
+  `AppShell`, que é quem rola. O aside tem teto de altura com rolagem própria,
+  para uma regional com muitos gestores ainda alcançar o fim do card.
+- **Abaixo de 960px os contatos ficam no fim**, e não logo depois das âncoras. O
+  aside vem depois do conteúdo no DOM em todas as larguras, então a ordem de
+  leitura é a mesma da tela. No topo, os contatos empurrariam as três seções para
+  baixo da dobra, e o 0800 continua no alto da seção de seguro. Nessa faixa
+  aparece um quarto chip, "Contatos", que leva ao card.
+- **Âncoras:** `<nav>` com links em forma de chip. Ids, títulos e ícones das
+  seções vêm de `SECOES_AJUDA` (`utils/ajuda.js`), a mesma lista que monta os
+  cabeçalhos. O clique não segue o fragmento: `irPara` faz `scrollIntoView` (sem
+  suavizar sob `prefers-reduced-motion`) e põe o foco no `h2` da seção
+  (`tabindex="-1"`, `data-foco-ancora`) ou no aside dos contatos. Seguir o `#`
+  rolaria sem mover o foco, e com `createWebHistory` o vue-router trataria o
+  fragmento como navegação. A URL não ganha `#`.
+- **Passos do abastecimento:** `<ol>` com o número visível `aria-hidden`, em
+  `blue-700` sobre `blue-50` (o par do tile de ícone). Título do passo em
+  `neutral-900`, sem cor de link, e texto em body-lg. O antigo banner "Link do
+  Mapa" virou o botão secundário "Abrir mapa" (`:to="{ name: 'MapUser' }"`).
+- **Assistência 24h:** card do design system com tile de ícone e o telefone como
+  link `tel:`, ambos de `ASSISTENCIA_24H`. Sem gradiente e sem sombra.
+- **FAQ:** cada `FaqItem` continua com o próprio `v-expansion-panels`, e por isso
+  várias perguntas podem ficar abertas ao mesmo tempo. O painel é `flat`, com
+  `elevation="0"`, borda de 1px e sem o divisor `::after` do Vuetify. O overlay
+  de hover do título foi escondido, e o título ganhou anel de foco próprio: é um
+  `<button>` comum, fora da regra global de foco de `main.css`.
+- **A busca do FAQ** é `filtrarPerguntas` (`utils/ajuda.js`), com o comportamento
+  de antes: termo vazio ou `null` (o botão de limpar) mostra todas, e a
+  comparação ignora maiúsculas na pergunta e na resposta. Sem resultado, mostra
+  o `EmptyState`.
+- O texto interno das seções não mudou. Só os títulos das três seções foram para
+  sentence case ("Seguro frota própria", "Perguntas frequentes").
+
+`tests/central-ajuda.test.js` cobre o filtro e a lista de seções. Também lê o
+código-fonte e falha se os quatro arquivos voltarem a ter cor literal, gradiente
+ou `box-shadow`, se o FAQ ganhar `elevation`, ou se o 0800 do `SeguroInfo` deixar
+de vir de `config/contatosSeguro.js`.
+
 ### Apresentação do mapa (R9)
 
 O R9 (REDESIGN §5.12) mudou o que está dentro do mapa. A estrutura continua a
@@ -2271,8 +2318,9 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 22 arquivos e 173 testes depois do F3 (172 no R11, 166 no R10, 160 no R9, 151 na
-    correção do mapa, 139 no R8). Entre eles: `occurrence-form.test.js`
+  - São 23 arquivos e 182 testes depois do R12 (173 no F3, 172 no R11, 166 no R10, 160 no
+    R9, 151 na correção do mapa, 139 no R8). Entre eles: `central-ajuda.test.js`
+    (`utils/ajuda.js` e o código-fonte da Central, ver §7), `occurrence-form.test.js`
     (script e template do `OccurrenceForm`, ver §7), `posto-exibicao.test.js`
     (`utils/postoExibicao.js`), `mapa.test.js` (`utils/mapa.js`), `auth-routing.test.js`
     (guard do router), `importacao-postos.test.js`, `paginacao.test.js`,
@@ -2320,7 +2368,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
 - `npx eslint src` reporta **6 erros pré-existentes** (medido no R8, no R9, no
-  R10 e de novo no R11). Não são
+  R10, no R11 e de novo no R12). Não são
   regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |
@@ -2329,7 +2377,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   | `no-unused-vars` (2) | `err` (VehicleDialog), `error` (OccurrenceForm) |
 
   Caíram de 9 para 6 nas etapas anteriores do redesign (sem `Footer`, sem o
-  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10 e o R11 não mudaram a contagem.
+  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11 e o R12 não mudaram a contagem.
 
   Caíram de **10 para 9** com as coordenadas no cadastro de posto: o `catch (err)`
   do `PostoDialog` passou a ler o erro para separar `COORDINATES_NOT_FOUND` do modal

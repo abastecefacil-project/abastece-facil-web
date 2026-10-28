@@ -1,55 +1,93 @@
 <template>
-  <div class="help-center-container">
+  <div class="ajuda">
     <PageHeader titulo="Central de Ajuda" subtitulo="Orientações sobre abastecimento e seguro frota" />
 
-    <!-- Seção Abastecimento -->
-    <div class="info-section">
-      <div class="section-header">
-        <v-icon icon="mdi-gas-station" size="28" color="#1976D2"></v-icon>
-        <h2 class="section-title">Abastecimento</h2>
-      </div>
-      <AbastecimentoGuide />
-    </div>
+    <nav class="ajuda-ancoras" aria-label="Seções da Central de Ajuda">
+      <a
+        v-for="secao in SECOES_AJUDA"
+        :key="secao.id"
+        :href="`#${secao.id}`"
+        class="ajuda-ancora"
+        @click.prevent="irPara(secao.id)"
+      >
+        <v-icon :icon="secao.icone" size="16" />
+        {{ secao.titulo }}
+      </a>
+      <a
+        :href="`#${ID_CONTATOS_AJUDA}`"
+        class="ajuda-ancora ajuda-ancora--contatos"
+        @click.prevent="irPara(ID_CONTATOS_AJUDA)"
+      >
+        <v-icon icon="mdi-phone-outline" size="16" />
+        Contatos
+      </a>
+    </nav>
 
-    <!-- Seção Seguro -->
-    <div class="info-section">
-      <div class="section-header">
-        <v-icon icon="mdi-shield-check" size="28" color="#1976D2"></v-icon>
-        <h2 class="section-title">Seguro Frota Própria</h2>
-      </div>
-      <SeguroInfo />
-    </div>
+    <div class="ajuda-grid">
+      <div class="ajuda-conteudo">
+        <section :id="abastecimento.id" class="ajuda-secao" :aria-labelledby="`${abastecimento.id}-titulo`">
+          <div class="ajuda-secao__cabecalho">
+            <span class="ajuda-secao__icone"><v-icon :icon="abastecimento.icone" size="20" /></span>
+            <h2 :id="`${abastecimento.id}-titulo`" class="ajuda-secao__titulo" tabindex="-1" data-foco-ancora>
+              {{ abastecimento.titulo }}
+            </h2>
+          </div>
+          <AbastecimentoGuide />
+        </section>
 
-    <div class="faq-section">
-      <h2 class="section-title">Perguntas Frequentes</h2>
+        <section :id="seguro.id" class="ajuda-secao" :aria-labelledby="`${seguro.id}-titulo`">
+          <div class="ajuda-secao__cabecalho">
+            <span class="ajuda-secao__icone"><v-icon :icon="seguro.icone" size="20" /></span>
+            <h2 :id="`${seguro.id}-titulo`" class="ajuda-secao__titulo" tabindex="-1" data-foco-ancora>
+              {{ seguro.titulo }}
+            </h2>
+          </div>
+          <SeguroInfo />
+        </section>
 
-      <div class="search-section">
-        <v-text-field
-          v-model="searchQuery"
-          placeholder="Pesquisar dúvidas..."
-          variant="outlined"
-          density="comfortable"
-          prepend-inner-icon="mdi-magnify"
-          hide-details
-          clearable
-          class="search-field"
-        ></v-text-field>
+        <section :id="perguntas.id" class="ajuda-secao" :aria-labelledby="`${perguntas.id}-titulo`">
+          <div class="ajuda-secao__cabecalho">
+            <span class="ajuda-secao__icone"><v-icon :icon="perguntas.icone" size="20" /></span>
+            <h2 :id="`${perguntas.id}-titulo`" class="ajuda-secao__titulo" tabindex="-1" data-foco-ancora>
+              {{ perguntas.titulo }}
+            </h2>
+          </div>
+
+          <v-text-field
+            v-model="searchQuery"
+            label="Pesquisar dúvidas"
+            variant="outlined"
+            density="comfortable"
+            prepend-inner-icon="mdi-magnify"
+            hide-details
+            clearable
+            class="ajuda-busca"
+          ></v-text-field>
+
+          <div v-if="filteredFaqs.length" class="ajuda-perguntas">
+            <FaqItem
+              v-for="faq in filteredFaqs"
+              :key="faq.id"
+              :question="faq.question"
+              :answer="faq.answer"
+            />
+          </div>
+          <EmptyState
+            v-else
+            icone="mdi-help-circle-outline"
+            titulo="Nenhuma pergunta encontrada"
+            texto="Tente ajustar sua pesquisa"
+            class="ajuda-vazio"
+          />
+        </section>
       </div>
-      <div class="faq-list">
-        <FaqItem
-          v-for="faq in filteredFaqs"
-          :key="faq.id"
-          :question="faq.question"
-          :answer="faq.answer"
-        />
-      </div>
-      <div v-if="filteredFaqs.length === 0" class="empty-state">
-        <v-icon icon="mdi-help-circle-outline" size="64" color="#BDBDBD"></v-icon>
-        <h3 class="empty-title">Nenhuma pergunta encontrada</h3>
-        <p class="empty-subtitle">Tente ajustar sua pesquisa</p>
-      </div>
+
+      <!-- Depois do conteúdo no DOM também no desktop: a ordem de leitura é a
+           mesma em todas as larguras, e o grid só põe o card na coluna ao lado. -->
+      <aside :id="ID_CONTATOS_AJUDA" class="ajuda-contatos" tabindex="-1" aria-labelledby="contatos-titulo">
+        <ContactSection />
+      </aside>
     </div>
-    <ContactSection class="help-contatos" />
   </div>
 </template>
 
@@ -57,9 +95,26 @@
 import { ref, computed } from 'vue'
 import AbastecimentoGuide from '@/components/user/AbastecimentoGuide.vue'
 import PageHeader from '@/components/app/PageHeader.vue'
+import EmptyState from '@/components/app/EmptyState.vue'
 import SeguroInfo from '@/components/user/SeguroInfo.vue'
 import FaqItem from '@/components/user/FaqItem.vue'
 import ContactSection from '@/components/user/ContactSection.vue'
+import { SECOES_AJUDA, ID_CONTATOS_AJUDA, filtrarPerguntas } from '@/utils/ajuda'
+
+const [abastecimento, seguro, perguntas] = SECOES_AJUDA
+
+// Âncoras (R12). O clique não segue o fragmento: com createWebHistory o
+// vue-router o trataria como navegação, e o fragmento nativo rola sem mover o
+// foco. Rola até a seção e põe o foco no título dela (ou no card de contatos),
+// para o teclado e o leitor de tela continuarem dali.
+const irPara = (id) => {
+  const destino = document.getElementById(id)
+  if (!destino) return
+  const reduzirMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  destino.scrollIntoView({ behavior: reduzirMovimento ? 'auto' : 'smooth', block: 'start' })
+  const alvo = destino.querySelector('[data-foco-ancora]') ?? destino
+  alvo.focus({ preventScroll: true })
+}
 
 const searchQuery = ref('')
 
@@ -101,98 +156,184 @@ const faqs = ref([
   },
 ])
 
-const filteredFaqs = computed(() => {
-  if (!searchQuery.value) return faqs.value
-
-  const query = searchQuery.value.toLowerCase()
-  return faqs.value.filter(
-    (faq) => faq.question.toLowerCase().includes(query) || faq.answer.toLowerCase().includes(query),
-  )
-})
+const filteredFaqs = computed(() => filtrarPerguntas(faqs.value, searchQuery.value))
 </script>
 
 <style scoped>
-.help-center-container {
-  padding: 24px;
-  background-color: #f5f5f5;
-  min-height: 100vh;
+/* Fundo e rolagem são do AppShell. Largura da Central na §4.3 (1120px),
+   alinhada à esquerda como as outras telas; padding de 32px no desktop e 16px
+   abaixo de md. */
+.ajuda {
+  max-width: 1120px;
+  padding: var(--space-8);
 }
 
-.info-section {
-  max-width: 1200px;
-  margin: 0 auto 32px auto;
+/* ── Âncoras ────────────────────────────────────────────────────────────── */
+.ajuda-ancoras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
 }
 
-.section-header {
+/* Chip de navegação: pílula neutra, destaque por borda no hover (§4.6). O
+   foco visível vem da regra global de main.css para `a`. */
+.ajuda-ancora {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-neutral-300);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    border-color var(--transition),
+    background-color var(--transition);
+}
+
+.ajuda-ancora:hover {
+  border-color: var(--color-blue-200);
+  background: var(--color-neutral-50);
+}
+
+.ajuda-ancora .v-icon {
+  color: var(--color-blue-700);
+}
+
+/* ── Grid ───────────────────────────────────────────────────────────────── */
+.ajuda-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+}
+
+.ajuda-conteudo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+/* ── Seções ─────────────────────────────────────────────────────────────── */
+.ajuda-secao {
+  scroll-margin-top: var(--space-6);
+}
+
+.ajuda-secao__cabecalho {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
 }
 
-.section-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #424242;
-  margin: 0;
-}
-
-/* Largura e margem que o ContactSection tinha no próprio invólucro até o R8,
-   quando ele passou a ser só o card, compartilhado com a Início. */
-.help-contatos {
-  max-width: 900px;
-  margin: var(--space-8) auto 0;
-}
-
-.faq-section {
-  max-width: 900px;
-  margin: 32px auto;
-}
-
-.search-section {
-  margin-bottom: 20px;
-  margin-top: 15px;
-}
-
-.search-field :deep(.v-field) {
-  background-color: #ffffff;
-}
-
-.faq-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
+/* Tile de ícone (§4.5). */
+.ajuda-secao__icone {
+  display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  padding: 64px 24px;
-  text-align: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-blue-50);
+  color: var(--color-blue-700);
 }
 
-.empty-title {
-  font-size: 18px;
-  font-weight: 500;
-  color: #616161;
-  margin: 16px 0 8px 0;
-}
-
-.empty-subtitle {
-  font-size: 14px;
-  color: #9e9e9e;
+.ajuda-secao__titulo {
   margin: 0;
+  font-size: var(--text-section-title-size);
+  line-height: var(--text-section-title-line);
+  font-weight: var(--text-section-title-weight);
+  color: var(--color-neutral-900);
+  border-radius: var(--radius-sm);
 }
 
-@media (max-width: 768px) {
-  .help-center-container {
-    padding: 16px;
+/* O título recebe foco pela âncora. Anel só quando o foco veio do teclado. */
+.ajuda-secao__titulo:focus {
+  outline: none;
+}
+
+.ajuda-secao__titulo:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+/* ── Perguntas frequentes ───────────────────────────────────────────────── */
+.ajuda-busca {
+  max-width: 480px;
+  margin-bottom: var(--space-4);
+}
+
+.ajuda-perguntas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ajuda-vazio {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+/* ── Contatos ───────────────────────────────────────────────────────────── */
+.ajuda-contatos {
+  min-width: 0;
+  border-radius: var(--radius-lg);
+  scroll-margin-top: var(--space-6);
+}
+
+.ajuda-contatos:focus {
+  outline: none;
+}
+
+.ajuda-contatos:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+
+/* Duas colunas a partir de md: conteúdo e o card de contatos fixo ao lado.
+   Quem rola é o .main-container do AppShell, e o sticky prende o card a ele.
+   O teto de altura garante que uma regional com muitos gestores ainda alcance
+   o fim do card, rolando por dentro. O chip "Contatos" some: o card está
+   sempre à vista. */
+@media (min-width: 960px) {
+  .ajuda-grid {
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    align-items: start;
   }
 
-  .section-title {
-    font-size: 1.25rem;
+  .ajuda-contatos {
+    position: sticky;
+    top: var(--space-6);
+    max-height: calc(100vh - var(--app-bar-height) - 2 * var(--space-6));
+    max-height: calc(100dvh - var(--app-bar-height) - 2 * var(--space-6));
+    overflow-y: auto;
+  }
+
+  .ajuda-ancora--contatos {
+    display: none;
+  }
+}
+
+@media (max-width: 959px) {
+  .ajuda {
+    padding: var(--space-4);
+  }
+
+  .ajuda-ancoras {
+    margin-bottom: var(--space-5);
+  }
+
+  .ajuda-grid,
+  .ajuda-conteudo {
+    gap: var(--space-6);
   }
 }
 </style>
