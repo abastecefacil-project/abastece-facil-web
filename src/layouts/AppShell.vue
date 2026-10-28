@@ -488,8 +488,20 @@ const trilha = computed(() => {
   min-height: 40px;
   margin-bottom: 2px;
   color: var(--color-sidebar-text);
-  font-weight: 500;
   transition: background-color var(--transition), color var(--transition);
+}
+
+/* Tipografia do rótulo: 14px peso 400 no inativo, 600 no ativo. Fica no título,
+   e não no item, porque o `.v-list-item--nav .v-list-item-title` do Vuetify fixa
+   13px e peso 500 ali, e herança do item não o alcança. */
+.app-drawer .drawer-item :deep(.v-list-item-title) {
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  font-weight: 400;
+}
+
+.app-drawer .drawer-item.v-list-item--active :deep(.v-list-item-title) {
+  font-weight: 600;
 }
 
 /* O overlay do Vuetify somaria ao fundo dos estados abaixo (no hover do ativo,
@@ -512,7 +524,6 @@ const trilha = computed(() => {
 .drawer-item.v-list-item--active {
   background-color: var(--color-sidebar-active);
   color: var(--color-sidebar-text-active);
-  font-weight: 600;
 }
 
 .drawer-item.v-list-item--active::before {
