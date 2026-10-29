@@ -5,6 +5,7 @@
     scrollable
     persistent
     @update:model-value="$emit('update:modelValue', $event)"
+    @after-leave="$emit('fechado')"
   >
     <v-card>
       <!-- Cabeçalho (REDESIGN §4.6): título e fechar. O X emite o mesmo `close`
@@ -292,6 +293,7 @@
     type="success"
     title="Sucesso!"
     message="Posto cadastrado com sucesso!"
+    @after-leave="$emit('fechado')"
   />
 
   <BaseStatusModal
@@ -299,6 +301,7 @@
     type="error"
     title="Erro!"
     :message="mensagemErro"
+    @after-leave="$emit('fechado')"
   />
 
 </template>
@@ -502,7 +505,9 @@ const handleSave = async () => {
   }
 };
 
-const emit = defineEmits(['update:modelValue', 'save', 'close'])
+// `fechado`: fim da transição de saída do formulário ou de um dos modais de
+// status. A tela usa para devolver o foco ao botão que abriu o diálogo.
+const emit = defineEmits(['update:modelValue', 'save', 'close', 'fechado'])
 
 watch(
   () => props.posto,

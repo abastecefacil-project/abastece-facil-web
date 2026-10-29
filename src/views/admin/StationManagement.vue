@@ -27,7 +27,7 @@
             </template>
           </span>
         </v-btn>
-        <v-btn color="primary" prepend-icon="mdi-plus" @click="openDialog">Novo posto</v-btn>
+        <v-btn color="primary" prepend-icon="mdi-plus" @click="guardarOrigem($event); openDialog()">Novo posto</v-btn>
       </template>
     </PageHeader>
 
@@ -43,6 +43,7 @@
     <section class="tabela-postos" aria-label="Lista de postos">
       <div class="tabela-toolbar">
         <v-text-field
+          ref="campoBusca"
           v-model="searchQuery"
           label="Buscar postos"
           prepend-inner-icon="mdi-magnify"
@@ -145,8 +146,9 @@
                 density="compact"
                 icon
                 class="acao"
+                :data-origem="`editar-${linha.posto.id}`"
                 :aria-label="`Editar posto ${linha.nome}`"
-                @click="editarPosto(linha.posto)"
+                @click="guardarOrigem($event); editarPosto(linha.posto)"
               >
                 <v-icon icon="mdi-pencil-outline" size="20" />
                 <v-tooltip activator="parent" location="top" text="Editar" />
@@ -157,8 +159,9 @@
                 density="compact"
                 icon
                 class="acao acao--perigo"
+                :data-origem="`excluir-${linha.posto.id}`"
                 :aria-label="`Excluir posto ${linha.nome}`"
-                @click="abrirModalExclusao(linha.posto.id)"
+                @click="guardarOrigem($event); abrirModalExclusao(linha.posto.id)"
               >
                 <v-icon icon="mdi-trash-can-outline" size="20" />
                 <v-tooltip activator="parent" location="top" text="Excluir" />
@@ -179,18 +182,22 @@
       </div>
     </section>
 
-    <!-- Dialog para Adicionar/Editar Posto -->
+    <!-- Dialog para Adicionar/Editar Posto. Os dois devolvem o foco ao botão
+         que os abriu (aoFecharDialogo); o PostoDialog emite `fechado` porque
+         tem mais de uma raiz e não repassa o after-leave. -->
     <PostoDialog
       v-model="dialog"
       :is-editing="isEditing"
       :posto="formPosto"
       @save="salvarPosto"
       @close="closeDialog"
+      @fechado="aoFecharDialogo"
     />
     <ConfirmDialog
       v-model="modalExclusao"
       :objeto="objetoExclusao"
       @confirm="confirmarExclusao"
+      @after-leave="aoFecharDialogo"
     />
     <ImportacaoPostosDialog
       v-if="isAdministrador"
@@ -226,6 +233,7 @@ import {
 import { TELEFONE_NAO_INFORMADO, nomeProprio } from '@/utils/formatacao'
 import { apresentacaoLinhaPosto } from '@/utils/postoExibicao'
 import { formatarNumero } from '@/utils/importacaoPostos'
+import { devolverFoco, elementoDeOrigem } from '@/utils/foco'
 import { useRoute, useRouter } from 'vue-router'
 import ImportacaoPostosDialog from '@/components/admin/ImportacaoPostosDialog.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -429,6 +437,26 @@ watch(dialogImportacao, (aberto) => {
 })
 
 const formPosto = ref(postoVazio())
+
+// === Foco devolvido ao fechar diálogos ===
+// Os diálogos não têm activator, e sem isso o foco cairia no <body>. A origem
+// sobrevive à cadeia formulário → modal de sucesso: só é descartada quando o
+// último fecha. Aberto pela notificação (?posto=), não há origem, e o foco fica
+// onde o Vuetify o deixar.
+const campoBusca = ref(null)
+let origemFoco = null
+
+function guardarOrigem(evento) {
+  origemFoco = elementoDeOrigem(evento)
+}
+
+function aoFecharDialogo() {
+  const resultado = devolverFoco(origemFoco, {
+    // Posto excluído sai da lista junto com o botão: o foco vai para a busca.
+    alternativas: [campoBusca.value?.$el?.querySelector('input')],
+  })
+  if (resultado !== 'aguardando') origemFoco = null
+}
 
 // Funções
 const openDialog = () => {

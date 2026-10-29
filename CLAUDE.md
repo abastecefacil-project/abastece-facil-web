@@ -954,12 +954,12 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (14)  user/ (7)  app/ (12 compartilhados)  public/ (2)
+├── components/  admin/ (13)  user/ (7)  app/ (12 compartilhados)  public/ (2)
 ├── config/      navegacao.js, contatosSeguro.js
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ocorrenciaExibicao.js, ajuda.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ocorrenciaExibicao.js, usuarioExibicao.js, foco.js, ajuda.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1902,6 +1902,71 @@ abrir chega antes e não fecha. Nenhuma pessoa é rápida assim, mas um script d
 Playwright é. Nos testes de navegador, espere uns 250 ms entre abrir e
 pressionar Esc.
 
+### Usuários do admin (R14)
+
+`/admin/user` é `views/admin/UserManagement.vue` (REDESIGN §5.7), no padrão de
+tabela de Postos e Ocorrências: "Novo usuário" no `PageHeader`, card com
+toolbar (busca por nome e segmentado Ativos/Inativos), `<table>`, estados e
+`PaginationBar`. O `UserCard.vue` foi removido.
+
+- **Sem "Todos" no segmentado, e sem contagem.** `GET /api/users` exige
+  `active`, e contar exigiria duas chamadas extras só para ler o
+  `totalElements`.
+- **Colunas:** Nome (e-mail em body-sm), Perfil (chip neutro, `rotuloPerfil`),
+  Regional, Status (`StatusChip`) e Ações. A linha sai de
+  `apresentacaoLinhaUsuario` (`utils/usuarioExibicao.js`, coberta por
+  `tests/usuario-exibicao.test.js`):
+  - `status`: `statusUsuario`, com inativo vencendo aguardando. `conviteEnviado`
+    não entra (null em todo GET);
+  - regional ausente: "Não se aplica" para administrador e "Não informada" para
+    os demais, no estilo `.horario-nao-informado`.
+- **Ações, com as regras de antes:** reenviar ativação (só com status
+  aguardando, para qualquer perfil, porque o backend decide), editar
+  (`podeEditarUsuario`) e inativar/reativar (`podeAlterarStatus`, só
+  administrador e nunca a própria conta). Cada uma tem tooltip e `aria-label`
+  com o nome ("Editar usuário Maria Souza").
+- **Confirmações nomeiam o usuário no título:** "Inativar Maria Souza?",
+  "Reativar …?", "Reenviar ativação para …?".
+- **Estados:** esqueleto com a altura da página anterior (5 linhas na primeira
+  carga), `EmptyState` e erro com "Tentar novamente" (antes a falha só ia ao
+  console).
+- **Responsivo:** abaixo de 1280px a Regional vira a segunda linha da célula
+  Perfil. Abaixo de 600px cada linha vira um bloco: nome e e-mail na largura
+  toda, perfil e regional, e status com as ações na última linha.
+- **O `<script setup>` roda numa VM nos testes** (`tests/user-edit.test.js`),
+  sem as linhas de `import`. Imports novos só podem aparecer dentro de
+  `computed` e de handlers chamados pelo template. Chamá-los no topo ou em
+  `loadingUsers`, `abrirModalStatus`, `confirmarStatus`, `salvarUsuario` ou nas
+  funções de permissão quebra o teste com `ReferenceError`.
+
+O `UserDialog` segue a §4.6: cabeçalho com `h2` e X (que emite o mesmo
+`close`), campos em `v-row`, uma coluna abaixo de 600px. Script, regras e
+payload não mudaram.
+
+**Foco devolvido ao fechar diálogos (Usuários e Postos).** Os diálogos de
+gestão abrem por `v-model`, sem `activator`, e o foco caía no `<body>` ao
+fechar (conferido antes da correção em todos os casos). `utils/foco.js`
+(coberto por `tests/foco.test.js`) resolve isso:
+
+- A tela guarda a origem no clique (`guardarOrigem($event)`, no template) e
+  chama `aoFecharDialogo` no `after-leave` de cada diálogo.
+- **`devolverFoco` espera a cadeia terminar.** Enquanto houver
+  `.v-dialog.v-overlay--active`, como o modal de sucesso que abre quando o
+  formulário fecha, ele devolve `'aguardando'` e a origem é mantida. Tooltips
+  e menus também são `.v-overlay`, por isso o seletor exige `.v-dialog`.
+- **A recarga recria as linhas** (o esqueleto substitui o `tbody`). Por isso os
+  botões de linha têm `data-origem` ("editar-7"), e a origem desconectada é
+  reencontrada por ele.
+- Quando a linha some (usuário inativado ou reativado, posto excluído), o foco
+  vai para o aviso de sucesso de Usuários (`tabindex="-1"`) ou para a busca.
+- **`UserDialog` e `PostoDialog` emitem `fechado`** no `after-leave` do
+  formulário e dos `BaseStatusModal` internos: têm mais de uma raiz e não
+  repassariam o atributo. `ConfirmDialog` e `BaseStatusModal` têm o `v-dialog`
+  na raiz e recebem `@after-leave` direto.
+- O posto aberto pela notificação (`?posto=`) não tem origem, e o foco fica
+  onde o Vuetify o deixar. A tela de Ocorrências continua com a própria
+  `devolverFoco` do R13.
+
 ### Apresentação do mapa (R9)
 
 O R9 (REDESIGN §5.12) mudou o que está dentro do mapa. A estrutura continua a
@@ -2366,8 +2431,10 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 24 arquivos e 188 testes depois do R13 (182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
-    R9, 151 na correção do mapa, 139 no R8). Entre eles: `ocorrencia-exibicao.test.js`
+  - São 26 arquivos e 204 testes depois do R14 (188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
+    R9, 151 na correção do mapa, 139 no R8). Entre eles: `usuario-exibicao.test.js`
+    (`utils/usuarioExibicao.js`) e `foco.test.js` (`utils/foco.js`), ver §7 *Usuários do
+    admin (R14)*, `ocorrencia-exibicao.test.js`
     (`utils/ocorrenciaExibicao.js`, ver §7), `central-ajuda.test.js`
     (`utils/ajuda.js` e o código-fonte da Central, ver §7), `occurrence-form.test.js`
     (script e template do `OccurrenceForm`, ver §7), `posto-exibicao.test.js`
@@ -2417,7 +2484,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
 - `npx eslint src` reporta **6 erros pré-existentes** (medido no R8, no R9, no
-  R10, no R11, no R12 e de novo no R13). Não são
+  R10, no R11, no R12, no R13 e de novo no R14). Não são
   regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |
@@ -2426,7 +2493,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   | `no-unused-vars` (2) | `err` (VehicleDialog), `error` (OccurrenceForm) |
 
   Caíram de 9 para 6 nas etapas anteriores do redesign (sem `Footer`, sem o
-  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11, o R12 e o R13 não mudaram a contagem.
+  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11, o R12, o R13 e o R14 não mudaram a contagem.
 
   Caíram de **10 para 9** com as coordenadas no cadastro de posto: o `catch (err)`
   do `PostoDialog` passou a ler o erro para separar `COORDINATES_NOT_FOUND` do modal

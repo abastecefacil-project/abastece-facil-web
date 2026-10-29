@@ -11,7 +11,7 @@ import { computed } from 'vue'
 // Status de cadastro (REDESIGN §4.6, G6): um componente só para postos,
 // veículos e usuários, que hoje têm três aparências para o mesmo conceito.
 // Quem decide o status é a tela: para usuário, "aguardando" sai de `isActive` +
-// `senhaDefinida`, como o UserCard já deriva.
+// `senhaDefinida` (utils/usuarioExibicao.js, statusUsuario).
 const VARIANTES = {
   ativo: { chave: 'ativo', rotulo: 'Ativo' },
   inativo: { chave: 'inativo', rotulo: 'Inativo' },

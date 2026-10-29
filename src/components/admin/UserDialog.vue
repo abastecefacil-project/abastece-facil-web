@@ -5,13 +5,28 @@
     scrollable
     persistent
     @update:model-value="$emit('update:modelValue', $event)"
+    @after-leave="$emit('fechado')"
   >
-    <v-card class="dialog-card" rounded="lg">
-      <v-card-title class="pa-6 pb-4">
-        <span class="text-h5 font-weight-bold">{{ editando ? 'Editar Usuário' : 'Novo Usuário' }}</span>
+    <v-card>
+      <!-- Cabeçalho (REDESIGN §4.6): título e fechar. O X emite o mesmo `close`
+           do botão Cancelar. -->
+      <v-card-title class="dialogo-cabecalho">
+        <h2 class="dialogo-titulo">{{ editando ? 'Editar usuário' : 'Novo usuário' }}</h2>
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          density="comfortable"
+          aria-label="Fechar"
+          class="dialogo-fechar"
+          :disabled="isLoading"
+          @click="$emit('close')"
+        >
+          <v-icon icon="mdi-close" size="20" />
+        </v-btn>
       </v-card-title>
 
-      <v-card-text class="dialog-content">
+      <v-card-text class="dialogo-corpo">
         <!-- O usuário nasce sem senha: quem a define é a própria pessoa, pelo
              link de ativação enviado por e-mail. Daí não haver campo de senha. -->
         <p v-if="editando" class="dialog-hint">
@@ -39,77 +54,94 @@
           text="Sua conta não está vinculada a nenhuma regional, então não é possível cadastrar usuários. Procure um administrador."
         />
 
+        <!-- Abaixo de 600px (xs) todo campo ocupa a linha inteira: cols="12" em
+             todas as colunas, e a divisão começa no sm (REDESIGN §4.6). -->
         <v-form ref="form">
-          <div class="form-fields">
-            <v-text-field
-              v-model="localUser.name"
-              label="Nome completo*"
-              placeholder="Ex: João Silva"
-              variant="outlined"
-              density="comfortable"
-              :rules="[rules.required, rules.nome]"
-            ></v-text-field>
+          <v-row dense>
+            <v-col cols="12">
+              <v-text-field
+                v-model="localUser.name"
+                label="Nome completo*"
+                placeholder="Ex: João Silva"
+                variant="outlined"
+                density="comfortable"
+                :rules="[rules.required, rules.nome]"
+              ></v-text-field>
+            </v-col>
 
-            <v-text-field
-              v-model="localUser.email"
-              label="E-mail*"
-              placeholder="Ex: joao.silva@fiesc.org.br"
-              variant="outlined"
-              density="comfortable"
-              :rules="[rules.required, rules.email]"
-            ></v-text-field>
+            <v-col cols="12">
+              <v-text-field
+                v-model="localUser.email"
+                label="E-mail*"
+                placeholder="Ex: joao.silva@fiesc.org.br"
+                variant="outlined"
+                density="comfortable"
+                :rules="[rules.required, rules.email]"
+              ></v-text-field>
+            </v-col>
 
             <template v-if="!editando || isAdministrador">
-              <v-text-field
-                v-model="localUser.telefone"
-                label="Telefone"
-                placeholder="Ex: (47) 99999-8888"
-                variant="outlined"
-                density="comfortable"
-                maxlength="15"
-                :rules="[rules.telefone]"
-                @input="aoDigitarTelefone"
-              ></v-text-field>
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="localUser.telefone"
+                  label="Telefone"
+                  placeholder="Ex: (47) 99999-8888"
+                  variant="outlined"
+                  density="comfortable"
+                  maxlength="15"
+                  :rules="[rules.telefone]"
+                  @input="aoDigitarTelefone"
+                ></v-text-field>
+              </v-col>
 
-              <v-text-field
-                v-model="localUser.matricula"
-                :label="camposDePerfilObrigatorios ? 'Matrícula*' : 'Matrícula'"
-                placeholder="Ex: 12345"
-                variant="outlined"
-                density="comfortable"
-                :rules="regrasMatricula"
-              ></v-text-field>
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="localUser.matricula"
+                  :label="camposDePerfilObrigatorios ? 'Matrícula*' : 'Matrícula'"
+                  placeholder="Ex: 12345"
+                  variant="outlined"
+                  density="comfortable"
+                  :rules="regrasMatricula"
+                ></v-text-field>
+              </v-col>
 
+              <v-col cols="12" :sm="camposDePerfilObrigatorios ? 6 : 12">
+                <v-select
+                  v-model="localUser.perfil"
+                  :items="perfisDisponiveis"
+                  label="Perfil*"
+                  variant="outlined"
+                  density="comfortable"
+                  menu-icon="mdi-chevron-down"
+                  :rules="[rules.required]"
+                  :readonly="perfilTravado"
+                  :hint="propriaConta ? 'Seu próprio perfil não pode ser alterado.' : perfilTravado ? 'Você só pode cadastrar colaboradores.' : ''"
+                  :persistent-hint="perfilTravado"
+                ></v-select>
+              </v-col>
+            </template>
+
+            <v-col
+              v-if="camposDePerfilObrigatorios"
+              cols="12"
+              :sm="!editando || isAdministrador ? 6 : 12"
+            >
               <v-select
-                v-model="localUser.perfil"
-                :items="perfisDisponiveis"
-                label="Perfil*"
+                v-model="localUser.regionalId"
+                :items="regionaisDisponiveis"
+                label="Regional*"
                 variant="outlined"
                 density="comfortable"
                 menu-icon="mdi-chevron-down"
-                :rules="[rules.required]"
-                :readonly="perfilTravado"
-                :hint="propriaConta ? 'Seu próprio perfil não pode ser alterado.' : perfilTravado ? 'Você só pode cadastrar colaboradores.' : ''"
-                :persistent-hint="perfilTravado"
+                :loading="carregandoDados"
+                :readonly="regionalTravada"
+                :append-inner-icon="regionalTravada ? 'mdi-lock-outline' : undefined"
+                :rules="regrasRegional"
+                :hint="regionalTravada ? 'Apenas o administrador pode alterar a regional.' : ''"
+                :persistent-hint="regionalTravada"
               ></v-select>
-            </template>
-
-            <v-select
-              v-if="camposDePerfilObrigatorios"
-              v-model="localUser.regionalId"
-              :items="regionaisDisponiveis"
-              label="Regional*"
-              variant="outlined"
-              density="comfortable"
-              menu-icon="mdi-chevron-down"
-              :loading="carregandoDados"
-              :readonly="regionalTravada"
-              :append-inner-icon="regionalTravada ? 'mdi-lock-outline' : undefined"
-              :rules="regrasRegional"
-              :hint="regionalTravada ? 'Apenas o administrador pode alterar a regional.' : ''"
-              :persistent-hint="regionalTravada"
-            ></v-select>
-          </div>
+            </v-col>
+          </v-row>
         </v-form>
       </v-card-text>
 
@@ -140,13 +172,15 @@
     type="success"
     title="Sucesso!"
     :message="editando ? 'Usuário atualizado com sucesso.' : 'Usuário cadastrado e convite de ativação enviado por e-mail.'"
+    @after-leave="$emit('fechado')"
   />
 
   <BaseStatusModal
     v-model="warningDialog"
     type="warning"
     title="Convite não enviado"
-    message="O usuário foi cadastrado, mas o convite de ativação não saiu. Use a ação Reenviar ativação no card dele para tentar de novo."
+    message="O usuário foi cadastrado, mas o convite de ativação não saiu. Use a ação Reenviar ativação na linha dele, na lista, para tentar de novo."
+    @after-leave="$emit('fechado')"
   />
 
   <BaseStatusModal
@@ -154,6 +188,7 @@
     type="error"
     title="Erro!"
     :message="mensagemErro"
+    @after-leave="$emit('fechado')"
   />
 </template>
 
@@ -171,7 +206,9 @@ const props = defineProps({
   user: { type: Object, default: null },
 })
 
-const emit = defineEmits(['update:modelValue', 'save', 'close'])
+// `fechado`: fim da transição de saída do formulário ou de um dos modais de
+// status. A tela usa para devolver o foco ao botão que abriu o diálogo.
+const emit = defineEmits(['update:modelValue', 'save', 'close', 'fechado'])
 
 const authStore = useAuthStore()
 const editando = computed(() => props.user?.id != null)
@@ -390,26 +427,45 @@ watch(
 </script>
 
 <style scoped>
-.dialog-content {
-  padding: 24px !important;
+/* Raio de 16px e sombra de overlay vêm da regra global de diálogo em main.css.
+   Forma, cor e responsividade dos botões vêm de .btn-dialog* e .dialog-actions.
+   Cabeçalho e corpo no mesmo desenho do PostoDialog (REDESIGN §4.6). */
+
+.dialogo-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4) var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dialogo-titulo {
+  margin: 0;
+  font-size: var(--text-section-title-size);
+  line-height: var(--text-section-title-line);
+  font-weight: var(--text-section-title-weight);
+  color: var(--color-neutral-900);
+}
+
+.dialogo-fechar {
+  color: var(--color-text-muted);
+}
+
+.dialogo-corpo {
+  padding: var(--space-6) !important;
 }
 
 .dialog-hint {
-  font-size: 0.875rem;
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
   color: var(--color-text-muted);
-  margin-bottom: 20px;
 }
 
-.form-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* Responsividade */
 @media (max-width: 600px) {
-  .dialog-content {
-    padding: 20px !important;
+  .dialogo-corpo {
+    padding: var(--space-5) !important;
   }
 }
 </style>
