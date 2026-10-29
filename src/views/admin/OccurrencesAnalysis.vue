@@ -106,6 +106,7 @@
                 density="compact"
                 icon
                 class="acao"
+                :data-origem="`detalhe-${linha.ocorrencia.id}`"
                 :aria-label="rotuloDetalhe(linha)"
                 @click.stop="openOccurrence(linha, $event)"
               >
@@ -129,7 +130,7 @@
     </section>
 
     <!-- Detalhe da ocorrência (REDESIGN §4.6) -->
-    <v-dialog v-model="dialogOpen" max-width="560px" scrollable @after-leave="devolverFoco">
+    <v-dialog v-model="dialogOpen" max-width="560px" scrollable @after-leave="aoFecharDialogo">
       <v-card v-if="selectedOccurrence">
         <v-card-title class="dialogo-cabecalho">
           <h2 class="dialogo-titulo">{{ selectedOccurrence.tipo }}</h2>
@@ -202,6 +203,7 @@ import PlateBadge from '@/components/app/PlateBadge.vue'
 import EmptyState from '@/components/app/EmptyState.vue'
 import { apresentacaoLinhaOcorrencia } from '@/utils/ocorrenciaExibicao'
 import { getOccurrences } from '@/services/occurrenceService.js'
+import { devolverFoco } from '@/utils/foco'
 
 const NAO_INFORMADO = 'Não informado'
 
@@ -267,24 +269,24 @@ async function loadingOccurrences(page = 0) {
   }
 }
 
-// Botão "Ver detalhes" da linha que abriu o diálogo. O diálogo não tem
-// activator, e sem isso o foco cairia no <body> ao fechar.
-let gatilhoDetalhe = null
+// Botão "Ver detalhes" da linha que abriu o diálogo, mesmo quando o clique foi
+// na linha: é o elemento focável dela. O diálogo não tem activator, e sem isso
+// o foco cairia no <body> ao fechar. Não é `elementoDeOrigem`, porque o
+// currentTarget do clique na linha é o <tr>.
+let origemFoco = null
 
 const openOccurrence = (linha, evento) => {
-  gatilhoDetalhe = evento?.currentTarget?.closest('tr')?.querySelector('.acao') ?? null
+  origemFoco = evento?.currentTarget?.closest('tr')?.querySelector('.acao') ?? null
   selectedOccurrence.value = linha
   dialogOpen.value = true
 }
 
-// Ao fim da transição de saída o foco ainda está no diálogo (no "Fechar" ou no
-// próprio conteúdo) ou já caiu no <body>. Fora desses casos alguém o levou
-// para outro lugar, e ele fica onde está.
-function devolverFoco() {
-  const ativo = document.activeElement
-  const perdido = !ativo || ativo === document.body || ativo.closest('.v-overlay')
-  if (gatilhoDetalhe?.isConnected && perdido) gatilhoDetalhe.focus()
-  gatilhoDetalhe = null
+// utils/foco.js: devolve se o foco ficou no diálogo ou caiu no <body>, e o
+// mantém se alguém o levou para outro lugar. A tela tem um diálogo só, então o
+// resultado 'aguardando' não ocorre e a origem é sempre descartada.
+function aoFecharDialogo() {
+  devolverFoco(origemFoco)
+  origemFoco = null
 }
 
 onMounted(() => {

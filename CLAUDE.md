@@ -954,12 +954,12 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (13)  user/ (7)  app/ (12 compartilhados)  public/ (2)
+├── components/  admin/ (12)  user/ (7)  app/ (12 compartilhados)  public/ (2)
 ├── config/      navegacao.js, contatosSeguro.js
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ocorrenciaExibicao.js, usuarioExibicao.js, foco.js, ajuda.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ocorrenciaExibicao.js, usuarioExibicao.js, foco.js, ajuda.js, exclusao.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1884,9 +1884,12 @@ hover por `translateY`) foi removido.
   ocorrência e Registrada em, descrição num bloco neutro com as quebras
   originais) e continua inline na view.
 - **Foco ao fechar.** O `v-dialog` não tem `activator`, e o foco caía no
-  `<body>`. O `@after-leave` chama `devolverFoco`, que leva o foco ao botão
-  "Ver detalhes" da linha que abriu, mas só se ele ainda estiver no diálogo ou
-  no `<body>`.
+  `<body>`. O `@after-leave` chama `aoFecharDialogo`, que usa `devolverFoco`
+  de `utils/foco.js` (desde o R15) para levar o foco ao botão "Ver detalhes"
+  da linha que abriu (`data-origem="detalhe-{id}"`), mas só se ele ainda
+  estiver no diálogo ou no `<body>`. A origem é resolvida no clique como o
+  `.acao` da linha, e não por `elementoDeOrigem`: no clique na linha o
+  `currentTarget` é o `<tr>`.
 - **Estados:** skeleton de 10 linhas, `EmptyState` (texto diferente com busca),
   e erro com "Tentar novamente", que antes não existia (a falha só ia ao
   console).
@@ -1943,7 +1946,7 @@ O `UserDialog` segue a §4.6: cabeçalho com `h2` e X (que emite o mesmo
 `close`), campos em `v-row`, uma coluna abaixo de 600px. Script, regras e
 payload não mudaram.
 
-**Foco devolvido ao fechar diálogos (Usuários e Postos).** Os diálogos de
+**Foco devolvido ao fechar diálogos (Usuários, Postos, Veículos e Ocorrências).** Os diálogos de
 gestão abrem por `v-model`, sem `activator`, e o foco caía no `<body>` ao
 fechar (conferido antes da correção em todos os casos). `utils/foco.js`
 (coberto por `tests/foco.test.js`) resolve isso:
@@ -1957,15 +1960,83 @@ fechar (conferido antes da correção em todos os casos). `utils/foco.js`
 - **A recarga recria as linhas** (o esqueleto substitui o `tbody`). Por isso os
   botões de linha têm `data-origem` ("editar-7"), e a origem desconectada é
   reencontrada por ele.
-- Quando a linha some (usuário inativado ou reativado, posto excluído), o foco
-  vai para o aviso de sucesso de Usuários (`tabindex="-1"`) ou para a busca.
-- **`UserDialog` e `PostoDialog` emitem `fechado`** no `after-leave` do
+- Quando a linha some (usuário inativado ou reativado, posto ou veículo
+  excluído), o foco vai para o aviso de sucesso de Usuários (`tabindex="-1"`)
+  ou para a busca.
+- **`UserDialog`, `PostoDialog` e `VehicleDialog` emitem `fechado`** no `after-leave` do
   formulário e dos `BaseStatusModal` internos: têm mais de uma raiz e não
   repassariam o atributo. `ConfirmDialog` e `BaseStatusModal` têm o `v-dialog`
   na raiz e recebem `@after-leave` direto.
 - O posto aberto pela notificação (`?posto=`) não tem origem, e o foco fica
-  onde o Vuetify o deixar. A tela de Ocorrências continua com a própria
-  `devolverFoco` do R13.
+  onde o Vuetify o deixar. Ocorrências usa a mesma `devolverFoco` desde o R15
+  (ver *Ocorrências do admin*).
+
+### Veículos do admin (R15)
+
+`/admin/vehicle` é `views/admin/VehicleManagement.vue` (REDESIGN §5.5), no
+padrão de tabela de Postos, Ocorrências e Usuários: "Novo veículo" no
+`PageHeader`, card com toolbar, `<table>`, estados e `PaginationBar` no rodapé
+(que até o R15 ficava fora do container, como segunda raiz do template). O
+`VehicleCard.vue` (tile índigo, `elevation`, chip com hex) foi removido.
+
+- **Toolbar:** busca por placa ou modelo e segmentado Todos / Ativos /
+  Inativos, **sem contagem** (não há endpoint de contagem de veículos). O
+  mapeamento para `active` e o debounce de 400 ms são os de antes.
+- **Colunas:** Placa (`PlateBadge`), Modelo (truncado), Status (`StatusChip`)
+  e Ações (editar e excluir, com tooltip e `aria-label` com a placa:
+  "Editar veículo ABC1234").
+- **Sem função de apresentação**, de propósito: placa e modelo saem crus e o
+  status é o booleano `active`. Não crie uma só por simetria com as outras
+  tabelas.
+- **A exclusão é física.** `CarService.deleteCar` chama
+  `carRepository.delete` (o mesmo vale para `GasStationService.deleteGasStation`;
+  a §6, item 5, que fala em exclusão lógica, não vale para veículo nem posto).
+  Por isso a ação continua "Excluir", com a confirmação "Excluir o veículo X?" e
+  "Esta ação não poderá ser desfeita.", **habilitada em toda linha, ativa ou
+  inativa**: o backend não olha o status. O R15 chegou a desabilitá-la em linha
+  inativa, e o F4 reverteu, porque isso removia uma funcionalidade.
+- **Falha ao excluir** (Veículos e Postos, desde o F4) fecha a confirmação e
+  abre um `BaseStatusModal` de erro, "Erro ao excluir", com a `message` do
+  backend ou "Não foi possível excluir. Tente novamente."
+  (`mensagemErroExclusao`, `utils/exclusao.js`, coberta por
+  `tests/exclusao.test.js`). O modal abre **antes** de a confirmação fechar: no
+  `after-leave` dela ele já está ativo, `devolverFoco` responde `'aguardando'`,
+  e o foco só volta ao botão de excluir quando o erro fecha. Antes a falha só
+  ia ao console e a confirmação ficava aberta, sem aviso.
+- **Estados:** esqueleto com a altura da página anterior (5 linhas na
+  primeira carga), `EmptyState` (texto diferente com busca ou filtro) e erro com
+  "Tentar novamente" (antes a falha só ia ao console).
+- **Responsivo:** até 600px as quatro colunas cabem, e abaixo de 1280px só o
+  respiro lateral diminui. Abaixo de 600px cada linha vira um bloco: placa e
+  status em cima, modelo e ações embaixo.
+
+O `VehicleDialog` segue a §4.6 (560px, `h2` e X que emite o mesmo `close`,
+campos em uma coluna). O status da edição virou uma linha neutra com borda e o
+`v-switch`, no lugar do card com hex. A mensagem de erro diz "Não foi possível
+salvar o veículo." na edição e continua "cadastrar" na criação. Script,
+máscara de placa (`formatPlaca`), regras e payload não mudaram, conferido no
+navegador com POST e PATCH interceptados.
+
+**O veículo novo começa com `status: true`** (F4). Até então o `resetForm`
+punha `'ativo'`, e o POST saía com `isActive: "ativo"`. Era inócuo:
+`CreateCarRequest` não tem `isActive`, o Jackson do Spring Boot ignora campo
+desconhecido, e o `@PrePersist` de `Car` fixa `active = true`. Hoje o POST sai
+com `isActive: true`, que o backend continua ignorando.
+
+**Excluir veículo não tem risco de FK.** Nenhuma tabela referencia `cars`: a
+ocorrência guarda a placa como texto (`incidents.car_plate`). Excluir um
+veículo com ocorrências funciona e deixa as ocorrências com a placa de um
+veículo que não existe mais. Postos são diferentes: `avaliacoes_neo` e
+`notificacoes_neo` têm FK para `gas_stations` sem `ON DELETE`, e não há handler
+para `DataIntegrityViolationException`, então excluir posto com avaliação ou
+notificação do Neo deve responder 500 (inferido do código, não executado).
+
+`tests/veiculos-admin.test.js` lê o código-fonte da tela e do diálogo: falha
+com cor literal ou `elevation`, com o `VehicleCard` de volta, sem a placa no
+`aria-label` das ações, com o excluir desabilitado, com o status inicial
+`'ativo'`, sem o modal de erro de exclusão (Veículos e Postos), sem o `fechado` nos três `after-leave`, com o corpo
+enviado diferente de `{ licensePlate, model, isActive }`, ou se Ocorrências
+voltar a ter uma `devolverFoco` própria.
 
 ### Apresentação do mapa (R9)
 
@@ -2431,8 +2502,10 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 26 arquivos e 204 testes depois do R14 (188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
-    R9, 151 na correção do mapa, 139 no R8). Entre eles: `usuario-exibicao.test.js`
+  - São 28 arquivos e 217 testes depois do F4 (212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
+    R9, 151 na correção do mapa, 139 no R8). Entre eles: `exclusao.test.js` (`utils/exclusao.js`),
+    `veiculos-admin.test.js` (código-fonte de
+    Veículos, ver §7 *Veículos do admin (R15)*), `usuario-exibicao.test.js`
     (`utils/usuarioExibicao.js`) e `foco.test.js` (`utils/foco.js`), ver §7 *Usuários do
     admin (R14)*, `ocorrencia-exibicao.test.js`
     (`utils/ocorrenciaExibicao.js`, ver §7), `central-ajuda.test.js`
@@ -2484,7 +2557,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
 - `npx eslint src` reporta **6 erros pré-existentes** (medido no R8, no R9, no
-  R10, no R11, no R12, no R13 e de novo no R14). Não são
+  R10, no R11, no R12, no R13, no R14, no R15 e de novo no F4). Não são
   regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |
@@ -2493,7 +2566,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   | `no-unused-vars` (2) | `err` (VehicleDialog), `error` (OccurrenceForm) |
 
   Caíram de 9 para 6 nas etapas anteriores do redesign (sem `Footer`, sem o
-  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11, o R12, o R13 e o R14 não mudaram a contagem.
+  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11, o R12, o R13, o R14, o R15 e o F4 não mudaram a contagem.
 
   Caíram de **10 para 9** com as coordenadas no cadastro de posto: o `catch (err)`
   do `PostoDialog` passou a ler o erro para separar `COORDINATES_NOT_FOUND` do modal

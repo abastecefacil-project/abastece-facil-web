@@ -199,6 +199,13 @@
       @confirm="confirmarExclusao"
       @after-leave="aoFecharDialogo"
     />
+    <BaseStatusModal
+      v-model="modalErroExclusao"
+      type="error"
+      title="Erro ao excluir"
+      :message="mensagemErroExclusaoAtual"
+      @after-leave="aoFecharDialogo"
+    />
     <ImportacaoPostosDialog
       v-if="isAdministrador"
       v-model="dialogImportacao"
@@ -224,6 +231,8 @@ import {
   getCurrentImport,
 } from '@/services/stationService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
+import BaseStatusModal from '@/components/app/BaseStatusModal.vue'
+import { mensagemErroExclusao } from '@/utils/exclusao'
 import {
   HORARIO_NAO_INFORMADO,
   nomeExibicaoPosto,
@@ -266,6 +275,8 @@ const totalElements = ref(null)
 const pageSize = ref(null)
 const currentPageUi = ref(1)
 const modalExclusao = ref(false)
+const modalErroExclusao = ref(false)
+const mensagemErroExclusaoAtual = ref('')
 const postoParaExcluir = ref(null)
 
 const filtrando = computed(() => !!searchQuery.value || statusFilter.value !== 'todos')
@@ -517,6 +528,11 @@ const confirmarExclusao = async () => {
     fecharModalExclusao()
   } catch (err) {
     console.error('Erro ao deletar posto:', err)
+    // O erro abre antes de a confirmação fechar: no after-leave dela o modal
+    // de erro já está ativo, e o foco só volta ao botão quando ele fechar.
+    mensagemErroExclusaoAtual.value = mensagemErroExclusao(err)
+    modalErroExclusao.value = true
+    fecharModalExclusao()
   }
 }
 
