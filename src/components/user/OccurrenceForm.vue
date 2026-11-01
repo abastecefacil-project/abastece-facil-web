@@ -81,7 +81,7 @@
                   :prepend-icon="iconesTipo[opcao]"
                   class="tipo-chip"
                 >
-                  {{ opcao }}
+                  {{ rotulosTipo[opcao] }}
                 </v-chip>
               </v-chip-group>
             </template>
@@ -245,6 +245,16 @@ const titleOptions = [
   'Devolução Fora do Estacionamento',
   'Outro',
 ]
+
+// Só o texto do chip, em sentence case (REDESIGN §4.6). O valor do chip, e
+// portanto o `title` enviado, continua sendo o de titleOptions, sem mudança.
+const rotulosTipo = {
+  'Combustível Abaixo de Meio Tanque': 'Combustível abaixo de meio tanque',
+  'Veículo com Itens Pessoais': 'Veículo com itens pessoais',
+  'Veículo Sujo Internamente': 'Veículo sujo internamente',
+  'Devolução Fora do Estacionamento': 'Devolução fora do estacionamento',
+  Outro: 'Outro',
+}
 
 const iconesTipo = {
   'Combustível Abaixo de Meio Tanque': 'mdi-gas-station-outline',

@@ -1766,8 +1766,10 @@ Z").
 
 `/user/occurrencesUser` é `views/user/Occurrences.vue` com
 `components/user/OccurrenceForm.vue` (REDESIGN §5.10). O `PageHeader` e o card
-dividem um contêiner de 720px alinhado à esquerda, como as outras telas, e as
-bordas esquerdas coincidem. O card tem as seções Veículo, Tipo da ocorrência,
+dividem um contêiner de 720px, e as bordas esquerdas coincidem. A partir de
+960px o contêiner é centralizado (`margin-inline: auto`): página de formulário
+de tarefa única não deixa faixa vazia à direita. Abaixo de 960px fica alinhado
+à esquerda, com o padding da §4.3. O card tem as seções Veículo, Tipo da ocorrência,
 Data e Descrição, e "Registrar ocorrência" é a única ação primária.
 
 - **O nome do colaborador não é campo.** "Registrando como: {nome}" é texto, e
@@ -1778,6 +1780,13 @@ Data e Descrição, e "Registrar ocorrência" é a única ação primária.
   `tests/occurrence-form.test.js` falha se algum `v-model`, `:model-value`,
   `:value` ou campo de entrada do template passar a citar `userName`. É a
   proteção contra registrar ocorrência em nome de outra pessoa: não a enfraqueça.
+- **Rótulos dos chips em sentence case** ("Combustível abaixo de meio
+  tanque"), pelo mapa `rotulosTipo`. O `:value` do chip continua sendo o item
+  de `titleOptions`, então o `title` enviado não muda (conferido byte a byte
+  com o envio interceptado, tipo comum e "Outro").
+- **Obrigatórios:** asterisco no rótulo do campo ("Modelo ou placa*", "Data da
+  ocorrência*", "Qual o tipo?*") e, para os chips, que não têm rótulo, no
+  título da seção ("Tipo da ocorrência*"), com a nota no topo do card.
 - **O tipo é um `v-chip-group` dentro de um `v-input`** com as mesmas
   `titleRules` do antigo select. O `v-input` é o que registra o grupo no `v-form`
   e mostra "Título é obrigatório" abaixo dos chips. O grupo tem
@@ -1803,7 +1812,9 @@ Data e Descrição, e "Registrar ocorrência" é a única ação primária.
   para `LocalDate`.
 - **O `<script setup>` roda numa VM nos testes**, sem as linhas de `import`.
   A VM recebe só `ref`, `reactive`, `onMounted`, `nextTick` (como função async
-  vazia) e os três services, como no `ContactSection`. Usar `computed`,
+  vazia) e os três services, como no `ContactSection`. Constantes literais,
+  como `rotulosTipo` e `iconesTipo`, não dependem de nada e podem ficar no
+  script. Usar `computed`,
   `setTimeout` ou utils importados quebra o teste. Um `Date` da VM é de outro
   realm, então `instanceof Date` falha no teste.
 
@@ -2502,7 +2513,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 28 arquivos e 217 testes depois do F4 (212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
+  - São 28 arquivos e 219 testes depois do ajuste do R11 (217 no F4, 212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
     R9, 151 na correção do mapa, 139 no R8). Entre eles: `exclusao.test.js` (`utils/exclusao.js`),
     `veiculos-admin.test.js` (código-fonte de
     Veículos, ver §7 *Veículos do admin (R15)*), `usuario-exibicao.test.js`
@@ -2557,7 +2568,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
 - `npx eslint src` reporta **6 erros pré-existentes** (medido no R8, no R9, no
-  R10, no R11, no R12, no R13, no R14, no R15 e de novo no F4). Não são
+  R10, no R11, no R12, no R13, no R14, no R15, no F4 e de novo no ajuste do R11). Não são
   regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |
@@ -2566,7 +2577,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   | `no-unused-vars` (2) | `err` (VehicleDialog), `error` (OccurrenceForm) |
 
   Caíram de 9 para 6 nas etapas anteriores do redesign (sem `Footer`, sem o
-  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11, o R12, o R13, o R14, o R15 e o F4 não mudaram a contagem.
+  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11, o R12, o R13, o R14, o R15, o F4 e o ajuste do R11 não mudaram a contagem.
 
   Caíram de **10 para 9** com as coordenadas no cadastro de posto: o `catch (err)`
   do `PostoDialog` passou a ler o erro para separar `COORDINATES_NOT_FOUND` do modal

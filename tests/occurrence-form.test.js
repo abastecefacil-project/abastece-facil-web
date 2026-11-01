@@ -15,7 +15,7 @@ function formulario(overrides = {}) {
     createOccurrences: async (body) => { enviado = body },
     ...overrides,
   }
-  runInNewContext(`${script}\nglobalThis.f = { loadData, form, vehicles, userName, loadingData, dataError, formRef, handleSubmit, handleClear, dateValue, successDialog, titleOptions, iconesTipo }`, context)
+  runInNewContext(`${script}\nglobalThis.f = { loadData, form, vehicles, userName, loadingData, dataError, formRef, handleSubmit, handleClear, dateValue, successDialog, titleOptions, iconesTipo, rotulosTipo }`, context)
   context.f.formRef.value = { validate: async () => ({ valid: true }), resetValidation() {} }
   return { ...context.f, enviado: () => enviado }
 }
@@ -157,4 +157,29 @@ test('veículo começa null, e Cancelar só reseta a validação depois do nextT
     'nextTick',
     { reset: { licensePlate: null, title: '', customTitle: '', description: '', date: hojeFormatado() } },
   ])
+})
+
+test('chips mostram o tipo em sentence case, mas o valor enviado é o de titleOptions', async () => {
+  const f = formulario()
+  for (const opcao of f.titleOptions) {
+    assert.equal(f.rotulosTipo[opcao], opcao.charAt(0) + opcao.slice(1).toLowerCase())
+  }
+  assert.match(template, /:value="opcao"/)
+  assert.match(template, /\{\{ rotulosTipo\[opcao\] \}\}/)
+  assert.doesNotMatch(template, /\{\{ opcao \}\}/)
+
+  await f.loadData()
+  Object.assign(f.form, { licensePlate: 'ABC1234', title: f.titleOptions[3], date: '01/02/2026' })
+  await f.handleSubmit()
+  assert.equal(f.enviado().title, 'Devolução Fora do Estacionamento')
+})
+
+test('obrigatório: asterisco no rótulo dos campos e no título da seção dos chips, com a nota', () => {
+  assert.match(template, /label="Modelo ou placa\*"/)
+  assert.match(template, /label="Data da ocorrência\*"/)
+  assert.match(template, /Tipo da ocorrência<span aria-hidden="true">\*<\/span>/)
+  assert.match(template, /Campos marcados com \* são obrigatórios\./)
+  // Veículo e Data levam o asterisco no campo, não no título da seção.
+  assert.match(template, /class="ocorrencia-secao__titulo">Veículo<\/h2>/)
+  assert.match(template, /class="ocorrencia-secao__titulo">Data<\/h2>/)
 })
