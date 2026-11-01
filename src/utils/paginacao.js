@@ -49,3 +49,28 @@ export async function buscarTodasAsPaginas(buscarPagina) {
 
   return { itens, completo: true }
 }
+
+const formatoQuantidade = new Intl.NumberFormat('pt-BR')
+
+/**
+ * Texto do rodapé de lista paginada: "Mostrando 11 a 20 de 971".
+ *
+ * `pagina` é a da interface, a partir de 1 (o Spring conta a partir de 0).
+ * `porPagina` vem do `size` da resposta quando a paginação é do servidor, porque
+ * o tamanho varia por endpoint (10 em postos, veículos e ocorrências; 20 em
+ * usuários, que não tem `@PageableDefault`). A última página fecha no total.
+ *
+ * Devolve null quando não há o que mostrar: total ausente, zero ou entrada
+ * inválida. Quem exibe simplesmente omite o texto.
+ */
+export function textoIntervaloPagina(pagina, porPagina, total) {
+  if (![pagina, porPagina, total].every(Number.isFinite)) return null
+  if (total <= 0 || porPagina <= 0 || pagina < 1) return null
+
+  const inicio = (pagina - 1) * porPagina + 1
+  if (inicio > total) return null
+  const fim = Math.min(pagina * porPagina, total)
+
+  const f = formatoQuantidade.format
+  return `Mostrando ${f(inicio)} a ${f(fim)} de ${f(total)}`
+}

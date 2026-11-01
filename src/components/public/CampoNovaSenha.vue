@@ -6,13 +6,22 @@
     variant="outlined"
     autocomplete="new-password"
     :type="mostrarSenha ? 'text' : 'password'"
-    :append-inner-icon="mostrarSenha ? 'mdi-eye' : 'mdi-eye-off'"
     :rules="[regras.obrigatorio, regras.tamanhoMinimo, regras.letraENumero]"
     hint="Mínimo de 10 caracteres, com pelo menos uma letra e um número."
     persistent-hint
     @update:model-value="emit('update:modelValue', $event)"
-    @click:append-inner="mostrarSenha = !mostrarSenha"
-  />
+  >
+    <template #append-inner>
+      <v-btn
+        :icon="mostrarSenha ? 'mdi-eye' : 'mdi-eye-off'"
+        :aria-label="mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'"
+        variant="text"
+        size="small"
+        density="comfortable"
+        @click="mostrarSenha = !mostrarSenha"
+      />
+    </template>
+  </v-text-field>
 </template>
 
 <script setup>
@@ -20,7 +29,8 @@ import { ref } from 'vue'
 
 defineProps({
   modelValue: { type: String, default: '' },
-  label: { type: String, default: 'Nova senha*' },
+  // Sem asterisco: nas telas de acesso todo campo é obrigatório.
+  label: { type: String, default: 'Nova senha' },
 })
 
 const emit = defineEmits(['update:modelValue'])

@@ -1,7 +1,7 @@
 <template>
   <v-menu v-model="aberto" :close-on-content-click="false" location="bottom end" max-width="420">
     <template #activator="{ props }">
-      <v-btn v-bind="props" icon variant="text" color="white" :aria-label="`Notificações: ${naoLidas} não lidas`">
+      <v-btn v-bind="props" icon variant="text" color="secondary" :aria-label="`Notificações: ${naoLidas} não lidas`">
         <v-badge :content="naoLidas > 99 ? '99+' : naoLidas" :model-value="naoLidas > 0" color="error">
           <v-icon icon="mdi-bell-outline" />
         </v-badge>

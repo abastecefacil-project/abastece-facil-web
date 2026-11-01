@@ -16,7 +16,7 @@
       <li v-for="ocorrencia in ocorrencias" :key="ocorrencia.id" class="ultimas-item">
         <p class="ultimas-titulo" :title="ocorrencia.title">{{ ocorrencia.title }}</p>
         <p class="ultimas-detalhes">
-          <span class="ultimas-placa">{{ ocorrencia.carPlate }}</span>
+          <PlateBadge :placa="ocorrencia.carPlate" />
           <span>{{ formatarDataOcorrencia(ocorrencia.occurrenceDate) }}</span>
         </p>
       </li>
@@ -26,6 +26,7 @@
 
 <script setup>
 import DashboardSecao from '@/components/admin/DashboardSecao.vue'
+import PlateBadge from '@/components/app/PlateBadge.vue'
 import { SEM_VALOR, formatarDataOcorrencia } from '@/utils/dashboard'
 
 // `ultimasOcorrencias` do GET /api/dashboard, ou null enquanto não há resposta:
@@ -47,8 +48,9 @@ defineProps({
   align-items: center;
   justify-content: center;
   margin: 0;
-  padding: 24px 0;
-  font-size: 0.875rem;
+  padding: var(--space-6) 0;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
   color: var(--color-text-muted);
   text-align: center;
 }
@@ -60,7 +62,7 @@ defineProps({
 }
 
 .ultimas-item {
-  padding: 10px 0;
+  padding: var(--space-2) 0;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -77,7 +79,8 @@ defineProps({
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.875rem;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
   font-weight: 500;
   color: var(--color-text);
 }
@@ -85,29 +88,34 @@ defineProps({
 .ultimas-detalhes {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 4px 0 0;
-  font-size: 0.75rem;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
   color: var(--color-text-muted);
 }
 
-.ultimas-placa {
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  background-color: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
+/* Lado a lado com o gráfico (a partir de 1280px), a altura da linha é dele:
+   com height 0 a lista não contribui para a altura do card, cresce até a que o
+   grid der e rola dentro. Empilhada, fica na altura natural.
 
-/* Lado a lado com o gráfico, a altura da linha é dele: com height 0 a lista não
-   contribui para a altura do card, cresce até a que o grid der e rola dentro.
-   Empilhada (abaixo de 960px), fica na altura natural. */
-@media (min-width: 960px) {
+   A rolagem é discreta: barra fina em neutral-300 e, só quando há conteúdo
+   escondido, uma sombra suave na borda correspondente. É o par de fundos
+   "local" (cobre a sombra quando a lista chega ao fim) e "scroll" (a sombra
+   fixa na borda), sem JavaScript. */
+@media (min-width: 1280px) {
   .ultimas-lista {
     flex-grow: 1;
     height: 0;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-neutral-300) transparent;
+    background:
+      linear-gradient(var(--color-surface) 30%, transparent) top / 100% 32px no-repeat local,
+      linear-gradient(transparent, var(--color-surface) 70%) bottom / 100% 32px no-repeat local,
+      radial-gradient(farthest-side at 50% 0, var(--color-neutral-200), transparent) top / 100% 10px no-repeat scroll,
+      radial-gradient(farthest-side at 50% 100%, var(--color-neutral-200), transparent) bottom / 100% 10px no-repeat
+        scroll;
   }
 }
 </style>

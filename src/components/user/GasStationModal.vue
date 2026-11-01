@@ -1,83 +1,75 @@
 <template>
-  <v-dialog v-model="dialog" max-width="700px">
-    <v-card rounded="lg">
-      <!-- Header Simples -->
-      <v-card-title class="pa-4 d-flex align-center justify-space-between">
-        <span class="text-h6 font-weight-bold text-grey-darken-3">Detalhes do Posto</span>
-        <v-btn icon="mdi-close" variant="text" size="small" @click="closeModal"></v-btn>
+  <v-dialog v-model="dialog" max-width="560px" scrollable>
+    <v-card v-if="props.posto">
+      <!-- Cabeçalho (REDESIGN §4.6): título e fechar. -->
+      <v-card-title class="dialogo-cabecalho">
+        <div class="dialogo-titulos">
+          <h2 class="dialogo-titulo">{{ linha.nome }}</h2>
+          <p v-if="linha.cidadeUf" class="dialogo-subtitulo">{{ linha.cidadeUf }}</p>
+        </div>
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          density="comfortable"
+          aria-label="Fechar"
+          class="dialogo-fechar"
+          @click="closeModal"
+        >
+          <v-icon icon="mdi-close" size="20" />
+        </v-btn>
       </v-card-title>
 
-      <v-divider></v-divider>
+      <v-card-text class="dialogo-corpo">
+        <!-- Os mesmos formatadores da lista (utils/postoExibicao.js). -->
+        <dl class="ficha">
+          <div class="ficha__item">
+            <dt>Razão social</dt>
+            <dd>{{ nomeProprio(props.posto.name) || NAO_INFORMADO }}</dd>
+          </div>
+          <div class="ficha__item">
+            <dt>Nome fantasia</dt>
+            <dd v-if="props.posto.fantasyName">{{ nomeProprio(props.posto.fantasyName) }}</dd>
+            <dd v-else class="horario-nao-informado">{{ NAO_INFORMADO }}</dd>
+          </div>
+          <div class="ficha__item">
+            <dt>CNPJ</dt>
+            <dd class="tabular">{{ props.posto.cnpj || NAO_INFORMADO }}</dd>
+          </div>
+          <div class="ficha__item">
+            <dt>Telefone</dt>
+            <dd v-if="linha.telefone">
+              <a :href="hrefTelefone(linha.telefone)" class="ficha__link tabular">{{ linha.telefone }}</a>
+            </dd>
+            <dd v-else class="horario-nao-informado">{{ TELEFONE_NAO_INFORMADO }}</dd>
+          </div>
+          <div class="ficha__item ficha__item--largo">
+            <dt>Horário</dt>
+            <dd v-if="linha.horario" class="tabular">{{ linha.horario }}</dd>
+            <dd v-else class="horario-nao-informado">{{ HORARIO_NAO_INFORMADO }}</dd>
+          </div>
+        </dl>
 
-      <v-card-text class="pa-5" v-if="props.posto">
-        <v-row>
-          <!-- Nome -->
-          <v-col cols="12" md="6">
-            <div class="info-item mb-3">
-              <label class="info-label">NOME:</label>
-              <p class="info-value">{{ props.posto.name || '-' }}</p>
-            </div>
-          </v-col>
-
-          <!-- Nome Fantasia -->
-          <v-col cols="12" md="6">
-            <div class="info-item mb-3">
-              <label class="info-label">NOME FANTASIA:</label>
-              <p class="info-value">{{ props.posto.fantasyName || '-' }}</p>
-            </div>
-          </v-col>
-
-          <!-- CNPJ -->
-          <v-col cols="12" md="6">
-            <div class="info-item mb-3">
-              <label class="info-label">CNPJ:</label>
-              <p class="info-value">{{ props.posto.cnpj || '-' }}</p>
-            </div>
-          </v-col>
-
-          <!-- Telefone -->
-          <v-col cols="12" md="6">
-            <div class="info-item mb-3">
-              <label class="info-label">TELEFONE:</label>
-              <p class="info-value">{{ props.posto.telefone || '-' }}</p>
-            </div>
-          </v-col>
-
-          <!-- Endereço Completo Destacado -->
-          <v-col cols="12">
-            <div class="complete-address-highlight">
-              <div class="d-flex align-center justify-space-between mb-2">
-                <div class="d-flex align-center">
-                  <v-icon
-                    icon="mdi-map-marker-radius"
-                    color="success"
-                    size="20"
-                    class="mr-2"
-                  ></v-icon>
-                  <span class="text-subtitle-2 font-weight-bold" style="color: #2e7d32"
-                    >ENDEREÇO:</span
-                  >
-                </div>
-                <v-btn
-                  icon="mdi-content-copy"
-                  variant="text"
-                  size="small"
-                  color="success"
-                  @click="copyAddress"
-                >
-                  <v-icon size="18"></v-icon>
-                  <v-tooltip activator="parent" location="top">Copiar endereço</v-tooltip>
-                </v-btn>
-              </div>
-              <p class="text-body-2 mb-0" style="color: #1b5e20; font-weight: 500">
-                {{ props.posto.completeAddress }}, {{ props.posto.cep || '-' }}
-              </p>
-            </div>
-          </v-col>
-        </v-row>
+        <div class="endereco">
+          <div class="endereco__textos">
+            <p class="endereco__rotulo">Endereço</p>
+            <p class="endereco__texto">{{ linha.enderecoCompleto }}</p>
+            <p v-if="props.posto.cep" class="endereco__cep tabular">CEP {{ props.posto.cep }}</p>
+          </div>
+          <v-btn
+            icon
+            variant="text"
+            size="small"
+            density="comfortable"
+            aria-label="Copiar endereço"
+            class="endereco__copiar"
+            @click="copyAddress"
+          >
+            <v-icon icon="mdi-content-copy" size="18" />
+            <v-tooltip activator="parent" location="top">Copiar endereço</v-tooltip>
+          </v-btn>
+        </div>
       </v-card-text>
-
-      <v-divider></v-divider>
 
       <v-card-actions class="dialog-actions">
         <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="closeModal">
@@ -89,7 +81,12 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { TELEFONE_NAO_INFORMADO, hrefTelefone, nomeProprio } from '@/utils/formatacao'
+import { HORARIO_NAO_INFORMADO } from '@/utils/posto'
+import { apresentacaoLinhaPosto } from '@/utils/postoExibicao'
+
+const NAO_INFORMADO = 'Não informado'
 
 const props = defineProps({
   modelValue: {
@@ -117,6 +114,8 @@ watch(dialog, (newVal) => {
   emit('update:modelValue', newVal)
 })
 
+const linha = computed(() => (props.posto ? apresentacaoLinhaPosto(props.posto) : {}))
+
 const closeModal = () => {
   dialog.value = false
 }
@@ -132,40 +131,147 @@ const copyAddress = async () => {
 </script>
 
 <style scoped>
-.info-item {
+/* Raio de 16px e sombra de overlay vêm da regra global de diálogo em main.css.
+   Forma e cor do "Fechar" vêm de .btn-dialog* e .dialog-actions. */
+
+.dialogo-cabecalho {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4) var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+  white-space: normal;
 }
 
-.info-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: #424242;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
+.dialogo-titulos {
+  min-width: 0;
 }
 
-.info-value {
-  font-size: 15px;
-  color: #616161;
-  line-height: 1.5;
+.dialogo-titulo {
+  margin: 0;
+  font-size: var(--text-section-title-size);
+  line-height: var(--text-section-title-line);
+  font-weight: var(--text-section-title-weight);
+  color: var(--color-neutral-900);
+  overflow-wrap: anywhere;
 }
 
-.complete-address-highlight {
-  padding: 10px 12px;
-  border-left: 4px solid #66bb6a;
-  background: linear-gradient(90deg, rgba(232, 245, 233, 0.4) 0%, transparent 100%);
+.dialogo-subtitulo {
+  margin: 0;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  color: var(--color-text-muted);
 }
 
-/* Responsividade */
-@media (max-width: 600px) {
-  .info-label {
-    font-size: 0.65rem;
+.dialogo-fechar {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.dialogo-corpo {
+  padding: var(--space-6) !important;
+}
+
+/* Ficha: rótulo em caption neutral-600, sentence case; valor em body. */
+.ficha {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-6);
+  margin: 0;
+}
+
+.ficha__item--largo {
+  grid-column: 1 / -1;
+}
+
+.ficha dt,
+.endereco__rotulo {
+  margin: 0 0 2px;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line);
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.ficha dd {
+  margin: 0;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+/* Mesmo estilo de valor vazio da lista, no tamanho do valor. */
+.ficha dd.horario-nao-informado {
+  color: var(--color-neutral-500);
+}
+
+.ficha__link {
+  color: var(--color-blue-600);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.ficha__link:hover {
+  text-decoration: underline;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Endereço em bloco neutro, com o copiar ao lado. */
+.endereco {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-2) var(--space-3) var(--space-4);
+  background: var(--color-neutral-50);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.endereco__textos {
+  flex: 1;
+  min-width: 0;
+}
+
+.endereco p {
+  margin: 0;
+}
+
+.endereco__texto {
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.endereco__cep {
+  margin-top: 2px !important;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
+  color: var(--color-text-muted);
+}
+
+.endereco__copiar {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.endereco__copiar:hover {
+  color: var(--color-primary);
+}
+
+@media (max-width: 599px) {
+  .dialogo-corpo {
+    padding: var(--space-5) !important;
   }
 
-  .info-value {
-    font-size: 0.9rem;
+  .ficha {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

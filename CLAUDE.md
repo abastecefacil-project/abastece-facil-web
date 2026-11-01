@@ -954,12 +954,12 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (17)  user/ (8)  app/ (8 compartilhados)  public/ (2)
-├── config/      navegacao.js, whatsapp.js
+├── components/  admin/ (12)  user/ (7)  app/ (12 compartilhados)  public/ (2)
+├── config/      navegacao.js, contatosSeguro.js
 ├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ocorrenciaExibicao.js, usuarioExibicao.js, foco.js, ajuda.js, exclusao.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1170,7 +1170,55 @@ banco, sem parâmetro do cliente. Não existe número global por variável de am
 telefone é válido; mostra estados de carregamento, erro e ausência de gestores.
 `utils/whatsapp.js` aceita telefones nacionais com DDD (10/11 dígitos) ou com país
 55 (12/13), e monta a URL com mensagem inicial. Cobertura: `tests/whatsapp.test.js`.
-O verde do ícone de WhatsApp é `#25D366`, igual ao contato da seguradora.
+
+**Os contatos do seguro moram só em `config/contatosSeguro.js`** (R8):
+`ASSISTENCIA_24H` (`tel:08006020088`) e `WHATSAPP_SEGURO` (`wa.me` com mensagem
+própria, montado por `utils/whatsapp.js`), cada um com `rotulo`, `telefone` e
+`href`. Os consumidores são o `ContactSection` e o card de assistência do `SeguroInfo`. Até o R8
+o 0800 estava escrito à mão nos dois e o WhatsApp do seguro era só texto. O link
+`tel:` sai de `hrefTelefone` (`utils/formatacao.js`). O módulo importa com caminho
+relativo, e não `@/`, para ser testável com `node --test`
+(`tests/contatos-seguro.test.js`).
+
+**`ContactSection` é um card compartilhado** pela Início e pela Central de Ajuda.
+O título e a descrição são os slots `titulo` e `descricao`, com o texto da Central
+como default. O componente não tem largura nem margem próprias: quem usa decide
+(`.help-contatos` na Central). Os ícones ficam em tile neutro `blue-50`/`blue-700`
+(REDESIGN §4.5), sem o verde de marca do WhatsApp, e o telefone do gestor sai
+formatado por `telefoneExibicao`.
+
+**O `<script setup>` dele não pode usar nada importado fora do template.**
+`tests/contatos-gestores.test.js` executa esse script numa VM, depois de apagar as
+linhas de `import` (só as de uma linha), e fornece apenas `ref`, `computed`,
+`onMounted`, o service e as duas funções de `utils/whatsapp.js`. Um uso no script de
+`telefoneExibicao` ou dos contatos do seguro quebraria o teste com `ReferenceError`.
+
+### Início do colaborador
+
+`/user/dashboardUser` é `views/user/UserDashboard.vue`, reescrita no R8 (REDESIGN
+§5.8). Os quatro cards numerados (`DashboardCard.vue`, removido) deram lugar a:
+
+- **Saudação** "Olá, {primeiro nome}" no `PageHeader`, com `primeiroNome` de
+  `utils/usuario.js`. Sem nome (carregando ou com falha), "Olá!".
+- **Busca de postos.** O envio, por Enter ou pelo botão "Buscar" (secundário,
+  outlined), leva a `UserGasStations` com `?busca=termo`. Sem termo, vai sem query.
+  `GasStations.vue` lê `route.query.busca` **só na inicialização** do campo:
+  digitar lá não reescreve a URL.
+- **Card "Registrar ocorrência"**, com o único botão primário da tela.
+- **`ContactSection`** com "Precisa de ajuda agora?".
+- **Atalho "Ver postos no mapa"**, um card clicável (`router-link`) para `MapUser`.
+
+O layout é um grid de áreas. A ordem do DOM é a da §5.8 e a do mobile (busca,
+ocorrência, ajuda, mapa). A partir de 960px a ajuda vai para a coluna lateral
+(7fr/5fr), e a última linha (`1fr`) absorve a sobra para os cards não esticarem.
+Padding de 32px no desktop e 16px abaixo de 960px, como o Painel. Largura máxima
+de 1440px, a mesma do Painel e dos Postos do admin (era 1120px até o R10, e a
+grade terminava antes da borda direita em 1440px). Abaixo de 600px, a busca empilha (lado a lado o rótulo do campo seria
+cortado) e o botão de ocorrência ocupa a largura toda.
+
+**O nome não gera segunda chamada a `/api/users/me`.** O `AppShell`, que já o
+carrega para o menu do usuário, faz `provide('nomeUsuario', readonly(nomeUsuario))`,
+e a Início lê com `inject`. Qualquer página dentro do shell pode fazer o mesmo.
 
 ### Nome e horário do posto
 
@@ -1179,8 +1227,8 @@ Postos importados por planilha têm `name` = razão social ("POSTO Z21 LTDA"),
 isso, **nunca leia esses campos direto para exibição**: use `utils/posto.js`.
 
 - `nomeExibicaoPosto(posto)` → `fantasyName` e, se vazio, `name`. É o título no
-  card admin, no card do usuário e no popup do mapa. O `GasStationModal` é exceção
-  deliberada: é a ficha e mostra os dois campos rotulados.
+  tabela do admin, na lista do usuário e no popup do mapa. O `GasStationModal` é
+  exceção deliberada: é a ficha e mostra os dois campos rotulados.
 - `lerHorarioFuncionamento(businessHours)` → `{ abertura, fechamento }` ou `null`.
   Tolera espaços em volta do hífen (`"07:00  -  21:00"`, gravado pelo formulário
   antigo) e nunca lança. `split('-')` direto quebrava a tela de postos inteira com
@@ -1293,12 +1341,15 @@ mobile, com todos os componentes instanciados em dobro. Ordem:
    `DashboardSecao`: veículos com mais ocorrências, cidades com mais postos e
    usuários por perfil.
 
-Abaixo de 960px tudo ocupa a largura inteira: a lista cai para baixo do gráfico, e
-os rankings se empilham. Na mesma linha, os cards têm a mesma altura, porque o
-grid estica os itens (`align-items: stretch`).
+Abaixo de 1280px o gráfico e a lista ocupam a largura inteira, um sobre o outro,
+e os rankings passam a duas colunas, com "Usuários por perfil" (`area-perfis`) na
+largura inteira. Abaixo de 960px tudo empilha. Na mesma linha, os cards têm a
+mesma altura, porque o grid estica os itens (`align-items: stretch`).
 
 O `DashboardSecao` tem `titulo`, `subtitulo` opcional e o slot `acoes`, à direita
-do cabeçalho. O link do cabeçalho ("Ver todas", "Ver todos") usa a classe
+da última linha do cabeçalho: com subtítulo, o título ocupa a largura inteira e o
+link desce para a linha do subtítulo (sem isso, "Veículos com mais ocorrências" e
+o link não cabem juntos num terço em 1366px). O link do cabeçalho ("Ver todas", "Ver todos") usa a classe
 `dashboard-secao__link`, estilizada no próprio `DashboardSecao` com `:slotted()`:
 conteúdo de slot carrega o `data-v` de quem o passa, e um seletor escopado comum
 não o alcançaria. Não recrie esse estilo em quem usa o slot.
@@ -1318,9 +1369,8 @@ São barras feitas com CSS, sem biblioteca: o projeto não tem dependência de g
   do mês o destaque cairia na barra errada.
 - **Escala:** relativa ao maior valor (`alturasBarras`). Valor acima de zero nunca
   fica abaixo de 4%, e o zero vira uma linha de base de 2px.
-- **Cores:** o mês atual usa `--color-primary`. Os demais usam
-  `rgba(var(--v-theme-primary), 0.3)`, do tema, porque o `--color-primary-soft`
-  quase some sobre o card branco.
+- **Cores (REDESIGN §5.3):** o mês atual usa `--color-blue-700` e os demais
+  `--color-blue-200`. Os rótulos de mês são body-sm em `--color-neutral-500`.
 - **Estados:** sem resposta e carregando, skeleton. Sem resposta e sem carga, "—".
   Série toda zerada, "Nenhuma ocorrência nos últimos 6 meses".
 - Cada barra tem `role="img"` e `aria-label` com o mês por extenso e a quantidade
@@ -1332,15 +1382,16 @@ São barras feitas com CSS, sem biblioteca: o projeto não tem dependência de g
 
 - Usa `DashboardSecao` como invólucro, com "Ver todas" no slot `acoes`, apontando
   para `OccurrencesAdmin`.
-- Cada linha tem o título, a placa num selo discreto e a data. Não tem ícone.
-- **A altura é a do gráfico, não a da lista.** A partir de 960px a `<ul>` tem
+- Cada linha tem o título, a placa em `PlateBadge` e a data. Não tem ícone.
+- **A altura é a do gráfico, não a da lista.** A partir de 1280px a `<ul>` tem
   `height: 0` e `flex-grow: 1`. Com isso ela não contribui para a altura do card:
   o grid estica o card até a altura da linha, que o gráfico define, e a lista rola
   por dentro. Empilhada, a lista fica na altura natural.
 
   O mecanismo depende do corpo do `DashboardSecao` ser uma coluna flexível com
   `min-height: 0`. Não troque o `height: 0` por `max-height`: assim a lista volta
-  a esticar a linha.
+  a esticar a linha. A rolagem é discreta: barra fina e uma sombra suave na borda
+  só quando há item escondido (fundos `local`/`scroll`, sem JavaScript).
 
 **Rankings** (`components/admin/ListaComBarras.vue`). Lista genérica com barras
 horizontais.
@@ -1349,21 +1400,23 @@ horizontais.
   - `itens`: `{ rotulo, detalhe?, total }`, ou `null` sem resposta;
   - `carregando`;
   - `mensagemVazio`.
-- **Linha:** rótulo, detalhe em texto discreto e total. Embaixo, um trilho em
-  `--color-primary-soft` com o preenchimento em `--color-primary`.
+- **Slot `rotulo`** (recebe `linha`): troca a apresentação do rótulo. O Painel o
+  usa para mostrar a placa como `PlateBadge`.
+- **Linha:** rótulo, detalhe em body-sm e total. Embaixo, um trilho em
+  `--color-blue-50` com o preenchimento em `--color-blue-700`.
 - **Proporção:** `proporcoesRelativas`, a mesma regra das colunas do gráfico.
   `alturasBarras` só delega a ela.
 - **Estados:** skeleton, "—" e a mensagem de vazio.
 
 | Seção | Rótulo / detalhe | Subtítulo | Cabeçalho |
 |---|---|---|---|
-| Veículos com mais ocorrências | placa | "Últimos 90 dias" | "Ver todos" → `OccurrencesAdmin` |
-| Cidades com mais postos | cidade / UF | "Postos ativos" | "Ver todos" → `StationAdmin` |
-| Usuários por perfil | `rotuloPerfil`, na ordem da API | — | nenhum |
+| Veículos com mais ocorrências | placa (`PlateBadge`) | "Últimos 90 dias" | "Ver todos" → `OccurrencesAdmin` |
+| Cidades com mais postos | cidade (`nomeCidadeExibicao`) / UF | "Postos ativos" | "Ver todos" → `StationAdmin` |
+| Usuários por perfil | `rotuloPerfil`, na ordem da API | `subtituloUsuariosPorPerfil` | nenhum |
 
 - **Por que não há link por linha.** `OccurrencesAnalysis` e `StationManagement`
   não leem filtro da query string: a busca é um `ref` local, e a de ocorrências
-  filtra por título, não por placa. Clicar numa placa ou cidade levaria a uma
+  filtra por título, não por placa (continua assim depois do R13). Clicar numa placa ou cidade levaria a uma
   lista genérica, o que confunde. Por isso o link fica só no cabeçalho, e o
   componente nem tem prop de destino.
 
@@ -1379,6 +1432,10 @@ horizontais.
   abaixo da lista de perfis aparece "X usuários aguardam ativação há mais de 7
   dias" (`textoConvitesAntigos`, com singular). É um link para `/admin/user` em
   `warning`, no mesmo padrão do contexto do `StatsCards`.
+- **Subtítulo de "Usuários por perfil"** (R8): "Usuários ativos" para o
+  administrador e "Usuários ativos da sua regional" para o gestor. O backend conta
+  só `is_active = true`, o que inclui quem aguarda ativação
+  (`UserRepository.contarAtivosPorPerfil*`), e escopa o gestor pela regional.
 - **"Usuários por perfil" sempre traz os 3 perfis**, com zero nos ausentes. A
   linha zerada aparece, com a linha de base de 2px. Para o gestor, os números são
   da própria regional.
@@ -1604,13 +1661,45 @@ chamador).
 
 `views/admin/StationMap.vue` carrega os postos e cuida da geolocalização do
 navegador. `components/app/Map.vue` só apresenta: recebe os postos pela prop
-`stations`, inicializa o Leaflet e monta cada popup criando **uma aplicação Vue
-por marcador** (`createApp(PopupStation)`).
+`stations`, inicializa o Leaflet e cria o popup de cada marcador.
 
-O componente `Map` só é montado quando a geolocalização retorna com sucesso
-(`v-if="loadedMarker"`) — **negar a permissão de localização impede o mapa de
-renderizar**, exibindo um aviso no lugar. A carga dos postos não espera por isso:
-começa no `onMounted` do `StationMap`, junto com a geolocalização.
+**O popup é montado só quando abre.** O `bindPopup` recebe uma função, que o
+Leaflet chama ao abrir. É ela que cria a aplicação Vue (`createApp(PopupStation)`),
+e o `popupclose` a desmonta. Até a correção, os ~970 popups eram montados de
+antemão, numa long task de cerca de 2,6 s ao abrir o mapa. Hoje a maior long task
+fica em torno de 80 ms.
+
+- **O Leaflet chama a função de novo** a cada `update()` do popup aberto. Ela
+  devolve o mesmo contêiner enquanto o popup estiver aberto. Não troque isso por
+  "monta sempre": a segunda chamada abriria uma segunda aplicação.
+- **Ao mudar a rota, o `Map` chama `update()` no popup aberto.** A faixa de
+  distância e duração chega depois do OSRM e aumenta o popup para cima, depois do
+  autopan da abertura. Sem o `update()`, o topo do popup saía cortado.
+- **`margemSuperior`** é a faixa do topo do mapa encoberta pela barra superior.
+  O `StationMap` mede essa faixa e o `Map` a soma ao `autoPanPaddingTopLeft`,
+  dentro da função de conteúdo, que roda antes do autopan. Desde o R9 o
+  `.map-wrapper` do celular é `fixed` a partir de `--app-bar-height`, e não do
+  topo da janela, e a medida dá 0. O mecanismo ficou como rede de segurança,
+  caso a barra volte a cobrir o mapa.
+
+**O mapa aparece em qualquer estado da geolocalização**, na visão inicial
+(Joinville, zoom 12). A carga dos postos começa no `onMounted` do `StationMap`,
+junto com a geolocalização.
+
+- O estado é calculado em `utils/geolocalizacao.js`, coberto por
+  `tests/geolocalizacao.test.js`. São seis estados: `aguardando`, `concedida`,
+  `negada`, `indisponivel`, `tempo-esgotado` e `sem-suporte`.
+- **Só `concedida` libera o que depende da posição:** o marcador do usuário, o
+  `flyTo`, "Usar minha localização", a rota ao clicar num posto e a origem do
+  link "Iniciar navegação". Nos estados de falha aparece um aviso discreto no
+  canto inferior direito (no topo do mapa abaixo de 960px, ver *Apresentação do
+  mapa*), e o trajeto por endereço continua funcionando.
+- **Uma posição que chega depois de um timeout ou de uma falha concede.** O
+  `watchPosition` continua ativo. Com a localização já concedida, timeout e falha
+  momentânea não a derrubam; só a permissão retirada derruba.
+- **`userMarker` começa com `null`, e não com `0, 0`**, porque `Number.isFinite(0)`
+  passaria. Com `0, 0` o link do Google Maps sairia com `origin=0,0`, e as
+  sugestões do autocompletar seriam ordenadas pela distância até esse ponto.
 
 **O mapa precisa da base inteira.** Até a importação por planilha ele pedia
 `size=100` uma vez e lia só `content`. Como o `/filter` ordena por
@@ -1633,14 +1722,394 @@ do trajeto (`drawRoute`) herdava o corte, porque só filtra o que foi carregado.
   `StationMap` só atribui o array ao terminar, e o `watch` de `stations` no `Map`
   chama `renderStations` (ou o filtro de trajeto, se já houver rota). Enquanto
   isso, um selo "Carregando postos…" aparece no canto inferior direito.
-- O clustering (`markerClusterGroup`) é o que já existia. Não houve mudança nele.
+- O clustering (`markerClusterGroup`) é o que já existia. O R9 mudou só o ícone
+  dos grupos (`iconCreateFunction`), não o agrupamento.
 
 A lista de postos do usuário (`views/user/GasStations.vue`) usa a mesma função,
 pelo mesmo motivo: busca e ordenação A-Z são feitas no navegador e, sobre uma
 página de 10 do servidor, a busca só enxergava aqueles 10. Ela carrega tudo uma
 vez e **pagina no navegador**, 10 por página, voltando à primeira a cada busca.
-O contador acima da grade sai de `descreverQuantidadePostos` (`utils/posto.js`).
+O contador da toolbar sai de `descreverQuantidadePostos` (`utils/posto.js`).
 A lista do admin continua com paginação e busca no servidor.
+
+### Postos do colaborador (R10)
+
+`/user/postos` é uma lista densa (REDESIGN §5.9), não uma grade de cards: o
+`GasStationCard.vue` foi removido. Um card do design system com toolbar (busca e
+contador), `<ul>` de linhas e rodapé com o `PaginationBar` ("Mostrando X a Y de
+Z").
+
+- **Linha:** nome, cidade/UF e endereço em body-sm; telefone como link `tel:`
+  (`hrefTelefone`); horário (`horarioExibicao`); e um chevron rotulado
+  ("Ver detalhes do posto X") que abre o `GasStationModal`. A linha inteira abre
+  o detalhe com o mouse; pelo teclado, o chevron. O `tel:` tem `@click.stop`.
+- **A formatação é a mesma da tabela do admin:** `apresentacaoLinhaPosto`
+  (`utils/postoExibicao.js`, coberta por `tests/posto-exibicao.test.js`), usada
+  pela `StationManagement`, pela lista e pelo modal. Ela recebe o posto com o
+  endereço já partido em `address` e `number`. Mora num arquivo próprio porque
+  `formatacao.js` importa `posto.js`, e pô-la em `posto.js` criaria ciclo.
+- **Só a página visível é formatada.** A busca continua comparando os dados
+  crus (`name`, `fantasyName`, `completeAddress`, `phone`, `cnpj`).
+- **Abaixo de 960px a toolbar é `sticky`** no topo do `.main-container`, que é
+  quem rola. Por isso o card usa `overflow: clip`, e não `hidden`: com `hidden`
+  ele viraria o contêiner de rolagem do sticky, e a busca não prenderia.
+- **O A-Z continua sem controle na tela**, de propósito: o `statusFilter` nunca
+  vale `'az'`. Não exponha a ordenação sem decidir antes como ela convive com a
+  paginação.
+- Busca sem resultado mostra o `EmptyState`; com resultado, o contador diz
+  "N postos encontrados".
+- O `GasStationModal` segue a §4.6: 560px, cabeçalho com nome e cidade/UF,
+  ficha com rótulos em sentence case, telefone `tel:`, horário e o endereço num
+  bloco neutro com "Copiar endereço" (que copia o mesmo texto cru de antes).
+
+### Nova ocorrência (R11)
+
+`/user/occurrencesUser` é `views/user/Occurrences.vue` com
+`components/user/OccurrenceForm.vue` (REDESIGN §5.10). O `PageHeader` e o card
+dividem um contêiner de 720px, e as bordas esquerdas coincidem. A partir de
+960px o contêiner é centralizado (`margin-inline: auto`): página de formulário
+de tarefa única não deixa faixa vazia à direita. Abaixo de 960px fica alinhado
+à esquerda, com o padding da §4.3. O card tem as seções Veículo, Tipo da ocorrência,
+Data e Descrição, e "Registrar ocorrência" é a única ação primária.
+
+- **O nome do colaborador não é campo.** "Registrando como: {nome}" é texto, e
+  `userName` só aparece no template nessa interpolação. Ele continua vindo de
+  `getUsuarioAutenticado` e indo no payload como antes. A regra "Nome é
+  obrigatório" saiu junto com o campo: quem barra o envio sem nome é o
+  `loadData`, que lança erro, e o `dataError` no `handleSubmit`.
+  `tests/occurrence-form.test.js` falha se algum `v-model`, `:model-value`,
+  `:value` ou campo de entrada do template passar a citar `userName`. É a
+  proteção contra registrar ocorrência em nome de outra pessoa: não a enfraqueça.
+- **Rótulos dos chips em sentence case** ("Combustível abaixo de meio
+  tanque"), pelo mapa `rotulosTipo`. O `:value` do chip continua sendo o item
+  de `titleOptions`, então o `title` enviado não muda (conferido byte a byte
+  com o envio interceptado, tipo comum e "Outro").
+- **Obrigatórios:** asterisco no rótulo do campo ("Modelo ou placa*", "Data da
+  ocorrência*", "Qual o tipo?*") e, para os chips, que não têm rótulo, no
+  título da seção ("Tipo da ocorrência*"), com a nota no topo do card.
+- **O tipo é um `v-chip-group` dentro de um `v-input`** com as mesmas
+  `titleRules` do antigo select. O `v-input` é o que registra o grupo no `v-form`
+  e mostra "Título é obrigatório" abaixo dos chips. O grupo tem
+  `role="group"`, `aria-labelledby` no título da seção, `aria-describedby` na
+  mensagem e `aria-invalid`, e cada chip tem `role="button"` e `aria-pressed`.
+  `messagesId` e `isValid` chegam do slot do `v-input` como **refs**, por isso
+  o `.value` no template. Sem ele o atributo sai `"[object Object]"`.
+- **`licensePlate` começa e volta a `null`, nunca a `''`.** Corrigido no F3. O
+  Vuetify trata `''` de dois jeitos que atrapalham:
+  - como valor selecionado: o rótulo ficava flutuando e saía um `PlateBadge`
+    vazio no campo;
+  - como valor a validar: o watcher de validação revalida tudo que é diferente
+    de `null`. Por isso "Veículo é obrigatório" voltava logo depois do Cancelar.
+
+  `handleClear` também espera o `nextTick` antes do `resetValidation`, para o
+  reset rodar depois desse watcher.
+
+  O tipo continua com `''`: dentro do `v-input` ele não reproduz o problema,
+  conferido no navegador. O payload não muda, porque o veículo só é enviado
+  quando a regra `!!v` passa.
+- **A data começa com hoje**, e Cancelar e o sucesso a devolvem para hoje. Ela
+  continua editável pelo date picker, e o envio segue convertendo `dd/mm/aaaa`
+  para `LocalDate`.
+- **O `<script setup>` roda numa VM nos testes**, sem as linhas de `import`.
+  A VM recebe só `ref`, `reactive`, `onMounted`, `nextTick` (como função async
+  vazia) e os três services, como no `ContactSection`. Constantes literais,
+  como `rotulosTipo` e `iconesTipo`, não dependem de nada e podem ficar no
+  script. Usar `computed`,
+  `setTimeout` ou utils importados quebra o teste. Um `Date` da VM é de outro
+  realm, então `instanceof Date` falha no teste.
+
+### Central de Ajuda (R12)
+
+`/user/HelpCenter` é `views/user/HelpCenter.vue` (REDESIGN §5.11), com
+`AbastecimentoGuide`, `SeguroInfo`, `FaqItem` e o `ContactSection` compartilhado
+com a Início. Largura máxima de 1120px (§4.3), alinhada à esquerda, com padding
+de 32px e 16px abaixo de 960px.
+
+- **Duas colunas a partir de 960px** (`minmax(0, 2fr) minmax(280px, 1fr)`): as
+  três seções à esquerda e o `ContactSection` num `<aside>` à direita, com
+  `position: sticky` e `top: 24px`. O sticky se prende ao `.main-container` do
+  `AppShell`, que é quem rola. O aside tem teto de altura com rolagem própria,
+  para uma regional com muitos gestores ainda alcançar o fim do card.
+- **Abaixo de 960px os contatos ficam no fim**, e não logo depois das âncoras. O
+  aside vem depois do conteúdo no DOM em todas as larguras, então a ordem de
+  leitura é a mesma da tela. No topo, os contatos empurrariam as três seções para
+  baixo da dobra, e o 0800 continua no alto da seção de seguro. Nessa faixa
+  aparece um quarto chip, "Contatos", que leva ao card.
+- **Âncoras:** `<nav>` com links em forma de chip. Ids, títulos e ícones das
+  seções vêm de `SECOES_AJUDA` (`utils/ajuda.js`), a mesma lista que monta os
+  cabeçalhos. O clique não segue o fragmento: `irPara` faz `scrollIntoView` (sem
+  suavizar sob `prefers-reduced-motion`) e põe o foco no `h2` da seção
+  (`tabindex="-1"`, `data-foco-ancora`) ou no aside dos contatos. Seguir o `#`
+  rolaria sem mover o foco, e com `createWebHistory` o vue-router trataria o
+  fragmento como navegação. A URL não ganha `#`.
+- **Passos do abastecimento:** `<ol>` com o número visível `aria-hidden`, em
+  `blue-700` sobre `blue-50` (o par do tile de ícone). Título do passo em
+  `neutral-900`, sem cor de link, e texto em body-lg. O antigo banner "Link do
+  Mapa" virou o botão secundário "Abrir mapa" (`:to="{ name: 'MapUser' }"`).
+- **Assistência 24h:** card do design system com tile de ícone e o telefone como
+  link `tel:`, ambos de `ASSISTENCIA_24H`. Sem gradiente e sem sombra.
+- **FAQ:** cada `FaqItem` continua com o próprio `v-expansion-panels`, e por isso
+  várias perguntas podem ficar abertas ao mesmo tempo. O painel é `flat`, com
+  `elevation="0"`, borda de 1px e sem o divisor `::after` do Vuetify. O overlay
+  de hover do título foi escondido, e o título ganhou anel de foco próprio: é um
+  `<button>` comum, fora da regra global de foco de `main.css`.
+- **A busca do FAQ** é `filtrarPerguntas` (`utils/ajuda.js`), com o comportamento
+  de antes: termo vazio ou `null` (o botão de limpar) mostra todas, e a
+  comparação ignora maiúsculas na pergunta e na resposta. Sem resultado, mostra
+  o `EmptyState`.
+- O texto interno das seções não mudou. Só os títulos das três seções foram para
+  sentence case ("Seguro frota própria", "Perguntas frequentes").
+
+`tests/central-ajuda.test.js` cobre o filtro e a lista de seções. Também lê o
+código-fonte e falha se os quatro arquivos voltarem a ter cor literal, gradiente
+ou `box-shadow`, se o FAQ ganhar `elevation`, ou se o 0800 do `SeguroInfo` deixar
+de vir de `config/contatosSeguro.js`.
+
+### Ocorrências do admin (R13)
+
+`/admin/occurrences` é `views/admin/OccurrencesAnalysis.vue` (REDESIGN §5.6),
+no padrão de tabela de Postos do admin: card com toolbar, `<table>`, estados e
+`PaginationBar` no rodapé. O `OccurrenceCard.vue` (tile amarelo, `elevation`,
+hover por `translateY`) foi removido.
+
+- **Colunas:** "Registrada em", Tipo (o `title`), Veículo (`PlateBadge`),
+  Colaborador (`userName`, "Não informado" quando vazio), Descrição truncada com
+  `v-tooltip` do texto completo, e a ação.
+- **"Registrada em" é o `createdAt`** (dd/mm/aaaa HH:mm), porque é a ordem real
+  da tabela. Quando o `occurrenceDate` cai **em outro dia**, uma segunda linha
+  em body-sm diz "Ocorrida em dd/mm/aaaa"; no mesmo dia ela não aparece. A regra
+  é `ocorridaEm` de `apresentacaoLinhaOcorrencia` (`utils/ocorrenciaExibicao.js`,
+  coberta por `tests/ocorrencia-exibicao.test.js`): compara o dia local do
+  `createdAt`, o mesmo que `formatarDataHora` exibe, com o `LocalDate` lido pelas
+  partes, sem fuso.
+- **Ordem:** o controle "Mais recentes / Mais antigas" saiu. Ele entrava no
+  `watchDebounced`, mas nunca chegava ao service, e a ordem é fixa no backend
+  (`created_at DESC`). No lugar, o texto "Mais recentes primeiro" na toolbar.
+  **Não recoloque um controle de ordem** sem o backend aceitar o parâmetro.
+- **A busca não mudou:** `getOccurrences(page, title)`, debounce de 400 ms,
+  filtra pelo título no servidor.
+- **Detalhe:** a linha inteira abre o diálogo com o mouse; pelo teclado, o
+  botão `mdi-chevron-right` ("Ver detalhes", `aria-label` com tipo, placa e
+  data), com `@click.stop`. O mesmo padrão da lista de postos do colaborador.
+  O diálogo segue a §4.6 (560px, ficha com Veículo, Colaborador, Data da
+  ocorrência e Registrada em, descrição num bloco neutro com as quebras
+  originais) e continua inline na view.
+- **Foco ao fechar.** O `v-dialog` não tem `activator`, e o foco caía no
+  `<body>`. O `@after-leave` chama `aoFecharDialogo`, que usa `devolverFoco`
+  de `utils/foco.js` (desde o R15) para levar o foco ao botão "Ver detalhes"
+  da linha que abriu (`data-origem="detalhe-{id}"`), mas só se ele ainda
+  estiver no diálogo ou no `<body>`. A origem é resolvida no clique como o
+  `.acao` da linha, e não por `elementoDeOrigem`: no clique na linha o
+  `currentTarget` é o `<tr>`.
+- **Estados:** skeleton de 10 linhas, `EmptyState` (texto diferente com busca),
+  e erro com "Tentar novamente", que antes não existia (a falha só ia ao
+  console).
+- **Responsivo:** abaixo de 1280px a coluna Descrição sai e vira a segunda
+  linha da célula Tipo. Abaixo de 600px cada linha vira um bloco (tipo e
+  descrição; placa e colaborador; "Registrada em" e, se houver, "Ocorrida em"),
+  com o rótulo "Registrada em" visível só ali, porque o cabeçalho some.
+
+**Esc colado na abertura do diálogo é ignorado, e é do Vuetify.** O `useStack`
+só marca o overlay como `globalTop` num `setTimeout`, e o Chrome prioriza
+eventos de entrada sobre timers: um Esc enviado poucos milissegundos depois de
+abrir chega antes e não fecha. Nenhuma pessoa é rápida assim, mas um script de
+Playwright é. Nos testes de navegador, espere uns 250 ms entre abrir e
+pressionar Esc.
+
+### Usuários do admin (R14)
+
+`/admin/user` é `views/admin/UserManagement.vue` (REDESIGN §5.7), no padrão de
+tabela de Postos e Ocorrências: "Novo usuário" no `PageHeader`, card com
+toolbar (busca por nome e segmentado Ativos/Inativos), `<table>`, estados e
+`PaginationBar`. O `UserCard.vue` foi removido.
+
+- **Sem "Todos" no segmentado, e sem contagem.** `GET /api/users` exige
+  `active`, e contar exigiria duas chamadas extras só para ler o
+  `totalElements`.
+- **Colunas:** Nome (e-mail em body-sm), Perfil (chip neutro, `rotuloPerfil`),
+  Regional, Status (`StatusChip`) e Ações. A linha sai de
+  `apresentacaoLinhaUsuario` (`utils/usuarioExibicao.js`, coberta por
+  `tests/usuario-exibicao.test.js`):
+  - `status`: `statusUsuario`, com inativo vencendo aguardando. `conviteEnviado`
+    não entra (null em todo GET);
+  - regional ausente: "Não se aplica" para administrador e "Não informada" para
+    os demais, no estilo `.horario-nao-informado`.
+- **Ações, com as regras de antes:** reenviar ativação (só com status
+  aguardando, para qualquer perfil, porque o backend decide), editar
+  (`podeEditarUsuario`) e inativar/reativar (`podeAlterarStatus`, só
+  administrador e nunca a própria conta). Cada uma tem tooltip e `aria-label`
+  com o nome ("Editar usuário Maria Souza").
+- **Confirmações nomeiam o usuário no título:** "Inativar Maria Souza?",
+  "Reativar …?", "Reenviar ativação para …?".
+- **Estados:** esqueleto com a altura da página anterior (5 linhas na primeira
+  carga), `EmptyState` e erro com "Tentar novamente" (antes a falha só ia ao
+  console).
+- **Responsivo:** abaixo de 1280px a Regional vira a segunda linha da célula
+  Perfil. Abaixo de 600px cada linha vira um bloco: nome e e-mail na largura
+  toda, perfil e regional, e status com as ações na última linha.
+- **O `<script setup>` roda numa VM nos testes** (`tests/user-edit.test.js`),
+  sem as linhas de `import`. Imports novos só podem aparecer dentro de
+  `computed` e de handlers chamados pelo template. Chamá-los no topo ou em
+  `loadingUsers`, `abrirModalStatus`, `confirmarStatus`, `salvarUsuario` ou nas
+  funções de permissão quebra o teste com `ReferenceError`.
+
+O `UserDialog` segue a §4.6: cabeçalho com `h2` e X (que emite o mesmo
+`close`), campos em `v-row`, uma coluna abaixo de 600px. Script, regras e
+payload não mudaram.
+
+**Foco devolvido ao fechar diálogos (Usuários, Postos, Veículos e Ocorrências).** Os diálogos de
+gestão abrem por `v-model`, sem `activator`, e o foco caía no `<body>` ao
+fechar (conferido antes da correção em todos os casos). `utils/foco.js`
+(coberto por `tests/foco.test.js`) resolve isso:
+
+- A tela guarda a origem no clique (`guardarOrigem($event)`, no template) e
+  chama `aoFecharDialogo` no `after-leave` de cada diálogo.
+- **`devolverFoco` espera a cadeia terminar.** Enquanto houver
+  `.v-dialog.v-overlay--active`, como o modal de sucesso que abre quando o
+  formulário fecha, ele devolve `'aguardando'` e a origem é mantida. Tooltips
+  e menus também são `.v-overlay`, por isso o seletor exige `.v-dialog`.
+- **A recarga recria as linhas** (o esqueleto substitui o `tbody`). Por isso os
+  botões de linha têm `data-origem` ("editar-7"), e a origem desconectada é
+  reencontrada por ele.
+- Quando a linha some (usuário inativado ou reativado, posto ou veículo
+  excluído), o foco vai para o aviso de sucesso de Usuários (`tabindex="-1"`)
+  ou para a busca.
+- **`UserDialog`, `PostoDialog` e `VehicleDialog` emitem `fechado`** no `after-leave` do
+  formulário e dos `BaseStatusModal` internos: têm mais de uma raiz e não
+  repassariam o atributo. `ConfirmDialog` e `BaseStatusModal` têm o `v-dialog`
+  na raiz e recebem `@after-leave` direto.
+- O posto aberto pela notificação (`?posto=`) não tem origem, e o foco fica
+  onde o Vuetify o deixar. Ocorrências usa a mesma `devolverFoco` desde o R15
+  (ver *Ocorrências do admin*).
+
+### Veículos do admin (R15)
+
+`/admin/vehicle` é `views/admin/VehicleManagement.vue` (REDESIGN §5.5), no
+padrão de tabela de Postos, Ocorrências e Usuários: "Novo veículo" no
+`PageHeader`, card com toolbar, `<table>`, estados e `PaginationBar` no rodapé
+(que até o R15 ficava fora do container, como segunda raiz do template). O
+`VehicleCard.vue` (tile índigo, `elevation`, chip com hex) foi removido.
+
+- **Toolbar:** busca por placa ou modelo e segmentado Todos / Ativos /
+  Inativos, **sem contagem** (não há endpoint de contagem de veículos). O
+  mapeamento para `active` e o debounce de 400 ms são os de antes.
+- **Colunas:** Placa (`PlateBadge`), Modelo (truncado), Status (`StatusChip`)
+  e Ações (editar e excluir, com tooltip e `aria-label` com a placa:
+  "Editar veículo ABC1234").
+- **Sem função de apresentação**, de propósito: placa e modelo saem crus e o
+  status é o booleano `active`. Não crie uma só por simetria com as outras
+  tabelas.
+- **A exclusão é física.** `CarService.deleteCar` chama
+  `carRepository.delete` (o mesmo vale para `GasStationService.deleteGasStation`;
+  a §6, item 5, que fala em exclusão lógica, não vale para veículo nem posto).
+  Por isso a ação continua "Excluir", com a confirmação "Excluir o veículo X?" e
+  "Esta ação não poderá ser desfeita.", **habilitada em toda linha, ativa ou
+  inativa**: o backend não olha o status. O R15 chegou a desabilitá-la em linha
+  inativa, e o F4 reverteu, porque isso removia uma funcionalidade.
+- **Falha ao excluir** (Veículos e Postos, desde o F4) fecha a confirmação e
+  abre um `BaseStatusModal` de erro, "Erro ao excluir", com a `message` do
+  backend ou "Não foi possível excluir. Tente novamente."
+  (`mensagemErroExclusao`, `utils/exclusao.js`, coberta por
+  `tests/exclusao.test.js`). O modal abre **antes** de a confirmação fechar: no
+  `after-leave` dela ele já está ativo, `devolverFoco` responde `'aguardando'`,
+  e o foco só volta ao botão de excluir quando o erro fecha. Antes a falha só
+  ia ao console e a confirmação ficava aberta, sem aviso.
+- **Estados:** esqueleto com a altura da página anterior (5 linhas na
+  primeira carga), `EmptyState` (texto diferente com busca ou filtro) e erro com
+  "Tentar novamente" (antes a falha só ia ao console).
+- **Responsivo:** até 600px as quatro colunas cabem, e abaixo de 1280px só o
+  respiro lateral diminui. Abaixo de 600px cada linha vira um bloco: placa e
+  status em cima, modelo e ações embaixo.
+
+O `VehicleDialog` segue a §4.6 (560px, `h2` e X que emite o mesmo `close`,
+campos em uma coluna). O status da edição virou uma linha neutra com borda e o
+`v-switch`, no lugar do card com hex. A mensagem de erro diz "Não foi possível
+salvar o veículo." na edição e continua "cadastrar" na criação. Script,
+máscara de placa (`formatPlaca`), regras e payload não mudaram, conferido no
+navegador com POST e PATCH interceptados.
+
+**O veículo novo começa com `status: true`** (F4). Até então o `resetForm`
+punha `'ativo'`, e o POST saía com `isActive: "ativo"`. Era inócuo:
+`CreateCarRequest` não tem `isActive`, o Jackson do Spring Boot ignora campo
+desconhecido, e o `@PrePersist` de `Car` fixa `active = true`. Hoje o POST sai
+com `isActive: true`, que o backend continua ignorando.
+
+**Excluir veículo não tem risco de FK.** Nenhuma tabela referencia `cars`: a
+ocorrência guarda a placa como texto (`incidents.car_plate`). Excluir um
+veículo com ocorrências funciona e deixa as ocorrências com a placa de um
+veículo que não existe mais. Postos são diferentes: `avaliacoes_neo` e
+`notificacoes_neo` têm FK para `gas_stations` sem `ON DELETE`, e não há handler
+para `DataIntegrityViolationException`, então excluir posto com avaliação ou
+notificação do Neo deve responder 500 (inferido do código, não executado).
+
+`tests/veiculos-admin.test.js` lê o código-fonte da tela e do diálogo: falha
+com cor literal ou `elevation`, com o `VehicleCard` de volta, sem a placa no
+`aria-label` das ações, com o excluir desabilitado, com o status inicial
+`'ativo'`, sem o modal de erro de exclusão (Veículos e Postos), sem o `fechado` nos três `after-leave`, com o corpo
+enviado diferente de `{ licensePlate, model, isActive }`, ou se Ocorrências
+voltar a ter uma `devolverFoco` própria.
+
+### Apresentação do mapa (R9)
+
+O R9 (REDESIGN §5.12) mudou o que está dentro do mapa. A estrutura continua a
+mesma: mapa na área toda e painel flutuante. A lógica pura mora em
+`utils/mapa.js`, coberto por `tests/mapa.test.js`.
+
+**Nenhum ícone depende de rede.** O pino do posto era um PNG do freepik, e o
+marcador do usuário, o ícone padrão do Leaflet servido pelo unpkg. Hoje os dois
+são `L.divIcon` com HTML e SVG inline (`htmlMarcadorPosto`,
+`htmlMarcadorUsuario`). O SVG não tem cor: ela vem de classes estilizadas no
+`<style scoped>` do `Map.vue`, com os tokens. Tiles, Nominatim e OSRM continuam
+dependendo de internet.
+
+- **Tiles:** filtro CSS só em `.leaflet-tile-pane`
+  (`saturate(0.3) contrast(0.92) brightness(1.03)`). Marcadores, rota e popups
+  ficam em outros panes e mantêm a cor.
+- **Clusters:** `iconCreateFunction` com três níveis (`nivelCluster`): até 9
+  postos, `blue-500`; até 99, `blue-700`; de 100 em diante, `blue-900`. O texto
+  é branco nos três. O `MarkerCluster.Default.css` deixou de ser importado; só o
+  `MarkerCluster.css` (animações) continua. A classe `marker-cluster` foi mantida
+  no ícone porque o `docs/redesign/capturas.mjs` a usa como seletor.
+- **Pino selecionado:** no `popupopen` o elemento ganha
+  `.marcador-posto--selecionado` (maior, anel `blue-300`) e `setZIndexOffset`.
+  **Não troque por `setIcon`:** ele recriaria o elemento recém-clicado e o foco
+  se perderia. O que cresce é o wrapper interno `.marcador-posto__pino`. A raiz do
+  `divIcon` é posicionada pelo Leaflet com `transform`, e escalá-la desloca o
+  marcador.
+- **O ponto do usuário fica no pane `usuario`** (z-index 590), abaixo dos postos
+  (`markerPane`, 600). Por cima, ele escondia o número do cluster da cidade e
+  bloqueava o clique num pino no mesmo lugar.
+- **Rota:** o `L.geoJSON` só aceita cor literal, e ela é lida de
+  `--color-blue-600` com `getComputedStyle` (`corToken`).
+- **Popup:** o `PopupStation` lê `apresentacaoPopupPosto`, que aplica:
+  - `nomeProprio` no nome e no endereço;
+  - `nomeCidadeExibicao` na cidade;
+  - `telefoneExibicao` no telefone, com link `tel:` via `hrefTelefone`;
+  - `horarioExibicao` no horário.
+
+  O `Map` dá `aria-label="Fechar"` ao X do Leaflet, que vem em inglês.
+- **Painel de trajeto:** fundo sólido, raio de 16px, `--shadow-overlay` e sem
+  `backdrop-filter`.
+  - "Mostrar postos no trajeto" não tem a prop `color`: o `.bg-primary` é
+    `!important` e impediria o desabilitado de ficar `neutral-100`/`neutral-500`.
+  - **A lista de sugestões fica no fluxo do painel, e não absoluta.** Assim ela
+    empurra o botão em vez de cobri-lo.
+- **Abaixo de 960px o painel é uma folha inferior recolhível.**
+  - O recolhimento é o `folhaRecolhida`, e só tem efeito pelo CSS dessa faixa.
+    Recolhida, a folha mostra o título e, com rota, o resumo.
+  - **Editar o trajeto é só o "Editar" do resumo.** Até o R10 havia também um
+    lápis no cabeçalho do painel, com a mesma ação; saiu por duplicar o botão.
+    Com a folha recolhida, a pessoa expande e usa o "Editar".
+  - Um `ResizeObserver` publica a altura da folha em `--folha-altura` no
+    `.map-container`, e a atribuição do Leaflet sobe acima dela.
+  - Os avisos vão para o topo do mapa, porque acima da folha disputariam o
+    espaço com a atribuição.
+  - Com o popup aberto, o painel continua saindo do DOM (`v-if="!popupOpen"`), e a
+    altura volta a 0.
+- **Celular (até 768px):** o `.map-wrapper` é `fixed` a partir de
+  `top: var(--app-bar-height)`, com `100dvh` (fallback `100vh`). Antes ele
+  começava no topo da janela, com `margin-top: 6%`, e a barra cobria 33px do
+  mapa. Com `100vh`, a barra do navegador móvel esconderia o pé da folha.
 
 ---
 
@@ -1715,6 +2184,24 @@ Problemas reais já encontrados. Consultar antes de investigar comportamento est
 4. **Ao estilizar bordas de campo, preservar o estado de erro** com
    `:not(.v-field--error)`, senão o vermelho de validação é sobrescrito.
 5. Vuetify 3 usa `.v-pagination__item--is-active`, não `--active`.
+5a. **As classes tipográficas do Vuetify trazem `font-family: "Roboto"`.** Vale para
+   `.text-h1` a `.text-h6`, `.text-subtitle-*`, `.text-body-*`, `.text-button`,
+   `.text-caption`, `.text-overline` e também para `.v-badge__badge`. O projeto não
+   carrega Roboto, então qualquer elemento com uma dessas classes cai numa fonte do
+   sistema, sem erro nenhum. Foi o que deixou o botão "Entrar" do login (`text-h6`) e
+   os títulos de diálogo (`text-h5`) fora da família. A correção mora em `main.css`,
+   numa regra com prefixo `:is(.v-application, .v-overlay-container)`, que ganha das
+   regras de uma classe do Vuetify e alcança os diálogos. Ao usar outra classe do
+   Vuetify que declare fonte, acrescente-a ali. O `leaflet.css` faz o mesmo no mapa
+   (`"Helvetica Neue", Arial` no `.leaflet-container`), e tem regra própria.
+5b. **`.rounded-md` não existe no Vuetify 3.9.** A escala de `rounded` é `0`, `sm`
+   (2px), padrão (4px), `lg` (8px), `xl` (24px), `pill`, `circle` e `shaped`.
+   `rounded: 'md'` gera a classe `rounded-md`, que não tem CSS nenhum, e o componente
+   fica com o raio base. O default do `VBtn` foi `'md'` até o redesign, e o
+   comentário do `.btn-dialog` dizia que essa classe era `!important`; não era. Quem
+   é `!important` são as classes que existem (`.rounded-lg` e afins), e o mesmo vale
+   para `.elevation-N`: um default de `rounded` ou `elevation` no `VCard` anularia o
+   raio e a sombra definidos no CSS.
 
 ### Estrutura
 
@@ -1764,6 +2251,32 @@ Problemas reais já encontrados. Consultar antes de investigar comportamento est
    inválido fora de escopo. Foi removido junto com a padronização dos botões. Ao
    mexer em estilo de diálogo, confira que o bloco é `scoped` — ou que a regra é
    deliberadamente global e mora em `main.css`.
+
+8d. **A raiz de um componente filho recebe também o `data-v` do pai.** Por isso
+   um seletor escopado do pai casa com a raiz do filho se a classe tiver o mesmo
+   nome. Foi a causa do clique perdido nos marcadores do mapa em até 768px.
+
+   A raiz do `Map.vue` se chamava `.map-container`, igual ao contêiner do
+   `StationMap`, e herdava dele `position: relative` e, no `@media` mobile,
+   `margin-top: 6%`. O contêiner do Leaflet passava 23px da borda do pai, que tem
+   `overflow: hidden`.
+
+   No `mousedown`, o handler de teclado do Leaflet chama `_container.focus()`. O
+   foco rolava o pai, o mapa subia 23px antes do `mouseup`, e o `click` caía fora
+   do marcador. Hoje a raiz é `.mapa-leaflet`, com `<style scoped>`.
+
+   Ao dar classe à raiz de um componente, não reuse um nome que o pai estiliza.
+
+8e. **Ícones do mapa: nunca aplique `transform` na raiz de um `divIcon`.** O
+   Leaflet posiciona o marcador com `transform: translate3d(...)` no próprio
+   elemento raiz, e um `scale` ali substitui a translação: o pino pula para o
+   canto do mapa. O estado selecionado escala o wrapper interno
+   (`.marcador-posto__pino`). O CSS dos ícones, popups e controles do Leaflet
+   mora no `<style scoped>` do `Map.vue` com `:deep()`, e funciona porque o
+   Leaflet cria tudo dentro de `.mapa-leaflet`. O conteúdo do popup é outra
+   aplicação Vue, com o próprio `scoped`, mas fica no DOM da página, então as
+   regras globais de `main.css` (`.v-application .v-btn` e afins) também valem
+   ali.
 
 ### Ambiente
 
@@ -2000,13 +2513,22 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São oito arquivos, 59 testes: `auth-routing.test.js` (guard do router),
-    `importacao-postos.test.js` (`utils/importacaoPostos.js`),
-    `paginacao.test.js` (`utils/paginacao.js` e o contador de postos),
-    `perfil.test.js` (`utils/perfil.js`), `coordenadas.test.js`
-    (`utils/coordenadas.js`), `whatsapp.test.js` (`utils/whatsapp.js`),
-    `sessao.test.js` (`utils/sessao.js`) e `dashboard.test.js`
-    (`utils/dashboard.js`).
+  - São 28 arquivos e 219 testes depois do ajuste do R11 (217 no F4, 212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
+    R9, 151 na correção do mapa, 139 no R8). Entre eles: `exclusao.test.js` (`utils/exclusao.js`),
+    `veiculos-admin.test.js` (código-fonte de
+    Veículos, ver §7 *Veículos do admin (R15)*), `usuario-exibicao.test.js`
+    (`utils/usuarioExibicao.js`) e `foco.test.js` (`utils/foco.js`), ver §7 *Usuários do
+    admin (R14)*, `ocorrencia-exibicao.test.js`
+    (`utils/ocorrenciaExibicao.js`, ver §7), `central-ajuda.test.js`
+    (`utils/ajuda.js` e o código-fonte da Central, ver §7), `occurrence-form.test.js`
+    (script e template do `OccurrenceForm`, ver §7), `posto-exibicao.test.js`
+    (`utils/postoExibicao.js`), `mapa.test.js` (`utils/mapa.js`), `auth-routing.test.js`
+    (guard do router), `importacao-postos.test.js`, `paginacao.test.js`,
+    `perfil.test.js`, `coordenadas.test.js`, `whatsapp.test.js`, `sessao.test.js`,
+    `dashboard.test.js`, `formatacao.test.js`, `usuario.test.js`,
+    `contatos-gestores.test.js` (script do `ContactSection`, ver §7),
+    `contatos-seguro.test.js` (`config/contatosSeguro.js`) e
+    `geolocalizacao.test.js` (estado da localização no mapa).
   - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
     com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
 
@@ -2045,14 +2567,17 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   Enquanto isso, a verificação é manual: rodar as próprias instruções do repository no
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
-- `npx eslint src` reporta **9 erros pré-existentes**. Não são regressões; usar essa
-  contagem como linha de base. A lista completa, que antes estava incompleta neste
-  documento:
+- `npx eslint src` reporta **6 erros pré-existentes** (medido no R8, no R9, no
+  R10, no R11, no R12, no R13, no R14, no R15, no F4 e de novo no ajuste do R11). Não são
+  regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |
   |---|---|
-  | `vue/multi-word-component-names` (5) | `Footer`, `Map`, `Reports`, `Login`, `Occurrences` |
-  | `no-unused-vars` (4) | `err` (VehicleDialog), `response` e `error` (OccurrenceForm), `deletarPosto` (StationManagement) |
+  | `vue/multi-word-component-names` (4) | `Map`, `Reports`, `Login`, `Occurrences` |
+  | `no-unused-vars` (2) | `err` (VehicleDialog), `error` (OccurrenceForm) |
+
+  Caíram de 9 para 6 nas etapas anteriores do redesign (sem `Footer`, sem o
+  `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11, o R12, o R13, o R14, o R15, o F4 e o ajuste do R11 não mudaram a contagem.
 
   Caíram de **10 para 9** com as coordenadas no cadastro de posto: o `catch (err)`
   do `PostoDialog` passou a ler o erro para separar `COORDINATES_NOT_FOUND` do modal

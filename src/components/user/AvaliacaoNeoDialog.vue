@@ -1,30 +1,41 @@
 <template>
   <v-dialog :model-value="true" max-width="480" :persistent="salvando" aria-labelledby="titulo-neo" @update:model-value="fechar">
-    <v-card class="neo-dialog" rounded="lg">
-      <div class="neo-header">
-        <div class="neo-icon"><v-icon icon="mdi-credit-card-outline" size="25" /></div>
+    <v-card class="neo-dialog">
+      <!-- Cabeçalho (REDESIGN §4.6): tile do Neo, título, posto e fechar. -->
+      <v-card-title class="neo-header">
+        <span class="neo-icon"><v-icon icon="mdi-credit-card-outline" size="20" /></span>
         <div class="neo-heading">
           <h2 id="titulo-neo">Cartão Neo</h2>
-          <p>{{ nomeExibicaoPosto(posto) }}</p>
+          <p>{{ nomeProprio(nomeExibicaoPosto(posto)) }}</p>
         </div>
-        <v-btn icon="mdi-close" variant="text" size="small" aria-label="Fechar" :disabled="salvando" @click="fechar" />
-      </div>
-      <v-divider />
+        <v-btn
+          icon
+          variant="text"
+          size="small"
+          density="comfortable"
+          aria-label="Fechar"
+          class="neo-fechar"
+          :disabled="salvando"
+          @click="fechar"
+        >
+          <v-icon icon="mdi-close" size="20" />
+        </v-btn>
+      </v-card-title>
       <v-card-text class="neo-content">
         <v-progress-linear v-if="carregando" indeterminate color="primary" aria-label="Carregando respostas" />
-        <v-alert v-if="erro" type="error" variant="tonal" class="mb-3">{{ erro }}</v-alert>
-        <v-btn v-if="falhaCarga" variant="text" @click="carregar">Tentar novamente</v-btn>
+        <v-alert v-if="erro" type="error" variant="tonal" density="compact" class="mb-3">{{ erro }}</v-alert>
+        <v-btn v-if="falhaCarga" variant="outlined" class="neo-secundario" @click="carregar">Tentar novamente</v-btn>
         <template v-if="!carregando && !falhaCarga">
           <section aria-label="Relatos sobre o cartão Neo" aria-live="polite">
             <h3 class="neo-section-title">O que os usuários relataram</h3>
             <div class="neo-totals">
-              <div class="neo-total neo-total--sim">
-                <v-icon icon="mdi-thumb-up-outline" size="20" />
+              <div class="neo-total">
+                <v-icon icon="mdi-thumb-up-outline" size="20" class="neo-total-icone neo-total-icone--sim" />
                 <strong>{{ resumo.passaram }}</strong>
                 <span>Passou</span>
               </div>
-              <div class="neo-total neo-total--nao">
-                <v-icon icon="mdi-thumb-down-outline" size="20" />
+              <div class="neo-total">
+                <v-icon icon="mdi-thumb-down-outline" size="20" class="neo-total-icone neo-total-icone--nao" />
                 <strong>{{ resumo.naoPassaram }}</strong>
                 <span>Não passou</span>
               </div>
@@ -36,11 +47,12 @@
           </section>
           <section class="neo-vote" aria-labelledby="pergunta-neo">
             <h3 id="pergunta-neo" class="neo-section-title">E com você, o Neo passou?</h3>
+            <!-- Escolha do usuário, não status: botões neutros, e a seleção em
+                 azul. Sem a prop `color`, que viraria classe !important. -->
             <div class="neo-choices" role="group" aria-labelledby="pergunta-neo">
               <v-btn
                 :prepend-icon="resposta === true ? 'mdi-thumb-up' : 'mdi-thumb-up-outline'"
-                color="success"
-                :variant="resposta === true ? 'tonal' : 'outlined'"
+                variant="outlined"
                 :class="['neo-choice', { 'neo-choice--selected': resposta === true }]"
                 :aria-pressed="resposta === true"
                 :disabled="salvando"
@@ -48,8 +60,7 @@
               >Passou</v-btn>
               <v-btn
                 :prepend-icon="resposta === false ? 'mdi-thumb-down' : 'mdi-thumb-down-outline'"
-                color="error"
-                :variant="resposta === false ? 'tonal' : 'outlined'"
+                variant="outlined"
                 :class="['neo-choice', { 'neo-choice--selected': resposta === false }]"
                 :aria-pressed="resposta === false"
                 :disabled="salvando"
@@ -65,14 +76,13 @@
               @click="remover"
             >Remover minha resposta</v-btn>
           </section>
-          <v-alert v-if="sucesso" type="success" variant="tonal" class="mt-3" role="status">
+          <v-alert v-if="sucesso" type="success" variant="tonal" density="compact" class="mt-4" role="status">
             {{ resumo.minhaResposta === null ? 'Resposta removida.' : 'Resposta salva!' }}
           </v-alert>
           <p class="neo-caption">Os relatos não garantem aceitação futura.</p>
         </template>
       </v-card-text>
-      <v-divider />
-      <v-card-actions class="dialog-actions">
+      <v-card-actions class="dialog-actions neo-actions">
         <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" :disabled="salvando" @click="fechar">Fechar</v-btn>
         <v-btn
           class="btn-dialog btn-dialog--confirmar"
@@ -90,6 +100,7 @@
 import { onMounted, ref } from 'vue'
 import { getAvaliacaoNeo, salvarAvaliacaoNeo, removerAvaliacaoNeo } from '@/services/stationService'
 import { nomeExibicaoPosto } from '@/utils/posto'
+import { nomeProprio } from '@/utils/formatacao'
 
 const props = defineProps({ posto: { type: Object, required: true } })
 const emit = defineEmits(['fechar'])
@@ -156,63 +167,160 @@ async function remover() {
 </script>
 
 <style scoped>
+/* Raio de 16px e sombra de overlay vêm da regra global de diálogo em main.css.
+   Forma, cor e responsividade dos botões do rodapé vêm de .btn-dialog* e
+   .dialog-actions. */
+
 .neo-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 20px 24px;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-4) var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--color-border);
+  white-space: normal;
 }
 
+/* Tile de ícone (§4.5): blue-50, ícone blue-700, 40px, raio 8px. */
 .neo-icon {
   display: grid;
   place-items: center;
   flex-shrink: 0;
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--radius-md);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
+  background: var(--color-blue-50);
+  color: var(--color-blue-700);
 }
 
 .neo-heading { flex: 1; min-width: 0; }
-.neo-heading h2 { font-size: 1.125rem; font-weight: 700; color: var(--color-text); }
-.neo-heading p { margin-top: 3px; font-size: 0.8125rem; color: var(--color-text-muted); overflow-wrap: anywhere; }
-.neo-dialog .neo-content { padding: 24px; overflow-y: auto; }
-.neo-section-title { margin-bottom: 12px; font-size: 0.875rem; font-weight: 600; color: var(--color-text); }
+
+.neo-heading h2 {
+  margin: 0;
+  font-size: var(--text-section-title-size);
+  line-height: var(--text-section-title-line);
+  font-weight: var(--text-section-title-weight);
+  color: var(--color-neutral-900);
+}
+
+.neo-heading p {
+  margin: 0;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
+  font-weight: 400;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.neo-fechar { color: var(--color-text-muted); }
+
+.neo-dialog .neo-content {
+  padding: var(--space-6) !important;
+  overflow-y: auto;
+}
+
+.neo-section-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-card-title-size);
+  line-height: var(--text-card-title-line);
+  font-weight: var(--text-card-title-weight);
+  color: var(--color-neutral-900);
+}
 
 .neo-totals, .neo-choices {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 
+/* Totais: card neutro. A cor semântica fica só no ícone. */
 .neo-total {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  gap: 2px 10px;
-  padding: 16px;
+  gap: 2px var(--space-3);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
 }
 
-.neo-total strong { font-size: 1.75rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.neo-total span { grid-column: 2; font-size: 0.8125rem; color: var(--color-text-muted); }
-.neo-total--sim { color: rgb(var(--v-theme-success)); background: rgba(var(--v-theme-success), 0.05); }
-.neo-total--nao { color: rgb(var(--v-theme-error)); background: rgba(var(--v-theme-error), 0.04); }
-.neo-caption { margin-top: 12px; font-size: 0.75rem; line-height: 1.5; color: var(--color-text-muted); }
-.neo-vote { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--color-border); }
-.neo-choice.v-btn { height: 52px; min-width: 0; padding: 0 10px; text-transform: none; letter-spacing: 0; }
-.neo-choice--selected { outline: 2px solid currentColor; outline-offset: -2px; }
-.neo-choice:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
-.neo-remove.v-btn { margin-top: 10px; color: var(--color-text-muted); text-transform: none; letter-spacing: 0; }
+.neo-total strong {
+  font-size: var(--text-kpi-size);
+  line-height: var(--text-kpi-line);
+  font-weight: var(--text-kpi-weight);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-neutral-900);
+}
+
+.neo-total span {
+  grid-column: 2;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
+  color: var(--color-text-muted);
+}
+
+.neo-total-icone { grid-row: span 2; }
+.neo-total-icone--sim { color: var(--color-success-icon); }
+.neo-total-icone--nao { color: var(--color-error-icon); }
+
+.neo-caption {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
+  color: var(--color-text-muted);
+}
+
+.neo-vote {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+/* Escolha: secundário neutro; selecionado em azul (blue-50, borda e texto
+   blue-700). A classe dobrada vence o outlined do Vuetify. */
+.v-btn.neo-choice {
+  height: 48px;
+  min-width: 0;
+  padding: 0 var(--space-3);
+  border-color: var(--color-neutral-300);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+}
+
+.v-btn.neo-choice:hover {
+  border-color: var(--color-neutral-400);
+}
+
+.v-btn.neo-choice.neo-choice--selected {
+  border: 2px solid var(--color-blue-700);
+  background-color: var(--color-blue-50);
+  color: var(--color-blue-700);
+  font-weight: 600;
+}
+
+/* Terciário (§4.6): texto blue-600. */
+.v-btn.neo-remove {
+  margin-top: var(--space-3);
+  padding: 0 var(--space-2);
+  color: var(--color-blue-600);
+}
+
+.v-btn.neo-secundario {
+  border-color: var(--color-neutral-300);
+  color: var(--color-text);
+}
+
+.v-card-actions.neo-actions {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4) !important;
+}
 
 @media (max-width: 400px) {
-  .neo-header { padding: 16px; gap: 8px; }
-  .neo-dialog .neo-content { padding: 20px 16px; }
-  .neo-total { padding: 12px; }
-  .neo-totals, .neo-choices { gap: 8px; }
-  .neo-choice.v-btn { font-size: 0.8125rem; }
-  .neo-dialog .btn-dialog { padding: 0 8px; font-size: 0.8125rem; }
+  .neo-header { padding: var(--space-4) var(--space-3) var(--space-3) var(--space-4); gap: var(--space-2); }
+  .neo-dialog .neo-content { padding: var(--space-5) var(--space-4) !important; }
+  .neo-total { padding: var(--space-3); }
+  .neo-totals, .neo-choices { gap: var(--space-2); }
+  .v-btn.neo-choice { font-size: var(--text-body-sm-size); }
+  .neo-dialog .btn-dialog { padding: 0 var(--space-2); font-size: var(--text-body-sm-size); }
 }
 </style>

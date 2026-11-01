@@ -10,7 +10,9 @@
   <ul v-else class="lista">
     <li v-for="(linha, indice) in linhas" :key="indice" class="lista-item">
       <div class="lista-linha">
-        <span class="lista-rotulo" :title="linha.rotulo">{{ linha.rotulo }}</span>
+        <span class="lista-rotulo" :title="linha.rotulo">
+          <slot name="rotulo" :linha="linha">{{ linha.rotulo }}</slot>
+        </span>
         <span v-if="linha.detalhe" class="lista-detalhe">{{ linha.detalhe }}</span>
         <span class="lista-total">{{ linha.totalTexto }}</span>
       </div>
@@ -33,6 +35,8 @@ import { SEM_VALOR, proporcoesRelativas } from '@/utils/dashboard'
 // destino não aceitam filtro, e clicar num item levaria a uma lista genérica.
 // O link geral vai no cabeçalho do DashboardSecao.
 // itens null = ainda sem resposta: skeleton se está carregando, "—" se falhou.
+// O slot "rotulo" troca a apresentação do rótulo (a placa vira PlateBadge) sem
+// mudar o dado; recebe a linha inteira.
 const props = defineProps({
   itens: { type: Array, default: null },
   carregando: { type: Boolean, default: false },
@@ -61,8 +65,9 @@ const linhas = computed(() => {
   align-items: center;
   justify-content: center;
   margin: 0;
-  padding: 24px 0;
-  font-size: 0.875rem;
+  padding: var(--space-6) 0;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
   color: var(--color-text-muted);
   text-align: center;
 }
@@ -70,7 +75,7 @@ const linhas = computed(() => {
 .lista {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -79,9 +84,10 @@ const linhas = computed(() => {
 .lista-linha {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
 }
 
 .lista-rotulo {
@@ -95,7 +101,8 @@ const linhas = computed(() => {
 
 .lista-detalhe {
   flex-shrink: 0;
-  font-size: 0.75rem;
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
   color: var(--color-text-muted);
 }
 
@@ -103,22 +110,23 @@ const linhas = computed(() => {
   flex-shrink: 0;
   margin-left: auto;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--color-text);
 }
 
 .lista-trilho {
   position: relative;
   height: 6px;
-  margin-top: 6px;
+  margin-top: var(--space-2);
   border-radius: var(--radius-sm);
-  background-color: var(--color-primary-soft);
+  background-color: var(--color-blue-50);
   overflow: hidden;
 }
 
 .lista-barra {
   height: 100%;
   border-radius: var(--radius-sm);
-  background-color: var(--color-primary);
+  background-color: var(--color-blue-700);
 }
 
 /* Zero não some: vira uma linha de base no início do trilho. */

@@ -96,7 +96,8 @@ const barras = computed(() => {
   align-items: center;
   justify-content: center;
   margin: 0;
-  font-size: 0.875rem;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
   color: var(--color-text-muted);
   text-align: center;
 }
@@ -104,7 +105,7 @@ const barras = computed(() => {
 .grafico__barras {
   flex: 1;
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 0;
   margin: 0;
   padding: 0;
@@ -124,7 +125,7 @@ const barras = computed(() => {
   position: relative;
   flex: 1;
   width: 100%;
-  margin-top: 22px;
+  margin-top: var(--space-6);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -136,11 +137,12 @@ const barras = computed(() => {
   max-width: 48px;
   margin: 0 auto;
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  background-color: rgba(var(--v-theme-primary), 0.3);
+  background-color: var(--color-blue-200);
 }
 
+/* REDESIGN §5.3: mês atual em blue-700, demais em blue-200. */
 .grafico__barra--atual {
-  background-color: var(--color-primary);
+  background-color: var(--color-blue-700);
 }
 
 /* Zero não some: vira uma linha de base. */
@@ -154,36 +156,35 @@ const barras = computed(() => {
   position: absolute;
   left: 0;
   right: 0;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: var(--text-body-sm-size);
   line-height: 1;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   color: var(--color-text-muted);
   text-align: center;
 }
 
 .grafico__valor--atual {
-  color: var(--color-primary);
+  color: var(--color-blue-700);
 }
 
+/* Rótulo do eixo: body-sm neutral-500; o mês atual ganha peso e contraste. */
 .grafico__mes {
-  margin-top: 6px;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+  font-size: var(--text-body-sm-size);
+  line-height: var(--text-body-sm-line);
+  color: var(--color-neutral-500);
   white-space: nowrap;
 }
 
 .grafico__mes--atual {
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--color-neutral-800);
 }
 
 @media (max-width: 599px) {
   .grafico__barras {
-    gap: 4px;
-  }
-
-  .grafico__mes {
-    font-size: 0.6875rem;
+    gap: var(--space-1);
   }
 }
 </style>

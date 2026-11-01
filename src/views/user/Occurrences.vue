@@ -1,36 +1,40 @@
 <template>
-  <div class="occurrences-container">
-    <!-- Cabeçalho -->
-    <div class="page-header">
-      <h1 class="page-title">Nova Ocorrência</h1>
-      <p class="page-subtitle">Registre uma nova ocorrência no sistema</p>
+  <div class="ocorrencia">
+    <div class="ocorrencia__conteudo">
+      <PageHeader titulo="Nova ocorrência" subtitulo="Registre uma ocorrência com um veículo da frota." />
+      <OccurrenceForm />
     </div>
-    <!-- Formulário -->
-    <OccurrenceForm />
   </div>
-  <Footer />
 </template>
 
 <script setup>
 import OccurrenceForm from '@/components/user/OccurrenceForm.vue'
-import Footer from '@/components/app/Footer.vue'
+import PageHeader from '@/components/app/PageHeader.vue'
 </script>
 
 <style scoped>
-.occurrences-container {
-  padding: 28px 32px;
-  background-color: var(--color-background);
-  min-height: 100vh;
+/* Fundo e rolagem são do AppShell. Padding da §4.3, igual ao da Início: 32px
+   no desktop, 16px abaixo de md. O título e o formulário dividem o mesmo
+   contêiner de 720px (largura de formulário da §4.3), e por isso as bordas
+   esquerdas coincidem. A partir de md o contêiner é centralizado: formulário de
+   tarefa única não deixa uma faixa vazia à direita (REDESIGN §5.10). */
+.ocorrencia {
+  padding: var(--space-8);
 }
 
-.page-header {
-  max-width: 860px;
-  margin: 0 auto 20px;
+.ocorrencia__conteudo {
+  max-width: 720px;
 }
 
-@media (max-width: 768px) {
-  .occurrences-container {
-    padding: 16px;
+@media (min-width: 960px) {
+  .ocorrencia__conteudo {
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 959px) {
+  .ocorrencia {
+    padding: var(--space-4);
   }
 }
 </style>

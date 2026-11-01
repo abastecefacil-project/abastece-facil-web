@@ -38,37 +38,40 @@ defineProps({
 </script>
 
 <style scoped>
+/* Mesmo visual dos painéis da prévia em ImportacaoPostosDialog. */
 .painel-titulo {
+  font-size: var(--text-body-size);
   font-weight: 600;
   color: var(--color-text);
 }
 
 .painel-contagem {
-  margin-left: 8px;
-  padding: 0 8px;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-  font-size: 0.75rem;
+  background: var(--color-neutral-100);
+  color: var(--color-text-muted);
+  font-size: var(--text-caption-size);
   font-weight: 600;
   line-height: 20px;
+  font-variant-numeric: tabular-nums;
 }
 
 .linha-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 4px;
+  padding: var(--space-2) var(--space-1);
   border-bottom: 1px solid var(--color-border);
 }
 
 .linha-meta {
-  font-size: 0.8125rem;
+  font-size: var(--text-body-sm-size);
   color: var(--color-text-muted);
 }
 
 .linha-mensagem {
-  font-size: 0.8125rem;
+  font-size: var(--text-body-sm-size);
   color: var(--color-text);
 }
 </style>

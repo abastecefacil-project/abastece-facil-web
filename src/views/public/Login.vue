@@ -1,78 +1,89 @@
 <template>
-  <v-main class="auth-background">
-    <v-container fluid class="fill-height">
-      <v-row align="center" justify="center">
-        <v-col cols="12" sm="8" md="6" lg="4">
-          <v-card class="auth-card pa-6 pa-md-8" elevation="4">
-            <div class="d-flex justify-center mb-4">
-              <img src="@/assets/logo.png" alt="Abastece Fácil Logo" height="65" />
-            </div>
-            <h1 class="text-h4 text-center font-weight-bold mb-1">Login</h1>
+  <CartaoAcesso>
+    <h1 class="acesso-titulo">Entrar</h1>
+    <p class="acesso-texto mt-1 mb-8">Acesse com seu e-mail e senha</p>
 
-            <p class="text-center text-medium-emphasis mb-6">Bem-vindo ao Abastece Fácil!</p>
+    <v-form @submit.prevent="handleLogin">
+      <!-- Sem asterisco: nesta tela todo campo é obrigatório. As regras
+           continuam valendo. -->
+      <v-text-field
+        v-model="credentials.email"
+        label="E-mail"
+        type="email"
+        autocomplete="username"
+        prepend-inner-icon="mdi-email-outline"
+        autofocus
+        :rules="[rules.required]"
+        class="mb-4"
+      />
 
-            <v-card-text class="pa-0">
-              <v-alert v-if="errorMessage" type="error" variant="tonal" class="mb-3">
-                {{ errorMessage.message }}
-              </v-alert>
+      <v-text-field
+        v-model="credentials.password"
+        label="Senha"
+        autocomplete="current-password"
+        prepend-inner-icon="mdi-lock-outline"
+        :rules="[rules.required]"
+        :type="showPassword ? 'text' : 'password'"
+      >
+        <template #append-inner>
+          <v-btn
+            :icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+            :aria-label="showPassword ? 'Ocultar senha' : 'Mostrar senha'"
+            variant="text"
+            size="small"
+            density="comfortable"
+            @click="showPassword = !showPassword"
+          />
+        </template>
+      </v-text-field>
 
-              <v-form @submit.prevent="handleLogin">
-                <v-text-field
-                  v-model="credentials.email"
-                  label="Email*"
-                  prepend-inner-icon="mdi-email-outline"
-                  placeholder="Ex: fulano@gmail.com"
-                  variant="outlined"
-                  :rules="[rules.required]"
-                  class="mb-3"
-                />
+      <div class="d-flex justify-end mt-3">
+        <router-link to="/esqueci-senha" class="acesso-link">Esqueci minha senha</router-link>
+      </div>
 
-                <v-text-field
-                  v-model="credentials.password"
-                  label="Senha*"
-                  prepend-inner-icon="mdi-lock-outline"
-                  placeholder="Ex: Senha123123"
-                  variant="outlined"
-                  :rules="[rules.required]"
-                  :type="showPassword ? 'text' : 'password'"
-                  :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                  @click:append-inner="showPassword = !showPassword"
-                />
+      <v-alert v-if="mensagemErro" type="error" variant="tonal" density="compact" class="mt-4">
+        {{ mensagemErro }}
+      </v-alert>
 
-                <v-btn type="submit" color="primary" size="large" class="auth-btn mt-4 text-h6">
-                  Entrar
-                </v-btn>
-              </v-form>
-
-              <div class="text-center mt-4">
-                <router-link to="/esqueci-senha" class="user-link">Esqueci minha senha</router-link>
-              </div>
-
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
-    </v-container>
-  </v-main>
+      <v-btn type="submit" color="primary" class="acesso-btn mt-6" :loading="entrando">
+        Entrar
+      </v-btn>
+    </v-form>
+  </CartaoAcesso>
 </template>
 
 <script setup>
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import CartaoAcesso from '@/components/public/CartaoAcesso.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
 
 const showPassword = ref(false)
-const errorMessage = ref(null)
+const mensagemErro = ref('')
+const entrando = ref(false)
 
 const credentials = ref({
   email: '',
   password: '',
 })
 
+const MENSAGEM_ERRO_PADRAO = 'Não foi possível entrar. Verifique sua conexão e tente novamente.'
+
+// A store relança `error.response.data`. Só o ErrorResponse do backend traz
+// `error` e `message`; sem resposta (falha de rede) o que chega é um TypeError,
+// e num 5xx sem corpo chega `undefined` ou o HTML do proxy. Nesses casos a
+// mensagem é a padrão, em vez do texto interno do erro.
+function mensagemDeErro(err) {
+  if (err && typeof err === 'object' && err.error && err.message) return err.message
+  return MENSAGEM_ERRO_PADRAO
+}
+
 const handleLogin = async () => {
+  entrando.value = true
+  mensagemErro.value = ''
   try {
     await authStore.login(credentials.value)
     // `homeDoPerfil`, e não `/admin/dashboard` fixo: um colaborador era mandado
@@ -82,7 +93,9 @@ const handleLogin = async () => {
     // não se aplica aqui.
     router.push(authStore.homeDoPerfil)
   } catch (err) {
-    errorMessage.value = err
+    mensagemErro.value = mensagemDeErro(err)
+  } finally {
+    entrando.value = false
   }
 }
 
@@ -90,113 +103,3 @@ const rules = {
   required: (v) => !!v || 'Campo obrigatório',
 }
 </script>
-
-<style>
-:root {
-  --card-radius: 20px;
-  --input-radius: 10px;
-  --primary: #2b76e5;
-  --primary-hover: #265fba;
-  --text: #0f172a;
-  --muted: #6b7280;
-  --input-bg: #f3f4f6;
-  --input-border: var(--color-border-strong);
-  --shadow: 0 20px 45px rgba(2, 12, 49, 0.12);
-}
-
-.auth-background {
-  min-height: 100vh;
-  background: radial-gradient(
-      1200px 400px at 50% -150px,
-      #95b3cf 0%,
-      #7a98b3 35%,
-      #5c7a96 60%,
-      #476177 80%,
-      #385164 100%
-    )
-    fixed;
-}
-
-.auth-card {
-  position: relative;
-  border-radius: var(--card-radius) !important;
-  box-shadow: var(--shadow) !important;
-  overflow: visible;
-  padding-top: 36px !important;
-}
-
-.auth-card::before {
-  display: none !important;
-}
-
-:deep(.text-h4) {
-  font-weight: 700 !important;
-  text-align: center;
-}
-
-:deep(.text-medium-emphasis) {
-  color: var(--text) !important;
-  opacity: 0.85 !important;
-  font-weight: 600;
-}
-
-:deep(.v-field) {
-  border-radius: var(--input-radius) !important;
-}
-:deep(.v-field--variant-outlined .v-field__outline) {
-  --v-field-border-width: 1px;
-}
-:deep(.v-field .v-field__overlay) {
-  background: var(--input-bg) !important;
-  border: 1px solid var(--input-border) !important;
-  border-radius: var(--input-radius) !important;
-}
-:deep(.v-field--focused .v-field__overlay) {
-  background: #fff !important;
-  border-color: var(--primary) !important;
-  box-shadow: 0 0 0 4px rgba(43, 118, 229, 0.15) !important;
-}
-:deep(.v-label.v-field-label) {
-  font-weight: 600;
-  color: var(--text) !important;
-}
-:deep(.v-text-field input::placeholder) {
-  color: var(--muted);
-}
-
-.auth-btn {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 20px auto 0;
-  padding: 12px 24px !important;
-  min-width: 140px;
-  border-radius: 10px !important;
-  font-weight: 700 !important;
-  box-shadow: 0 8px 18px rgba(43, 118, 229, 0.25) !important;
-}
-.auth-btn:hover {
-  background: var(--primary-hover) !important;
-}
-
-:deep(img[alt*='Logo']) {
-  filter: none;
-  margin-top: 6px;
-  margin-bottom: 4px;
-}
-
-/* Link para recuperação de senha */
-.user-link {
-  color: var(--primary);
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 0.95rem;
-  transition: all 0.2s ease;
-  display: inline-block;
-}
-
-.user-link:hover {
-  color: var(--primary-hover);
-  text-decoration: underline;
-}
-</style>

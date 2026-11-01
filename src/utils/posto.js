@@ -46,6 +46,30 @@ export function prepararPostoParaEdicao(posto) {
 }
 
 /**
+ * Formulário vazio do cadastro de posto (PostoDialog em criação).
+ *
+ * `status: true` porque posto criado manualmente nasce ativo. O backend já
+ * garante isso (o CreateGasStationRequest não tem isActive e o @PrePersist de
+ * GasStation grava true), mas o formulário partia de `status: ''`, e o diálogo
+ * enviava isActive "" e mostrava o posto como se não estivesse ativo (F2).
+ */
+export function postoVazio() {
+  return {
+    id: null, name: '', cnpj: '', cep: '', city: '', state: '', address: '', number: '',
+    phone: '', status: true, openTime: '', closeTime: '', latitude: '', longitude: '',
+  }
+}
+
+/**
+ * Valor inicial do switch "Posto ativo". Só um booleano vindo do posto é
+ * respeitado (edição de posto inativo abre desligado); qualquer outra coisa
+ * (vazio, nulo, ausente) vale ativo, que é o estado em que o posto nasce.
+ */
+export function statusInicialPosto(posto) {
+  return typeof posto?.status === 'boolean' ? posto.status : true
+}
+
+/**
  * Lê "HH:mm - HH:mm", tolerando espaços em volta do hífen e nas pontas.
  *
  * Devolve { abertura, fechamento }, ou null para valor nulo, vazio ou fora do
