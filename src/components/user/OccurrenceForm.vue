@@ -19,36 +19,19 @@
 
         <section class="ocorrencia-secao" aria-labelledby="ocorrencia-secao-veiculo">
           <h2 id="ocorrencia-secao-veiculo" class="ocorrencia-secao__titulo">Veículo</h2>
-          <v-autocomplete
+          <BaseSelect
             v-model="form.licensePlate"
             :items="vehicles"
             item-title="label"
             item-value="licensePlate"
             label="Modelo ou placa*"
-            placeholder="Busque pelo modelo ou placa"
-            variant="outlined"
-            density="comfortable"
+            required
+            placeholder="Digite o modelo ou a placa"
             :loading="loadingData"
             :disabled="loadingData || loading"
             :rules="[(v) => !!v || 'Veículo é obrigatório']"
             no-data-text="Nenhum veículo disponível"
-            hide-details="auto"
-            menu-icon="mdi-chevron-down"
-          >
-            <template #item="{ props: itemProps, item }">
-              <v-list-item v-bind="itemProps" :title="item.raw.model" role="option">
-                <template #append>
-                  <PlateBadge :placa="item.raw.licensePlate" />
-                </template>
-              </v-list-item>
-            </template>
-            <template #selection="{ item }">
-              <span class="veiculo-selecionado">
-                <span class="veiculo-selecionado__modelo">{{ item.raw.model }}</span>
-                <PlateBadge :placa="item.raw.licensePlate" />
-              </span>
-            </template>
-          </v-autocomplete>
+          />
         </section>
 
         <section class="ocorrencia-secao" aria-labelledby="ocorrencia-secao-tipo">
@@ -187,8 +170,8 @@
 </template>
 
 <script setup>
+import BaseSelect from '@/components/app/BaseSelect.vue'
 import BaseStatusModal from '../app/BaseStatusModal.vue'
-import PlateBadge from '@/components/app/PlateBadge.vue'
 import { createOccurrences } from '@/services/occurrenceService'
 import { getAvailableCars } from '@/services/vehicleService'
 import { getUsuarioAutenticado } from '@/services/userService'
@@ -264,9 +247,7 @@ const iconesTipo = {
   Outro: 'mdi-dots-horizontal',
 }
 
-// A data já vem com hoje e continua editável pelo date picker. O veículo
-// começa null: com '', o Vuetify o trataria como selecionado (rótulo flutuando
-// e um PlateBadge vazio no campo).
+// A data já vem com hoje; o veículo começa sem seleção.
 const form = reactive({
   licensePlate: null,
   title: '',
@@ -398,18 +379,7 @@ const handleClear = async () => {
 }
 
 /* Modelo e placa na seleção do autocomplete. */
-.veiculo-selecionado {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-}
 
-.veiculo-selecionado__modelo {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* Chips do tipo: `column` quebra linha em vez de rolar. O padding zerado
    alinha o primeiro chip com a borda dos campos. */

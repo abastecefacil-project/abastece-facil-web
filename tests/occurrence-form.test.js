@@ -26,7 +26,7 @@ test('seleção mostra modelo e placa e carrega o nome completo do usuário', as
   assert.equal(f.vehicles.value[0].label, 'Civic — ABC1234')
   assert.equal(f.vehicles.value[0].licensePlate, 'ABC1234')
   assert.equal(f.userName.value, 'Maria da Silva com nome completo')
-  assert.match(source, /<v-autocomplete/)
+  assert.match(source, /<BaseSelect/)
 })
 
 test('envia veículo selecionado e nome autenticado; limpar preserva o nome', async () => {
@@ -84,7 +84,7 @@ test('nome do colaborador é só leitura: texto informativo, nenhum campo editá
   assert.doesNotMatch(template, /:model-value="userName"/)
   assert.doesNotMatch(template, /:value="userName"/)
   // Nenhum input, textarea, campo de texto ou select do template tem userName em atributo.
-  const campos = template.match(/<(?:input|textarea|v-text-field|v-textarea|v-select|v-autocomplete|v-combobox)\b[^>]*>/g) ?? []
+  const campos = template.match(/<(?:input|textarea|v-text-field|v-textarea|BaseSelect)\b[^>]*>/g) ?? []
   assert.ok(campos.length > 0)
   for (const campo of campos) assert.doesNotMatch(campo, /userName/)
   // A única aparição de userName no template é a interpolação de exibição.
@@ -140,9 +140,11 @@ test('tipo em chips de seleção única validados pelas mesmas regras, com ícon
   assert.match(template, /v-if="form\.title === 'Outro'"[\s\S]*?maxlength="40"[\s\S]*?'Informe o título'/)
 })
 
-test('itens e seleção do veículo mostram a placa em PlateBadge', () => {
-  assert.match(template, /<template #item=[\s\S]*?<PlateBadge :placa="item\.raw\.licensePlate"/)
-  assert.match(template, /<template #selection=[\s\S]*?<PlateBadge :placa="item\.raw\.licensePlate"/)
+test('a lista nativa de veículos mostra modelo e placa e mantém a placa como valor', async () => {
+  const f = formulario()
+  await f.loadData()
+  assert.equal(f.vehicles.value[0].label, 'Civic — ABC1234')
+  assert.match(template, /<BaseSelect[\s\S]*?item-title="label"[\s\S]*?item-value="licensePlate"/)
 })
 
 test('veículo começa null, e Cancelar só reseta a validação depois do nextTick, com o modelo já limpo', async () => {

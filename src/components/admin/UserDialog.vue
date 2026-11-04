@@ -106,18 +106,18 @@
               </v-col>
 
               <v-col cols="12" :sm="camposDePerfilObrigatorios ? 6 : 12">
-                <v-select
+                <BaseSelect
                   v-model="localUser.perfil"
                   :items="perfisDisponiveis"
                   label="Perfil*"
-                  variant="outlined"
-                  density="comfortable"
-                  menu-icon="mdi-chevron-down"
+                  required
+                  placeholder="Digite para buscar um perfil"
+                  no-data-text="Nenhum perfil encontrado"
+                  :disabled="carregandoDados || isLoading"
                   :rules="[rules.required]"
                   :readonly="perfilTravado"
                   :hint="propriaConta ? 'Seu próprio perfil não pode ser alterado.' : perfilTravado ? 'Você só pode cadastrar colaboradores.' : ''"
-                  :persistent-hint="perfilTravado"
-                ></v-select>
+                ></BaseSelect>
               </v-col>
             </template>
 
@@ -126,20 +126,19 @@
               cols="12"
               :sm="!editando || isAdministrador ? 6 : 12"
             >
-              <v-select
+              <BaseSelect
                 v-model="localUser.regionalId"
                 :items="regionaisDisponiveis"
                 label="Regional*"
-                variant="outlined"
-                density="comfortable"
-                menu-icon="mdi-chevron-down"
+                required
+                placeholder="Digite para buscar uma regional"
+                no-data-text="Nenhuma regional encontrada"
+                :disabled="carregandoDados || isLoading"
                 :loading="carregandoDados"
                 :readonly="regionalTravada"
-                :append-inner-icon="regionalTravada ? 'mdi-lock-outline' : undefined"
                 :rules="regrasRegional"
                 :hint="regionalTravada ? 'Apenas o administrador pode alterar a regional.' : ''"
-                :persistent-hint="regionalTravada"
-              ></v-select>
+              ></BaseSelect>
             </v-col>
           </v-row>
         </v-form>
@@ -194,6 +193,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import BaseSelect from '@/components/app/BaseSelect.vue'
 import BaseStatusModal from '../app/BaseStatusModal.vue'
 import { createUser, updateUser, getUsuarioAutenticado } from '@/services/userService'
 import { getRegionais } from '@/services/regionalService'

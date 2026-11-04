@@ -77,23 +77,8 @@ export default createVuetify({
       VBtn: { rounded: 0 },
     },
     // Campos: 'lg' gera .rounded-lg, 8px (§4.4), no VField; o contorno do
-    // outlined herda o raio. Os quatro componentes levam o default porque o
-    // VSelect e o VAutocomplete não herdam o do VTextField.
+    // outlined herda o raio. Os seletores com busca são estilizados em BaseSelect.vue.
     VTextField: {
-      variant: 'outlined',
-      density: 'comfortable',
-      rounded: 'lg',
-      color: 'primary',
-      hideDetails: 'auto',
-    },
-    VSelect: {
-      variant: 'outlined',
-      density: 'comfortable',
-      rounded: 'lg',
-      color: 'primary',
-      hideDetails: 'auto',
-    },
-    VAutocomplete: {
       variant: 'outlined',
       density: 'comfortable',
       rounded: 'lg',
