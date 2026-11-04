@@ -15,13 +15,7 @@ const PERFIS_ADMIN = ['ADMINISTRADOR', 'GESTOR_FROTA']
 
 export const NAVEGACAO = {
   admin: {
-    // Os seis itens levam o mesmo `perfis` em vez de uma regra no contexto
-    // inteiro: é o que permite um item divergir no futuro sem reescrever o
-    // filtro. Hoje nenhum diverge — a única distinção entre gestor e
-    // administrador no projeto é *dentro* da tela de usuários (quais perfis um
-    // gestor pode criar, e em qual regional), e mora em
-    // `components/admin/UserDialog.vue`, não em acesso a tela.
-    //
+    // O gestor consulta postos; o administrador acessa o gerenciamento.
     // `grupo` é o rótulo de seção da sidebar e o primeiro nível do breadcrumb
     // (REDESIGN §5.1). O `AppShell` agrupa itens consecutivos com o mesmo
     // `grupo`, então a ordem do array é a ordem dos grupos na tela.
@@ -55,7 +49,15 @@ export const NAVEGACAO = {
         icon: 'mdi-gas-station-outline',
         value: 'station',
         to: { name: 'StationAdmin' },
-        perfis: PERFIS_ADMIN,
+        perfis: ['ADMINISTRADOR'],
+        grupo: 'Cadastros',
+      },
+      {
+        title: 'Postos',
+        icon: 'mdi-gas-station-outline',
+        value: 'station',
+        to: { name: 'StationConsultaGestor' },
+        perfis: ['GESTOR_FROTA'],
         grupo: 'Cadastros',
       },
       {

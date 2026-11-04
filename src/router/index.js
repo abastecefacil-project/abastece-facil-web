@@ -50,10 +50,7 @@ const router = createRouter({
     {
       path: '/admin',
       component: AdminLayout,
-      // `to.meta` no guard e o merge dos metas das rotas-pai do vue-router
-      // fazem esta linha valer para os seis filhos de uma vez. Um filho que
-      // precise de outra regra sobrescreve o campo; hoje nenhum precisa, como
-      // explica o comentário do guard.
+      // Os filhos podem restringir os perfis permitidos pelo layout.
       meta: { perfis: ['ADMINISTRADOR', 'GESTOR_FROTA'] },
       children: [
         { path: '', redirect: { name: 'AdminDashboard' } },
@@ -65,7 +62,14 @@ const router = createRouter({
         {
           path: 'station',
           name: 'StationAdmin',
+          meta: { perfis: ['ADMINISTRADOR'] },
           component: () => import('../views/admin/StationManagement.vue'),
+        },
+        {
+          path: 'postos',
+          name: 'StationConsultaGestor',
+          meta: { perfis: ['GESTOR_FROTA'] },
+          component: () => import('../views/user/GasStations.vue'),
         },
         {
           path: 'map',
@@ -134,11 +138,7 @@ router.beforeEach((to, from, next) => {
   const auth = useAuthStore()
   auth.restoreSession()
 
-  // Nenhuma rota de `/admin/*` é exceção: as seis (`dashboard`, `station`,
-  // `map`, `vehicle`, `occurrences`, `user`) são telas de gestão da frota, e
-  // não existe tela de perfil próprio no projeto. `MapUser` reaproveita a view
-  // de `MapAdmin`, mas por uma rota própria em `/user/mapUser`, que continua
-  // aberta a qualquer sessão.
+  // A permissão específica do filho prevalece sobre a do layout.
   const perfisPermitidos = to.meta.perfis
 
   if ((to.meta.requiresAuth || perfisPermitidos) && !auth.isAuthenticated) {

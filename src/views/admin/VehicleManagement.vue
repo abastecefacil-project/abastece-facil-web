@@ -60,6 +60,7 @@
           <tr>
             <th scope="col" class="col-placa">Placa</th>
             <th scope="col" class="col-modelo">Modelo</th>
+            <th scope="col" class="col-regional">Regional</th>
             <th scope="col" class="col-status">Status</th>
             <th scope="col" class="col-acoes">Ações</th>
           </tr>
@@ -69,6 +70,7 @@
           <tr v-for="n in linhasEsqueleto" :key="n" class="linha-esqueleto" aria-hidden="true">
             <td class="col-placa"><span class="esqueleto esqueleto--placa" /></td>
             <td class="col-modelo"><span class="esqueleto esqueleto--titulo" /></td>
+            <td class="col-regional"><span class="esqueleto" /></td>
             <td class="col-status"><span class="esqueleto esqueleto--chip" /></td>
             <td class="col-acoes" />
           </tr>
@@ -82,6 +84,7 @@
             <td class="col-modelo">
               <span class="truncado">{{ veiculo.model }}</span>
             </td>
+            <td class="col-regional">{{ veiculo.regional?.nome || 'Não informada' }}</td>
             <td class="col-status">
               <StatusChip :status="veiculo.status ? 'ativo' : 'inativo'" />
             </td>
@@ -240,6 +243,8 @@ async function loadingCars(page = 0) {
       id: veiculo.id,
       plate: veiculo.licensePlate,
       model: veiculo.model,
+      regional: veiculo.regional,
+      regionalId: veiculo.regional?.id ?? null,
       status: veiculo.active,
     }))
     currentPage.value = data.number
@@ -630,7 +635,8 @@ onMounted(() => {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       'placa status'
-      'modelo acoes';
+      'modelo acoes'
+      'regional regional';
     align-items: center;
     column-gap: var(--space-3);
     row-gap: var(--space-1);
@@ -651,6 +657,7 @@ onMounted(() => {
 
   .tabela .col-placa { grid-area: placa; }
   .tabela .col-modelo { grid-area: modelo; min-width: 0; }
+  .tabela .col-regional { grid-area: regional; }
   .tabela .col-status { grid-area: status; justify-self: end; }
   .tabela .col-acoes { grid-area: acoes; }
 

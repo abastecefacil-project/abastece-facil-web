@@ -22,10 +22,10 @@ const ROTAS_COLABORADOR = [
 
 const rotas = (itens) => itens.map((item) => item.to.name).sort()
 
-test('administrador e gestor veem os mesmos seis itens de antes', () => {
-  for (const perfil of ['ADMINISTRADOR', 'GESTOR_FROTA']) {
-    assert.deepEqual(rotas(itensVisiveis('admin', perfil)), [...ROTAS_GESTAO].sort(), perfil)
-  }
+test('gestor consulta postos pela mesma tela do colaborador; administrador gerencia', () => {
+  assert.deepEqual(rotas(itensVisiveis('admin', 'ADMINISTRADOR')), [...ROTAS_GESTAO].sort())
+  assert.deepEqual(rotas(itensVisiveis('admin', 'GESTOR_FROTA')),
+    ROTAS_GESTAO.map((rota) => rota === 'StationAdmin' ? 'StationConsultaGestor' : rota).sort())
 })
 
 test('o menu de gestão não aparece para colaborador nem para perfil nulo', () => {

@@ -31,7 +31,7 @@ test('rotas do sistema exigem login e preservam permissões por perfil', () => {
       auth.isAuthenticated = true
       assert.equal(navigate(meta), parent.path === '/admin' ? auth.homeDoPerfil : undefined, route.name)
       auth.perfil = 'GESTOR_FROTA'
-      assert.equal(navigate(meta), undefined, route.name)
+      assert.equal(navigate(meta), meta.perfis && !meta.perfis.includes(auth.perfil) ? auth.homeDoPerfil : undefined, route.name)
       auth.isAuthenticated = false
       auth.perfil = 'COLABORADOR'
     }
