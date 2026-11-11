@@ -1,6 +1,21 @@
 <template>
   <div class="postos-container">
-    <PageHeader titulo="Postos" subtitulo="Visualize todos os postos de combustível cadastrados" />
+    <PageHeader titulo="Postos" subtitulo="Visualize todos os postos de combustível cadastrados">
+      <!-- Só sem busca: a busca daqui (endereço, bairro, UF, telefone) é mais
+           ampla que o `search` da API, e a planilha não bateria com a lista.
+           O span recebe o tooltip, que não dispara em botão desabilitado. -->
+      <template v-if="podeExportar" #acoes>
+        <span :tabindex="searchQuery ? 0 : undefined">
+          <BotaoExportar
+            caminho="/api/gas-stations/export"
+            entidade="postos"
+            :params="{ active: true }"
+            :desabilitado="Boolean(searchQuery)"
+          />
+          <v-tooltip activator="parent" location="bottom" text="Limpe a busca para exportar" :disabled="!searchQuery" />
+        </span>
+      </template>
+    </PageHeader>
 
     <v-alert
       v-if="!loading && cargaIncompleta"
@@ -123,6 +138,8 @@ import GasStationModal from '@/components/user/GasStationModal.vue'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import PageHeader from '@/components/app/PageHeader.vue'
 import EmptyState from '@/components/app/EmptyState.vue'
+import BotaoExportar from '@/components/admin/BotaoExportar.vue'
+import { useAuthStore } from '@/stores/auth'
 import { listarTodosPostosAtivos } from '@/services/stationService'
 import { HORARIO_NAO_INFORMADO, descreverQuantidadePostos, nomeExibicaoPosto } from '@/utils/posto'
 import { TELEFONE_NAO_INFORMADO, hrefTelefone } from '@/utils/formatacao'
@@ -135,6 +152,11 @@ const POSTOS_POR_PAGINA = 10
 const LINHAS_ESQUELETO = 6
 
 const route = useRoute()
+const authStore = useAuthStore()
+
+// Conveniência de tela: o colaborador usa esta lista, e quem recusa a
+// exportação para ele é o backend.
+const podeExportar = computed(() => ['GESTOR_FROTA', 'ADMINISTRADOR'].includes(authStore.perfil))
 
 // Estados reativos
 const loading = ref(false)

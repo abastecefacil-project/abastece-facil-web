@@ -954,12 +954,12 @@ finalidade para prazo é o `TokenAcessoService`, num único `switch` privado.
 src/
 ├── layouts/     AppShell.vue + AdminLayout.vue, DefaultLayout.vue (wrappers)
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
-├── components/  admin/ (12)  user/ (7)  app/ (12 compartilhados)  public/ (2)
+├── components/  admin/ (13)  user/ (7)  app/ (12 compartilhados)  public/ (2)
 ├── config/      navegacao.js, contatosSeguro.js
-├── services/    apiClient.js + auth/dashboard/occurrence/regional/station/user/vehicle
+├── services/    apiClient.js + auth/dashboard/exportacao/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ocorrenciaExibicao.js, usuarioExibicao.js, foco.js, ajuda.js, exclusao.js
+├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ocorrenciaExibicao.js, usuarioExibicao.js, foco.js, ajuda.js, exclusao.js, exportacao.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -2049,6 +2049,30 @@ com cor literal ou `elevation`, com o `VehicleCard` de volta, sem a placa no
 enviado diferente de `{ licensePlate, model, isActive }`, ou se Ocorrências
 voltar a ter uma `devolverFoco` própria.
 
+### Exportação .xlsx das listagens do admin
+
+Ocorrências, Usuários, Postos e Veículos têm "Exportar" no `#acoes` do
+`PageHeader`, à esquerda da ação primária: `components/admin/BotaoExportar.vue`
+(props `caminho`, `params`, `entidade`), com loading que bloqueia clique duplo e
+`BaseStatusModal` de erro próprio. O download é `services/exportacaoService.js`
+(`responseType: 'blob'`, `revokeObjectURL` adiado 1 s porque o Firefox cancela
+se for síncrono). Nome do arquivo e mensagem de erro (o `ErrorResponse` chega
+como Blob) são `utils/exportacao.js`, coberto por `tests/exportacao.test.js`.
+
+- **Os params são os da última carga da lista** (`filtrosAplicados`, gravado na
+  função de carga de cada tela), e não os campos: a busca tem debounce, e a
+  planilha precisa bater com a tabela exibida.
+- Sem gate por perfil: a API já recusa o colaborador e escopa a regional.
+- **Postos do gestor** (`StationConsultaGestor`, que é `views/user/GasStations.vue`,
+  a mesma lista do colaborador): o botão aparece só para `GESTOR_FROTA` e
+  `ADMINISTRADOR` e exporta `active=true`. **Fica desabilitado enquanto houver
+  busca**, com o tooltip "Limpe a busca para exportar": a busca dessa tela roda no
+  navegador e também casa endereço, bairro, UF e telefone, que o `search` da API
+  não cobre, então a planilha não bateria com a lista. O tooltip é ativado por um
+  `<span>` em volta do botão (botão desabilitado não recebe evento), com
+  `tabindex="0"` só quando desabilitado, para abrir também pelo teclado.
+  Pendência: unificar a busca de postos entre front e API.
+
 ### Apresentação do mapa (R9)
 
 O R9 (REDESIGN §5.12) mudou o que está dentro do mapa. A estrutura continua a
@@ -2513,7 +2537,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 28 arquivos e 219 testes depois do ajuste do R11 (217 no F4, 212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
+  - São 31 arquivos e 242 testes depois da exportação .xlsx (219 no ajuste do R11, 217 no F4, 212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
     R9, 151 na correção do mapa, 139 no R8). Entre eles: `exclusao.test.js` (`utils/exclusao.js`),
     `veiculos-admin.test.js` (código-fonte de
     Veículos, ver §7 *Veículos do admin (R15)*), `usuario-exibicao.test.js`
@@ -2527,7 +2551,8 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
     `perfil.test.js`, `coordenadas.test.js`, `whatsapp.test.js`, `sessao.test.js`,
     `dashboard.test.js`, `formatacao.test.js`, `usuario.test.js`,
     `contatos-gestores.test.js` (script do `ContactSection`, ver §7),
-    `contatos-seguro.test.js` (`config/contatosSeguro.js`) e
+    `contatos-seguro.test.js` (`config/contatosSeguro.js`), `exportacao.test.js`
+    (`utils/exportacao.js`) e
     `geolocalizacao.test.js` (estado da localização no mapa).
   - Rodar com `node --test tests/*.test.js`. No Node 22, `node --test tests/` falha
     com `MODULE_NOT_FOUND`, porque trata o diretório como arquivo.
@@ -2567,14 +2592,14 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   Enquanto isso, a verificação é manual: rodar as próprias instruções do repository no
   `psql` e conferir `UPDATE 1` no primeiro consumo e `UPDATE 0` no repetido, no
   expirado, no de finalidade divergente e no invalidado por substituição.
-- `npx eslint src` reporta **6 erros pré-existentes** (medido no R8, no R9, no
-  R10, no R11, no R12, no R13, no R14, no R15, no F4 e de novo no ajuste do R11). Não são
+- `npx eslint src` reporta **5 erros pré-existentes** (medido antes e depois da
+  exportação .xlsx; o `err` do VehicleDialog sumiu numa etapa anterior). Não são
   regressões; usar essa contagem como linha de base:
 
   | Regra | Onde |
   |---|---|
   | `vue/multi-word-component-names` (4) | `Map`, `Reports`, `Login`, `Occurrences` |
-  | `no-unused-vars` (2) | `err` (VehicleDialog), `error` (OccurrenceForm) |
+  | `no-unused-vars` (1) | `error` (OccurrenceForm) |
 
   Caíram de 9 para 6 nas etapas anteriores do redesign (sem `Footer`, sem o
   `response` do OccurrenceForm e sem o `deletarPosto`). O R8, o R9, o R10, o R11, o R12, o R13, o R14, o R15, o F4 e o ajuste do R11 não mudaram a contagem.

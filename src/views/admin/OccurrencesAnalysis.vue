@@ -1,6 +1,10 @@
 <template>
   <div class="ocorrencias-container">
-    <PageHeader titulo="Ocorrências" subtitulo="Acompanhe as ocorrências registradas no sistema" />
+    <PageHeader titulo="Ocorrências" subtitulo="Acompanhe as ocorrências registradas no sistema">
+      <template #acoes>
+        <BotaoExportar caminho="/api/incidents/export" entidade="ocorrencias" :params="filtrosAplicados" />
+      </template>
+    </PageHeader>
 
     <section class="tabela-ocorrencias" aria-label="Lista de ocorrências">
       <div class="tabela-toolbar">
@@ -199,6 +203,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { watchDebounced } from '@vueuse/core'
 import PaginationBar from '@/components/app/PaginationBar.vue'
 import PageHeader from '@/components/app/PageHeader.vue'
+import BotaoExportar from '@/components/admin/BotaoExportar.vue'
 import PlateBadge from '@/components/app/PlateBadge.vue'
 import EmptyState from '@/components/app/EmptyState.vue'
 import { apresentacaoLinhaOcorrencia } from '@/utils/ocorrenciaExibicao'
@@ -213,6 +218,9 @@ const LINHAS_ESQUELETO = 10
 
 // Estados reativos
 const searchQuery = ref('')
+// Filtros da última carga da lista: a exportação usa estes, e não os campos,
+// para a planilha bater com a tabela exibida (a busca tem debounce).
+const filtrosAplicados = ref({})
 const dialogOpen = ref(false)
 const occurrences = ref([])
 const loading = ref(false)
@@ -252,6 +260,7 @@ async function loadingOccurrences(page = 0) {
   erroCarregamento.value = false
   try {
     const title = searchQuery.value || undefined
+    filtrosAplicados.value = { title }
 
     const response = await getOccurrences(page, title)
     const data = response.data
