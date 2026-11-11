@@ -27,6 +27,7 @@
             </template>
           </span>
         </v-btn>
+        <BotaoExportar caminho="/api/gas-stations/export" entidade="postos" :params="filtrosAplicados" />
         <v-btn color="primary" prepend-icon="mdi-plus" @click="guardarOrigem($event); openDialog()">Novo posto</v-btn>
       </template>
     </PageHeader>
@@ -232,6 +233,7 @@ import {
 } from '@/services/stationService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
 import BaseStatusModal from '@/components/app/BaseStatusModal.vue'
+import BotaoExportar from '@/components/admin/BotaoExportar.vue'
 import { mensagemErroExclusao } from '@/utils/exclusao'
 import {
   HORARIO_NAO_INFORMADO,
@@ -266,6 +268,9 @@ const dialogImportacao = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('todos')
+// Filtros da última carga da lista: a exportação usa estes, e não os campos,
+// para a planilha bater com a tabela exibida (a busca tem debounce).
+const filtrosAplicados = ref({})
 const postos = ref([])
 const loading = ref(false)
 const erroCarregamento = ref(false)
@@ -334,6 +339,7 @@ async function loadingStations(page = 0) {
     if (statusFilter.value === 'ativo') active = true
     else if (statusFilter.value === 'inativo') active = false
     else active = undefined
+    filtrosAplicados.value = { search, active }
 
     const response = await getStations(page, search, active)
     const data = response.data

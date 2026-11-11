@@ -2,6 +2,7 @@
   <div class="veiculos-container">
     <PageHeader titulo="Veículos" subtitulo="Gerenciar veículos cadastrados">
       <template #acoes>
+        <BotaoExportar caminho="/api/cars/export" entidade="veiculos" :params="filtrosAplicados" />
         <v-btn color="primary" prepend-icon="mdi-plus" @click="guardarOrigem($event); openDialog()">
           Novo veículo
         </v-btn>
@@ -171,6 +172,7 @@ import PlateBadge from '@/components/app/PlateBadge.vue'
 import EmptyState from '@/components/app/EmptyState.vue'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
 import BaseStatusModal from '@/components/app/BaseStatusModal.vue'
+import BotaoExportar from '@/components/admin/BotaoExportar.vue'
 import { getCars, deleteCar } from '@/services/vehicleService'
 import { devolverFoco, elementoDeOrigem } from '@/utils/foco'
 import { mensagemErroExclusao } from '@/utils/exclusao'
@@ -188,6 +190,9 @@ const dialog = ref(false)
 const isEditing = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('todos')
+// Filtros da última carga da lista: a exportação usa estes, e não os campos,
+// para a planilha bater com a tabela exibida (a busca tem debounce).
+const filtrosAplicados = ref({})
 const vehicles = ref([])
 const loading = ref(false)
 const erroCarregamento = ref(false)
@@ -235,6 +240,7 @@ async function loadingCars(page = 0) {
     if (statusFilter.value === 'ativo') active = true
     else if (statusFilter.value === 'inativo') active = false
     else active = undefined
+    filtrosAplicados.value = { search, active }
 
     const response = await getCars(page, search, active)
     const data = response.data

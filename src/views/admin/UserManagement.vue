@@ -2,6 +2,7 @@
   <div class="usuarios-container">
     <PageHeader titulo="Usuários" subtitulo="Gerenciar usuários do sistema">
       <template #acoes>
+        <BotaoExportar caminho="/api/users/export" entidade="usuarios" :params="filtrosAplicados" />
         <v-btn color="primary" prepend-icon="mdi-plus" @click="guardarOrigem($event); openDialog()">
           Novo usuário
         </v-btn>
@@ -241,6 +242,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
 import BaseStatusModal from '@/components/app/BaseStatusModal.vue'
+import BotaoExportar from '@/components/admin/BotaoExportar.vue'
 import { apresentacaoLinhaUsuario } from '@/utils/usuarioExibicao'
 import { devolverFoco, elementoDeOrigem } from '@/utils/foco'
 
@@ -257,6 +259,9 @@ const auth = useAuthStore()
 const router = useRouter()
 const searchQuery = ref('')
 const statusFilter = ref('ativo')
+// Filtros da última carga da lista: a exportação usa estes, e não os campos,
+// para a planilha bater com a tabela exibida (a busca tem debounce).
+const filtrosAplicados = ref({ active: true })
 const users = ref([])
 const loading = ref(false)
 const erroCarregamento = ref(false)
@@ -325,6 +330,7 @@ async function loadingUsers(page = 0) {
   try {
     const name = searchQuery.value || undefined
     const active = statusFilter.value !== 'inativo'
+    filtrosAplicados.value = { name, active }
 
     const response = await getUsers(page, name, active)
     const data = response.data
