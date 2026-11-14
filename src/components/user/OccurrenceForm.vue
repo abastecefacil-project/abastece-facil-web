@@ -7,8 +7,8 @@
           <v-btn variant="text" @click="loadData" :loading="loadingData">Tentar novamente</v-btn>
         </v-alert>
 
-        <!-- O nome não é campo: vem de getUsuarioAutenticado e vai no payload sem
-             passar por nada que o colaborador possa editar. -->
+        <!-- O nome não é campo: vem de getUsuarioAutenticado só para exibição. O
+             backend grava o autor a partir da sessão, e o payload não o leva. -->
         <div v-else class="ocorrencia-autor" :aria-busy="loadingData">
           <v-icon icon="mdi-account-outline" size="16" class="ocorrencia-autor__icone" />
           <span>Registrando como:</span>
@@ -289,7 +289,6 @@ const handleSubmit = async () => {
       licensePlate: form.licensePlate.replace('-', ''),
       title: finalTitle,
       description: form.description,
-      userName: userName.value,
       occurrenceDate: formatDateToISO(form.date),
     }
     await createOccurrences(body)

@@ -22,7 +22,7 @@
 
       <v-spacer />
 
-      <NotificacoesNeo v-if="authStore.perfil === 'ADMINISTRADOR'" />
+      <NotificacoesSino v-if="authStore.perfil === 'ADMINISTRADOR'" />
 
       <!-- Menu do usuário. Sempre presente, inclusive com perfil nulo: é ele que
            leva ao "Sair", e uma sessão sem perfil também precisa sair. -->
@@ -154,7 +154,7 @@ import { iconePerfil, rotuloPerfil } from '@/utils/perfil'
 import { iniciaisDoNome } from '@/utils/usuario'
 import { getUsuarioAutenticado } from '@/services/userService'
 import ConfirmDialog from '@/components/app/ConfirmDialog.vue'
-import NotificacoesNeo from '@/components/admin/NotificacoesNeo.vue'
+import NotificacoesSino from '@/components/admin/NotificacoesSino.vue'
 
 // Qual conjunto de menu usar. Os dois únicos call sites são os wrappers
 // `AdminLayout.vue` e `DefaultLayout.vue`, que o router referencia por nome

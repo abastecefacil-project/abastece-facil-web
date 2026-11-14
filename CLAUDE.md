@@ -956,10 +956,10 @@ src/
 ├── views/       admin/ (7)  user/ (4)  public/ (4)
 ├── components/  admin/ (13)  user/ (7)  app/ (12 compartilhados)  public/ (2)
 ├── config/      navegacao.js, contatosSeguro.js
-├── services/    apiClient.js + auth/dashboard/exportacao/occurrence/regional/station/user/vehicle
+├── services/    apiClient.js + auth/dashboard/exportacao/notificacao/occurrence/regional/station/user/vehicle
 ├── stores/      auth.js (Pinia)
 ├── router/      index.js
-├── utils/       mascaras.js, perfil.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ocorrenciaExibicao.js, usuarioExibicao.js, foco.js, ajuda.js, exclusao.js, exportacao.js
+├── utils/       mascaras.js, perfil.js, notificacoes.js, posto.js, coordenadas.js, importacaoPostos.js, paginacao.js, whatsapp.js, sessao.js, dashboard.js, formatacao.js, municipios.js, usuario.js, geolocalizacao.js, mapa.js, postoExibicao.js, ocorrenciaExibicao.js, usuarioExibicao.js, foco.js, ajuda.js, exclusao.js, exportacao.js
 └── assets/      main.css, base.css, logos
 ```
 
@@ -1773,8 +1773,10 @@ de tarefa única não deixa faixa vazia à direita. Abaixo de 960px fica alinhad
 Data e Descrição, e "Registrar ocorrência" é a única ação primária.
 
 - **O nome do colaborador não é campo.** "Registrando como: {nome}" é texto, e
-  `userName` só aparece no template nessa interpolação. Ele continua vindo de
-  `getUsuarioAutenticado` e indo no payload como antes. A regra "Nome é
+  `userName` só aparece no template nessa interpolação. Ele vem de
+  `getUsuarioAutenticado` só para exibição: **não vai mais no payload**, porque
+  o backend passou a gravar o autor a partir da sessão e a ignorar o campo. O
+  teste falha se ele voltar ao corpo enviado. A regra "Nome é
   obrigatório" saiu junto com o campo: quem barra o envio sem nome é o
   `loadData`, que lança erro, e o `dataError` no `handleSubmit`.
   `tests/occurrence-form.test.js` falha se algum `v-model`, `:model-value`,
@@ -2048,6 +2050,28 @@ com cor literal ou `elevation`, com o `VehicleCard` de volta, sem a placa no
 `'ativo'`, sem o modal de erro de exclusão (Veículos e Postos), sem o `fechado` nos três `after-leave`, com o corpo
 enviado diferente de `{ licensePlate, model, isActive }`, ou se Ocorrências
 voltar a ter uma `devolverFoco` própria.
+
+### Sino de notificações
+
+`components/admin/NotificacoesSino.vue`, montado no cabeçalho do `AppShell` só
+para `ADMINISTRADOR`. `services/notificacaoService.js`: `getNotificacoes(page)`
+(`GET /api/notificacoes`, size 10, resposta `{ pagina, naoLidas }`) e
+`marcarNotificacaoLida(id)` (`PATCH /api/notificacoes/{id}/lida`).
+
+- **O tipo vira apresentação só em `utils/notificacoes.js`**
+  (`apresentacaoNotificacao`), com o mesmo papel do `utils/perfil.js`: ícone,
+  cor, título, texto e ação. `RECUSA_NEO` → "Analisar posto"
+  (`StationAdmin?posto=`); `OCORRENCIA` → "Analisar ocorrência"
+  (`OccurrencesAdmin?ocorrencia=`, que a tela ainda não lê). Tipo desconhecido
+  tem ícone e título genéricos e nenhuma ação. Tipo novo entra só nesse mapa.
+- **O texto sai em segmentos `{ texto, destaque }`**, e o template põe os
+  destacados em `<strong>`. Sem `v-html`.
+- `executar(item, acao)` marca como lida (PATCH) antes de navegar com
+  `acao.rota(item)`; com `acao` nula só marca. O template resolve a ação, e o
+  `<script setup>` não importa o util: `tests/notificacoes-sino.test.js` roda o
+  script numa VM sem as linhas de `import`.
+- Atualiza na montagem, a cada 30 s (`setInterval`, só com a aba visível e sem
+  ação em andamento), ao abrir o menu e no botão de atualizar.
 
 ### Exportação .xlsx das listagens do admin
 
@@ -2537,7 +2561,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 31 arquivos e 242 testes depois da exportação .xlsx (219 no ajuste do R11, 217 no F4, 212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
+  - São 31 arquivos e 244 testes depois das notificações por tipo (242 na exportação .xlsx, 219 no ajuste do R11, 217 no F4, 212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
     R9, 151 na correção do mapa, 139 no R8). Entre eles: `exclusao.test.js` (`utils/exclusao.js`),
     `veiculos-admin.test.js` (código-fonte de
     Veículos, ver §7 *Veículos do admin (R15)*), `usuario-exibicao.test.js`
