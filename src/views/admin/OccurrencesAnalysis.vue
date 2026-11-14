@@ -6,6 +6,15 @@
       </template>
     </PageHeader>
 
+    <v-alert
+      v-if="erroNotificacao"
+      type="error"
+      variant="tonal"
+      closable
+      class="mb-4"
+      @click:close="erroNotificacao = ''"
+    >{{ erroNotificacao }}</v-alert>
+
     <section class="tabela-ocorrencias" aria-label="Lista de ocorrências">
       <div class="tabela-toolbar">
         <v-text-field
@@ -207,8 +216,9 @@ import BotaoExportar from '@/components/admin/BotaoExportar.vue'
 import PlateBadge from '@/components/app/PlateBadge.vue'
 import EmptyState from '@/components/app/EmptyState.vue'
 import { apresentacaoLinhaOcorrencia } from '@/utils/ocorrenciaExibicao'
-import { getOccurrences } from '@/services/occurrenceService.js'
+import { getOccurrences, getOccurrenceById } from '@/services/occurrenceService.js'
 import { devolverFoco } from '@/utils/foco'
+import { useRoute, useRouter } from 'vue-router'
 
 const NAO_INFORMADO = 'Não informado'
 
@@ -231,6 +241,9 @@ const totalElements = ref(null)
 const pageSize = ref(null)
 const currentPageUi = ref(1)
 const selectedOccurrence = ref(null)
+const route = useRoute()
+const router = useRouter()
+const erroNotificacao = ref('')
 
 // Só apresentação (utils/ocorrenciaExibicao.js): a ocorrência da API segue
 // intacta em `ocorrencia`.
@@ -292,15 +305,30 @@ const openOccurrence = (linha, evento) => {
 
 // utils/foco.js: devolve se o foco ficou no diálogo ou caiu no <body>, e o
 // mantém se alguém o levou para outro lugar. A tela tem um diálogo só, então o
-// resultado 'aguardando' não ocorre e a origem é sempre descartada.
+// resultado 'aguardando' não ocorre e a origem é sempre descartada. Aberto pela
+// notificação (?ocorrencia=), não há origem, e o foco fica onde o Vuetify o deixar.
 function aoFecharDialogo() {
   devolverFoco(origemFoco)
   origemFoco = null
+  if (route.query.ocorrencia) router.replace({ query: { ...route.query, ocorrencia: undefined } })
 }
 
 onMounted(() => {
   loadingOccurrences()
 })
+
+// Mesmo padrão do ?posto= de StationManagement: resposta de uma query que já
+// mudou é descartada.
+watch(() => route.query.ocorrencia, async (id) => {
+  if (!id) return
+  erroNotificacao.value = ''
+  try {
+    const { data } = await getOccurrenceById(id)
+    if (id === route.query.ocorrencia) openOccurrence({ ocorrencia: data, ...apresentacaoLinhaOcorrencia(data) })
+  } catch {
+    if (id === route.query.ocorrencia) erroNotificacao.value = 'Não foi possível abrir a ocorrência da notificação. Tente novamente.'
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>

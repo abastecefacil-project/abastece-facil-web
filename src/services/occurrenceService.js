@@ -9,3 +9,7 @@ export async function getOccurrences(page = 0, title) {
         params: { title, page },
     });
 }
+
+export async function getOccurrenceById(id) {
+    return await apiPrivate.get(`/api/incidents/${id}`);
+}

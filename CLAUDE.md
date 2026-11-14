@@ -1890,6 +1890,14 @@ hover por `translateY`) foi removido.
   **Não recoloque um controle de ordem** sem o backend aceitar o parâmetro.
 - **A busca não mudou:** `getOccurrences(page, title)`, debounce de 400 ms,
   filtra pelo título no servidor.
+- **`?ocorrencia={id}`** (destino do sino): um `watch` em
+  `route.query.ocorrencia`, com `immediate`, busca `getOccurrenceById`
+  (`GET /api/incidents/{id}`) e abre o **mesmo** diálogo de detalhe, no padrão
+  do `?posto=` de `StationManagement`: resposta de uma query que já mudou é
+  descartada, falha (404, rede) vira um `v-alert` de erro acima da tabela, e o
+  `aoFecharDialogo` remove `?ocorrencia=` com `router.replace`. Aberto pela URL
+  não há origem de foco, e `devolverFoco(null)` só responde `'sem-destino'`.
+  Coberto por `tests/occurrences-analysis.test.js` (script da tela numa VM).
 - **Detalhe:** a linha inteira abre o diálogo com o mouse; pelo teclado, o
   botão `mdi-chevron-right` ("Ver detalhes", `aria-label` com tipo, placa e
   data), com `@click.stop`. O mesmo padrão da lista de postos do colaborador.
@@ -2062,7 +2070,7 @@ para `ADMINISTRADOR`. `services/notificacaoService.js`: `getNotificacoes(page)`
   (`apresentacaoNotificacao`), com o mesmo papel do `utils/perfil.js`: ícone,
   cor, título, texto e ação. `RECUSA_NEO` → "Analisar posto"
   (`StationAdmin?posto=`); `OCORRENCIA` → "Analisar ocorrência"
-  (`OccurrencesAdmin?ocorrencia=`, que a tela ainda não lê). Tipo desconhecido
+  (`OccurrencesAdmin?ocorrencia=`, que abre o detalhe). Tipo desconhecido
   tem ícone e título genéricos e nenhuma ação. Tipo novo entra só nesse mapa.
 - **O texto sai em segmentos `{ texto, destaque }`**, e o template põe os
   destacados em `<strong>`. Sem `v-html`.
@@ -2561,7 +2569,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 31 arquivos e 244 testes depois das notificações por tipo (242 na exportação .xlsx, 219 no ajuste do R11, 217 no F4, 212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
+  - São 32 arquivos e 246 testes depois do `?ocorrencia=` (244 nas notificações por tipo, 242 na exportação .xlsx, 219 no ajuste do R11, 217 no F4, 212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
     R9, 151 na correção do mapa, 139 no R8). Entre eles: `exclusao.test.js` (`utils/exclusao.js`),
     `veiculos-admin.test.js` (código-fonte de
     Veículos, ver §7 *Veículos do admin (R15)*), `usuario-exibicao.test.js`
