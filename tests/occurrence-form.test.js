@@ -29,13 +29,13 @@ test('seleção mostra modelo e placa e carrega o nome completo do usuário', as
   assert.match(source, /<BaseSelect/)
 })
 
-test('envia veículo selecionado e nome autenticado; limpar preserva o nome', async () => {
+test('envia veículo selecionado sem userName (o backend usa a sessão); limpar preserva o nome', async () => {
   const f = formulario()
   await f.loadData()
   Object.assign(f.form, { licensePlate: 'ABC1234', title: 'Outro', customTitle: 'Pneu furado', date: '26/10/2026' })
   await f.handleSubmit()
   assert.equal(f.enviado().licensePlate, 'ABC1234')
-  assert.equal(f.enviado().userName, 'Maria da Silva com nome completo')
+  assert.equal('userName' in f.enviado(), false)
   assert.equal(f.enviado().occurrenceDate, '2026-10-26')
   assert.equal(f.enviado().title, 'Pneu furado')
   assert.equal(f.form.licensePlate, null)
@@ -103,7 +103,7 @@ test('data começa com hoje e o envio a converte para LocalDate', async () => {
   assert.equal(f.enviado().occurrenceDate, `${ano}-${mes}-${dia}`)
 })
 
-test('tipo comum vai como está no title; payload tem só os cinco campos de sempre', async () => {
+test('tipo comum vai como está no title; payload tem só os quatro campos, sem userName', async () => {
   const f = formulario()
   await f.loadData()
   Object.assign(f.form, { licensePlate: 'ABC1234', title: 'Combustível Abaixo de Meio Tanque', customTitle: 'ignorado', description: 'Tanque vazio', date: '01/02/2026' })
@@ -112,7 +112,6 @@ test('tipo comum vai como está no title; payload tem só os cinco campos de sem
     licensePlate: 'ABC1234',
     title: 'Combustível Abaixo de Meio Tanque',
     description: 'Tanque vazio',
-    userName: 'Maria da Silva com nome completo',
     occurrenceDate: '2026-02-01',
   })
 })

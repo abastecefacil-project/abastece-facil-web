@@ -16,18 +16,18 @@
       <v-card-text class="notificacoes-conteudo">
         <v-alert v-if="erro" type="error" variant="tonal" density="compact" class="mb-3">{{ erro }}</v-alert>
         <p v-if="!carregando && !erro && !itens.length" class="text-medium-emphasis">Nenhuma notificação ainda.</p>
-        <article v-for="item in itens" :key="item.id" :class="['notificacao', { 'notificacao--nova': !item.lida }]">
+        <article v-for="{ item, tipo } in itens.map((item) => ({ item, tipo: apresentacaoNotificacao(item) }))" :key="item.id" :class="['notificacao', { 'notificacao--nova': !item.lida }]">
           <div class="d-flex align-center ga-2 mb-2">
-            <v-icon icon="mdi-credit-card-remove-outline" color="error" size="20" />
-            <strong>Recusa do cartão Neo</strong>
+            <v-icon :icon="tipo.icone" :color="tipo.cor" size="20" />
+            <strong>{{ tipo.titulo }}</strong>
             <v-chip v-if="!item.lida" size="x-small" color="primary">Nova</v-chip>
             <v-chip v-else size="x-small" variant="tonal">Lida</v-chip>
           </div>
-          <p><strong>{{ item.usuarioNome }}</strong> relatou que o Neo não passou no posto <strong>{{ item.postoNome }}</strong>.</p>
+          <p><template v-for="(trecho, i) in tipo.texto(item)" :key="i"><strong v-if="trecho.destaque">{{ trecho.texto }}</strong><template v-else>{{ trecho.texto }}</template></template></p>
           <time class="text-caption text-medium-emphasis" :datetime="item.criadoEm">{{ new Date(item.criadoEm).toLocaleString('pt-BR') }}</time>
           <div class="d-flex flex-wrap ga-1 mt-2">
-            <v-btn variant="tonal" color="primary" size="small" :disabled="ocupado || carregando" @click="executar(item, true)">Analisar posto</v-btn>
-            <v-btn v-if="!item.lida" variant="text" size="small" :disabled="ocupado || carregando" @click="executar(item, false)">Marcar como lida</v-btn>
+            <v-btn v-if="tipo.acao" variant="tonal" color="primary" size="small" :disabled="ocupado || carregando" @click="executar(item, tipo.acao)">{{ tipo.acao.rotulo }}</v-btn>
+            <v-btn v-if="!item.lida" variant="text" size="small" :disabled="ocupado || carregando" @click="executar(item, null)">Marcar como lida</v-btn>
           </div>
         </article>
       </v-card-text>
@@ -43,7 +43,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { getNotificacoesNeo, marcarNotificacaoNeoLida } from '@/services/notificacaoService'
+import { getNotificacoes, marcarNotificacaoLida } from '@/services/notificacaoService'
+import { apresentacaoNotificacao } from '@/utils/notificacoes'
 
 const router = useRouter()
 const aberto = ref(false)
@@ -61,7 +62,7 @@ async function carregar() {
   if (carregando.value || ocupado.value) return
   carregando.value = true
   try {
-    const { data } = await getNotificacoesNeo(pagina.value)
+    const { data } = await getNotificacoes(pagina.value)
     if (desmontado) return
     itens.value = data.pagina.content
     totalPaginas.value = data.pagina.totalPages
@@ -80,18 +81,19 @@ function mudarPagina(valor) {
   carregar()
 }
 
-async function executar(item, analisarPosto) {
+// acao vem de apresentacaoNotificacao (no template); null só marca como lida.
+async function executar(item, acao) {
   if (ocupado.value || carregando.value) return
   ocupado.value = true
   try {
     if (!item.lida) {
-      await marcarNotificacaoNeoLida(item.id)
+      await marcarNotificacaoLida(item.id)
       if (desmontado) return
       item.lida = true
       naoLidas.value = Math.max(0, naoLidas.value - 1)
     }
-    if (analisarPosto) {
-      await router.push({ name: 'StationAdmin', query: { posto: String(item.postoId) } })
+    if (acao) {
+      await router.push(acao.rota(item))
       aberto.value = false
     }
     erro.value = ''
