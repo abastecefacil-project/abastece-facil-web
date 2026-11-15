@@ -70,3 +70,23 @@ test('apresentacaoPopupPosto: sem cidade ou sem UF não sobra hífen solto', () 
   assert.equal(apresentacaoPopupPosto({ state: 'SC' }).cidade, 'SC')
   assert.equal(apresentacaoPopupPosto({}).cidade, '')
 })
+
+
+test('marcador mostra média com uma casa decimal e preserva o pino', () => {
+  const html = htmlMarcadorPosto({ mediaAvaliacao: 13 / 3, totalAvaliacoes: 3 })
+  assert.match(html, /★<\/span>4\.3/)
+  assert.match(html, /marcador-posto__pino/)
+})
+
+test('marcador distingue ausência de avaliações de falha ao consultar', () => {
+  assert.match(htmlMarcadorPosto({ mediaAvaliacao: null, totalAvaliacoes: 0 }), /Sem avaliações/)
+  assert.doesNotMatch(htmlMarcadorPosto({ avaliacoesDisponiveis: false }), /Sem avaliações|marcador-posto__avaliacao/)
+})
+
+test('marcador nunca injeta HTML vindo de uma média inválida', () => {
+  for (const media of ['<img src=x onerror=alert(1)>', NaN, Infinity, 0, 6]) {
+    const html = htmlMarcadorPosto({ mediaAvaliacao: media })
+    assert.doesNotMatch(html, /<img|NaN|Infinity/)
+    assert.match(html, /Sem avaliações/)
+  }
+})

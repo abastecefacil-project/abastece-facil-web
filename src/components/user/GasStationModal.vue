@@ -72,16 +72,19 @@
       </v-card-text>
 
       <v-card-actions class="dialog-actions">
+        <v-btn variant="text" prepend-icon="mdi-star-outline" @click="avaliando = true">Avaliações do posto</v-btn>
         <v-btn class="btn-dialog btn-dialog--cancelar" variant="outlined" @click="closeModal">
           Fechar
         </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
+  <AvaliacaoPostoDialog v-if="avaliando && props.posto" :posto="props.posto" @fechar="avaliando = false" />
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import AvaliacaoPostoDialog from '@/components/user/AvaliacaoPostoDialog.vue'
 import { TELEFONE_NAO_INFORMADO, hrefTelefone, nomeProprio } from '@/utils/formatacao'
 import { HORARIO_NAO_INFORMADO } from '@/utils/posto'
 import { apresentacaoLinhaPosto } from '@/utils/postoExibicao'
@@ -102,6 +105,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const dialog = ref(props.modelValue)
+const avaliando = ref(false)
 
 watch(
   () => props.modelValue,
