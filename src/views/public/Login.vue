@@ -1,5 +1,5 @@
 <template>
-  <CartaoAcesso>
+  <CartaoAcesso class="login">
     <h1 class="acesso-titulo">Entrar</h1>
     <p class="acesso-texto mt-1 mb-8">Acesse com seu e-mail e senha</p>
 
@@ -37,7 +37,7 @@
         </template>
       </v-text-field>
 
-      <div class="d-flex justify-end mt-3">
+      <div class="login-recuperacao mt-3">
         <router-link to="/esqueci-senha" class="acesso-link">Esqueci minha senha</router-link>
       </div>
 
@@ -103,3 +103,31 @@ const rules = {
   required: (v) => !!v || 'Campo obrigatório',
 }
 </script>
+
+<style scoped>
+.login-recuperacao {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 959.98px) {
+  .login :deep(.acesso-layout) {
+    min-height: 100dvh;
+  }
+
+  .login :deep(.acesso-formulario) {
+    align-items: center;
+  }
+
+  .login :deep(.acesso-logo-mobile) {
+    height: 64px;
+    margin-inline: auto;
+  }
+
+  .login :deep(.acesso-titulo),
+  .login :deep(.acesso-texto) {
+    text-align: center;
+  }
+
+}
+</style>
