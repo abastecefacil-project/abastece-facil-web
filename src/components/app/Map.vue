@@ -45,16 +45,7 @@ const props = defineProps({
   },
 });
 
-// Ícones locais, sem rede: o pino do posto e o ponto do usuário eram PNGs do
-// freepik e do unpkg. As cores ficam no <style> abaixo, pelos tokens.
-const stationIcon = L.divIcon({
-  className: "marcador-posto",
-  html: htmlMarcadorPosto(),
-  iconSize: PINO_POSTO.tamanho,
-  iconAnchor: PINO_POSTO.ancora,
-  popupAnchor: PINO_POSTO.ancoraPopup,
-});
-
+// Ícones locais, sem rede. As cores ficam no <style> abaixo, pelos tokens.
 const userIcon = L.divIcon({
   className: "marcador-usuario",
   html: htmlMarcadorUsuario(),
@@ -129,11 +120,12 @@ function createRoutePopupContent(station) {
     },
     onStartRoute: () => emit('start-route', station),
     onAvaliarNeo: () => emit('avaliar-neo', station),
+    onAvaliarPosto: () => emit('avaliar-posto', station),
     routeContext,
   });
 }
 
-const emit = defineEmits(['start-route', 'show-route', 'popup-open', 'popup-close', 'avaliar-neo']);
+const emit = defineEmits(['start-route', 'show-route', 'popup-open', 'popup-close', 'avaliar-neo', 'avaliar-posto']);
 
 function renderStations(stations) {
   if (!markersLayer) return;
@@ -141,7 +133,13 @@ function renderStations(stations) {
   markersLayer.clearLayers();
   stations.forEach((station) => {
     const marker = L.marker([station.latitude, station.longitude], {
-      icon: stationIcon,
+      icon: L.divIcon({
+        className: "marcador-posto",
+        html: htmlMarcadorPosto(station),
+        iconSize: PINO_POSTO.tamanho,
+        iconAnchor: PINO_POSTO.ancora,
+        popupAnchor: PINO_POSTO.ancoraPopup,
+      }),
       // Nome acessível do role="button" que o Leaflet põe no ícone.
       title: nomeExibicaoPosto(station),
     });
@@ -347,6 +345,25 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.mapa-leaflet :deep(.marcador-posto__avaliacao) {
+  position: absolute;
+  bottom: 46px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 15%);
+  font: 600 12px/16px var(--font-sans);
+  white-space: nowrap;
+}
+.mapa-leaflet :deep(.marcador-posto__estrela) { color: var(--color-warning-icon); }
+
 .mapa-leaflet {
   width: 100%;
   height: 100%;

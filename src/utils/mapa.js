@@ -55,8 +55,13 @@ const PATH_PINO = 'M16 1C7.7 1 1 7.6 1 15.8c0 10.6 13.3 24.2 13.9 24.8a1.5 1.5 0
  * do divIcon é posicionada pelo Leaflet com `transform`, e escalá-la quebraria
  * a posição do marcador.
  */
-export function htmlMarcadorPosto() {
-  return '<span class="marcador-posto__pino">'
+export function htmlMarcadorPosto(station = {}) {
+  const media = station.mediaAvaliacao
+  const texto = typeof media === 'number' && Number.isFinite(media) && media >= 1 && media <= 5
+    ? media.toFixed(1) : 'Sem avaliações'
+  const avaliacao = station.avaliacoesDisponiveis === false ? ''
+    : `<span class="marcador-posto__avaliacao"><span class="marcador-posto__estrela" aria-hidden="true">★</span>${texto}</span>`
+  return avaliacao + '<span class="marcador-posto__pino">'
     + '<svg viewBox="0 0 32 42" width="32" height="42" aria-hidden="true" focusable="false">'
     + `<path class="marcador-posto__corpo" d="${PATH_PINO}"/>`
     + `<path class="marcador-posto__icone" transform="translate(6.4 6.2) scale(0.8)" d="${PATH_COMBUSTIVEL}"/>`

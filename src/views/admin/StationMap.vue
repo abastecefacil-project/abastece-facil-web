@@ -11,6 +11,7 @@
         @popup-open="popupOpen = true"
         @popup-close="popupOpen = false"
         @avaliar-neo="postoNeo = $event"
+        @avaliar-posto="postoAvaliacao = $event"
       />
 
       <!-- Painel flutuante no desktop; abaixo de 960px, folha inferior
@@ -134,6 +135,9 @@
       </section>
 
       <div class="mapa-avisos">
+        <div v-if="erroAvaliacoes" class="postos-status postos-status--aviso" role="alert">
+          As avaliações estão indisponíveis. Recarregue a página para tentar novamente.
+        </div>
         <div v-if="avisoSemLocalizacao" class="postos-status postos-status--aviso" role="status">
           <v-icon icon="mdi-crosshairs-off" size="18" class="postos-status-icon" />
           <span>{{ avisoSemLocalizacao }}</span>
@@ -148,6 +152,8 @@
         </div>
       </div>
     </div>
+    <AvaliacaoPostoDialog v-if="postoAvaliacao" :posto="postoAvaliacao"
+      @fechar="postoAvaliacao = null" @atualizar="atualizarAvaliacao" />
     <AvaliacaoNeoDialog
       v-if="postoNeo"
       :posto="postoNeo"
@@ -159,9 +165,10 @@
 <script setup>
 import { formatarDistancia, formatarDuracao } from '@/utils/formatacao'
 import Map from '@/components/app/Map.vue'
+import AvaliacaoPostoDialog from '@/components/user/AvaliacaoPostoDialog.vue'
 import AvaliacaoNeoDialog from '@/components/user/AvaliacaoNeoDialog.vue'
 import { onMounted, reactive, ref, computed, watch, onUnmounted } from 'vue'
-import { listarTodosPostosAtivos } from '@/services/stationService'
+import { listarTodosPostosAtivos, getResumosAvaliacoes } from '@/services/stationService'
 import {
   avisoLocalizacao,
   estadoAposErro,
@@ -175,6 +182,8 @@ import {
 // null até a primeira posição: 0,0 passaria por coordenada válida.
 const userMarker = reactive({ lat: null, lon: null })
 const postoNeo = ref(null)
+const postoAvaliacao = ref(null)
+const erroAvaliacoes = ref(false)
 const estadoLocalizacao = ref(estadoInicialLocalizacao('geolocation' in navigator))
 const temLocalizacao = computed(() => localizacaoDisponivel(estadoLocalizacao.value))
 const avisoSemLocalizacao = computed(() => avisoLocalizacao(estadoLocalizacao.value))
@@ -212,11 +221,23 @@ const suppressSuggestions = { origin: false, destination: false }
 // Todas as páginas antes de entregar ao Map, que cria os marcadores de uma vez.
 // Começa junto com a geolocalização, sem esperar o mapa ser montado.
 async function carregarPostos() {
-  const { postos: carregados, completo } = await listarTodosPostosAtivos()
+  const [lista, avaliacoes] = await Promise.allSettled([listarTodosPostosAtivos(), getResumosAvaliacoes()])
+  const { postos: carregados, completo } = lista.status === 'fulfilled' ? lista.value : { postos: [], completo: false }
+  const resumos = new globalThis.Map(avaliacoes.status === 'fulfilled' ? avaliacoes.value.data.map(r => [r.postoId, r]) : [])
+  erroAvaliacoes.value = avaliacoes.status === 'rejected'
   if (!isMounted) return
-  postos.value = carregados
+  postos.value = carregados.map(posto => ({ ...posto,
+    mediaAvaliacao: resumos.get(posto.id)?.media ?? null,
+    totalAvaliacoes: resumos.get(posto.id)?.total ?? 0,
+    avaliacoesDisponiveis: !erroAvaliacoes.value,
+  }))
   cargaIncompleta.value = !completo
   carregandoPostos.value = false
+}
+
+function atualizarAvaliacao({ postoId, media, total }) {
+  postos.value = postos.value.map(posto => posto.id === postoId
+    ? { ...posto, mediaAvaliacao: media, totalAvaliacoes: total, avaliacoesDisponiveis: true } : posto)
 }
 
 // No celular o .map-wrapper é fixed a partir do topo da janela, e a barra

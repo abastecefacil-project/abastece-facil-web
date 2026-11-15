@@ -29,15 +29,9 @@
     </div>
 
     <div class="popup-posto__acoes">
-      <!-- Sem a prop `color`: o Vuetify a converteria em .bg-primary, que é
-           !important. A cor sai das classes abaixo, pelos tokens. -->
-      <v-btn
-        variant="flat"
-        prepend-icon="mdi-navigation-variant-outline"
-        class="popup-posto__botao btn-primario"
-        @click="startRoute"
-      >
-        Iniciar navegação
+      <v-btn v-if="onAvaliarPosto" variant="outlined" prepend-icon="mdi-star-outline"
+        class="popup-posto__botao btn-secundario" @click="onAvaliarPosto()">
+        Avaliação do posto
       </v-btn>
       <v-btn
         v-if="onAvaliarNeo"
@@ -47,6 +41,16 @@
         @click="onAvaliarNeo()"
       >
         Cartão Neo
+      </v-btn>
+      <!-- Sem a prop `color`: o Vuetify a converteria em .bg-primary, que é
+           !important. A cor sai das classes abaixo, pelos tokens. -->
+      <v-btn
+        variant="flat"
+        prepend-icon="mdi-navigation-variant-outline"
+        class="popup-posto__botao btn-primario"
+        @click="startRoute"
+      >
+        Iniciar navegação
       </v-btn>
     </div>
   </div>
@@ -66,6 +70,7 @@ const props = defineProps({
     type: Function,
     default: null,
   },
+  onAvaliarPosto: { type: Function, default: null },
   onAvaliarNeo: {
     type: Function,
     default: null,

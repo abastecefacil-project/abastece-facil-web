@@ -101,3 +101,19 @@ export async function getCurrentImport() {
     const response = await apiPrivate.get('/api/gas-stations/import/atual');
     return response.status === 204 ? null : response.data;
 }
+
+export function getResumosAvaliacoes() {
+    return apiPrivate.get('/api/gas-stations/avaliacoes/resumos');
+}
+
+export function getAvaliacoesPosto(postoId, page = 0) {
+    return apiPrivate.get(`/api/gas-stations/${postoId}/avaliacoes`, { params: { page } });
+}
+
+export function salvarAvaliacaoPosto(postoId, nota, comentario) {
+    return apiPrivate.put(`/api/gas-stations/${postoId}/avaliacoes`, { nota, comentario });
+}
+
+export function removerAvaliacaoPosto(postoId) {
+    return apiPrivate.delete(`/api/gas-stations/${postoId}/avaliacoes`);
+}
