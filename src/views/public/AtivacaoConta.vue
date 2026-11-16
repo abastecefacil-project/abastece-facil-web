@@ -62,6 +62,7 @@ import { useAuthStore } from '@/stores/auth'
 import authService from '@/services/authService'
 import CartaoAcesso from '@/components/public/CartaoAcesso.vue'
 import CampoNovaSenha from '@/components/public/CampoNovaSenha.vue'
+import { extrairTokenDoFragmento } from '@/utils/tokenUrl'
 
 const route = useRoute()
 const router = useRouter()
@@ -77,9 +78,7 @@ const enviando = ref(false)
 const mensagemErro = ref('')
 const form = ref(null)
 
-// Query repetida (?token=a&token=b) chega como array; nesse caso não há token
-// utilizável, e o fluxo termina na mesma tela de link inválido.
-const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
+const token = ref(extrairTokenDoFragmento(route.hash))
 
 const saudacao = computed(() => (nome.value ? `Olá, ${nome.value}!` : 'Olá!'))
 
@@ -106,11 +105,11 @@ async function validarToken() {
   }
 }
 
-onMounted(validarToken)
+onMounted(() => {
+  limparTokenDaUrl()
+  validarToken()
+})
 
-// O token não pode sobrar na barra de endereços nem na entrada do histórico
-// depois de consumido — daí replaceState, que substitui a entrada atual em vez
-// de empilhar outra.
 function limparTokenDaUrl() {
   window.history.replaceState(window.history.state, '', window.location.pathname)
 }
@@ -124,7 +123,6 @@ async function handleSubmit() {
   mensagemErro.value = ''
   try {
     await authStore.ativarConta({ token: token.value, senha: senha.value })
-    limparTokenDaUrl()
     await router.replace(authStore.homeDoPerfil)
   } catch (err) {
     const corpo = err?.response?.data

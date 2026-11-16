@@ -19,7 +19,7 @@ const router = createRouter({
         {
           // Destino do link de convite enviado por e-mail. Pública e sem
           // meta.perfis: quem chega aqui ainda não tem sessão nenhuma. O token
-          // vem em query string, como o backend monta em UserConstants.
+          // vem no fragmento, como o backend monta em UserConstants.
           path: 'definir-senha',
           name: 'AtivacaoConta',
           component: () => import('../views/public/AtivacaoConta.vue'),
@@ -35,7 +35,7 @@ const router = createRouter({
         {
           // Destino do link de recuperação enviado por e-mail. Pública e sem
           // meta.perfis, como a de ativação. O path é contrato com o backend:
-          // UserConstants.ROTA_REDEFINIR_SENHA = "/redefinir-senha?token=".
+          // UserConstants.ROTA_REDEFINIR_SENHA = "/redefinir-senha#token=".
           // Mudar de um lado exige mudar do outro.
           path: 'redefinir-senha',
           name: 'RedefinirSenha',

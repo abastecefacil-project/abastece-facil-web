@@ -602,7 +602,7 @@ o usuário, não uma tentativa de envio. Só `false` quer dizer que o e-mail nã
 convite precisa ser reenviado. Tratar `null` como falha faria a listagem inteira exibir
 alerta.
 
-**Rota do link de ativação: `/definir-senha?token=<token>`.** Definida no S2b1 porque o
+**Rota do link de ativação: `/definir-senha#token=<token>`.** Definida no S2b1 porque o
 link precisa existir antes da tela, e **implementada pelo S6** — é contrato entre os dois
 lados, e mudar de um exige mudar do outro. A origem única é
 `UserConstants.ROTA_DEFINIR_SENHA`; a base vem de `abastecefacil.email.frontend-url`. O
@@ -974,9 +974,9 @@ src/
 A raiz `/` redireciona para `/user/dashboardUser`.
 
 **Três das quatro rotas públicas são destino de link de e-mail, e duas delas têm o
-path fixado pelo backend:** `/definir-senha?token=` é
+path fixado pelo backend:** `/definir-senha#token=` é
 `UserConstants.ROTA_DEFINIR_SENHA` (ativação, S2b1 ↔ S6a) e
-`/redefinir-senha?token=` é `UserConstants.ROTA_REDEFINIR_SENHA` (recuperação,
+`/redefinir-senha#token=` é `UserConstants.ROTA_REDEFINIR_SENHA` (recuperação,
 S4 ↔ S6b). Renomear qualquer uma das duas de um lado só quebra o link que já
 saiu por e-mail. `/esqueci-senha` é escolha do frontend: nasce de um clique no
 login, não de um e-mail.
