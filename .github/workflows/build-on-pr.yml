@@ -21,5 +21,8 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      - name: Executar testes automatizados
+        run: node --test tests/*.test.js
+
       - name: Rodar build
         run: npm run build
