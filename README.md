@@ -1,41 +1,40 @@
-# frontend-abastece-facil
+# Frontend Abastece Fácil
 
 Sistema web para consulta e gerenciamento dos postos conveniados da **FIESC / UNISENAI Joinville**.  
 Repositório oficial: [abastecefacil-project/abastece-facil-web](https://github.com/abastecefacil-project/abastece-facil-web)
 
 ---
 
-## Requisitos
+## Rodar localmente
 
-- [Node.js](https://nodejs.org/) **v20.X**
-- npm incluído na instalação do Node.js
+Pré-requisitos: Node.js 20 e npm. Inicie primeiro a API e o banco seguindo o
+[guia rápido do backend](https://github.com/abastecefacil-project/abastece-facil-api#rodar-localmente-recomendado).
+O endereço padrão da API é `http://localhost:8081`.
 
-Recomenda-se o uso de [nvm](https://github.com/nvm-sh/nvm) para gerenciar versões do Node.
-
----
-
-## Instalação
-
-Clone o repositório e instale as dependências:
+No diretório do frontend, execute:
 
 ```bash
-git clone https://github.com/Abastece-Facil/front-abastece-facil
-cd front-abastece-facil
-npm install
+cp .env.example .env
+npm ci
+npm run dev
 ```
 
----
+No PowerShell, copie o exemplo com `Copy-Item .env.example .env`. A configuração padrão
+encaminha as chamadas `/api` para `http://localhost:8081`; se a API estiver em outro
+endereço, ajuste `VITE_API_PROXY_TARGET` no `.env`. Deixe `VITE_API_BASE_URL` vazia no
+desenvolvimento local; se frontend e API forem publicados em origens diferentes, use ali
+somente a origem da API, sem acrescentar `/api`.
 
-## Variáveis de ambiente
+Abra [http://localhost:5173](http://localhost:5173).
 
-O projeto requer variáveis configuradas em um arquivo `.env` na raiz.  
-Exemplo:
+Para entrar no ambiente local, use as contas e senhas de desenvolvimento documentadas
+no README do backend. Elas não devem ser usadas em produção.
 
-```env
-# URL base usada pelo frontend; o Vite encaminha /api para a API local
-VITE_API_BASE_URL=/api
-VITE_API_PROXY_TARGET="http://localhost:8081"
+## Build de produção
 
+```bash
+npm run build
+npm run preview
 ```
 
 ### Contato da gestão de frota
@@ -45,58 +44,6 @@ A Central de Ajuda consulta os gestores ativos da regional do usuário logado em
 O telefone com DDD gera um link de WhatsApp; sem telefone válido, o contato é
 exibido sem link. Se houver mais de um gestor, todos são listados.
 Não há configuração de número por variável de ambiente.
-
----
-
-## Executando o projeto
-
-### Ambiente de Desenvolvimento
-
-Executa o servidor Vite com hot reload:
-
-```bash
-npm run dev
-```
-
-Aplicação disponível em [http://localhost:5173](http://localhost:5173)
-
-### Ambiente de Produção
-
-Gera o build otimizado para deploy:
-
-```bash
-npm run build
-```
-
-Para visualizar o build localmente:
-
-```bash
-npm run preview
-```
-
----
-
-## Scripts Principais
-
-| Comando | Descrição |
-|----------|------------|
-| `npm run dev` | Inicia o servidor de desenvolvimento |
-| `npm run build` | Gera build de produção |
-| `npm run preview` | Executa o build localmente |
-
----
-
-## .gitignore
-
-Principais exclusões:
-
-```gitignore
-node_modules/
-dist/
-.env
-.env.*
-```
-O arquivo `.gitignore` completo está na raiz do repositório.
 
 ---
 
