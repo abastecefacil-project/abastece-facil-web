@@ -1,5 +1,5 @@
 <template>
-  <CartaoAcesso>
+  <CartaoAcesso class="recuperacao">
     <!-- Confirmação. É a MESMA tela e o MESMO texto para e-mail cadastrado e
          não cadastrado — a resposta do backend é um corpo único, e é ela que
          aparece aqui. -->
@@ -118,3 +118,25 @@ async function handleSubmit() {
   }
 }
 </script>
+
+<style scoped>
+@media (max-width: 959.98px) {
+  .recuperacao :deep(.acesso-layout) {
+    min-height: 100dvh;
+  }
+
+  .recuperacao :deep(.acesso-formulario) {
+    align-items: center;
+  }
+
+  .recuperacao :deep(.acesso-logo-mobile) {
+    height: 64px;
+    margin-inline: auto;
+  }
+
+  .recuperacao :deep(.acesso-titulo),
+  .recuperacao :deep(.acesso-texto) {
+    text-align: center;
+  }
+}
+</style>
