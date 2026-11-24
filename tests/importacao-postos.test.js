@@ -4,7 +4,14 @@ import {
   contarGeocodificacoes,
   descreverDuracaoAproximada,
   descreverTempoEstimado,
+  mensagemConclusaoImportacao,
 } from '../src/utils/importacaoPostos.js'
+
+test('conclusão da importação distingue sucesso de erros e orienta a conferir os detalhes', () => {
+  assert.equal(mensagemConclusaoImportacao(0), 'Importação concluída.')
+  assert.equal(mensagemConclusaoImportacao(1), 'Importação concluída com 1 erro. Confira os detalhes abaixo.')
+  assert.equal(mensagemConclusaoImportacao(207), 'Importação concluída com 207 erros. Confira os detalhes abaixo.')
+})
 
 test('tempo estimado usa 1,6 s por posto, medido na carga real', () => {
   // 1.128 × 1,6 s = 1.804,8 s → 30,08 min, arredondado para cima.

@@ -22,6 +22,12 @@ export function formatarNumero(valor) {
   return formatoNumero.format(valor ?? 0)
 }
 
+export function mensagemConclusaoImportacao(totalErros) {
+  if (!totalErros) return 'Importação concluída.'
+  const quantidade = totalErros === 1 ? '1 erro' : `${formatarNumero(totalErros)} erros`
+  return `Importação concluída com ${quantidade}. Confira os detalhes abaixo.`
+}
+
 /**
  * linha = 0 é a convenção do backend para "sem linha na planilha" — caso dos
  * postos a desativar, que existem só no banco.

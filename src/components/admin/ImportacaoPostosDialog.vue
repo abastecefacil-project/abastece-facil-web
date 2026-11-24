@@ -373,6 +373,7 @@ import {
   desativacoesConfirmadasParaEnvio,
   exigeConfirmacaoDesativacao,
   formatarNumero,
+  mensagemConclusaoImportacao,
   podeConfirmarImportacao,
   textoConfirmacaoDesativacao,
 } from '@/utils/importacaoPostos'
@@ -621,7 +622,12 @@ const desfecho = computed(() => {
   if (status === 'CANCELADA') {
     return { tipo: 'warning', texto: mensagem || MENSAGEM_CANCELADA_PADRAO, parcial: true }
   }
-  return { tipo: 'success', texto: 'Importação concluída.', parcial: false }
+  const totalErros = importacao.value?.resumo?.erros?.length ?? 0
+  return {
+    tipo: totalErros ? 'warning' : 'success',
+    texto: mensagemConclusaoImportacao(totalErros),
+    parcial: false,
+  }
 })
 
 // Só em CONCLUIDA: em FALHOU e CANCELADA o motivo do pedido não muda nada.
