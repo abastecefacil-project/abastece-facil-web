@@ -107,6 +107,19 @@
             :text="textoAlertaDesativacao"
           />
 
+          <!-- A API exige a quantidade de desativações confirmada pelo
+               administrador. Desmarcada a cada nova prévia. -->
+          <v-checkbox
+            v-if="exigeConfirmacao"
+            v-model="desativacaoConfirmada"
+            :label="textoConfirmacao"
+            color="primary"
+            density="compact"
+            hide-details
+            :disabled="iniciando"
+            class="confirmacao-desativacao mb-4"
+          />
+
           <v-expansion-panels v-if="haDetalhesPrevia" multiple variant="accordion" flat class="paineis mb-4">
             <v-expansion-panel v-for="grupo in gruposItens" :key="grupo.chave">
               <v-expansion-panel-title>
@@ -276,7 +289,7 @@
             :disabled="analisando"
             @click="analisar"
           >
-            Analisar planilha
+            {{ planoDivergente ? 'Gerar nova prévia' : 'Analisar planilha' }}
           </v-btn>
 
           <template v-if="etapa === 'previa'">
@@ -289,12 +302,13 @@
               Trocar arquivo
             </v-btn>
             <!-- Sem janela de confirmação: a prévia já mostra contadores, alerta de
-                 desativação e tempo, e a importação pode ser cancelada depois. -->
+                 desativação e tempo, e a importação pode ser cancelada depois.
+                 Com desativações, a caixa de confirmação acima precisa estar marcada. -->
             <v-btn
               class="btn-dialog btn-dialog--confirmar"
               variant="flat"
               :loading="iniciando"
-              :disabled="iniciando || !previa"
+              :disabled="iniciando || !botaoConfirmarHabilitado"
               @click="confirmarImportacao"
             >
               Confirmar importação
@@ -351,11 +365,16 @@ import {
 } from '@/services/stationService'
 import { escolherNomeExibicao } from '@/utils/posto'
 import {
+  classificarErroInicioImportacao,
   contarGeocodificacoes,
   descreverDesativacao,
   descreverTempoEstimado,
   descreverTempoRestante,
+  desativacoesConfirmadasParaEnvio,
+  exigeConfirmacaoDesativacao,
   formatarNumero,
+  podeConfirmarImportacao,
+  textoConfirmacaoDesativacao,
 } from '@/utils/importacaoPostos'
 
 const props = defineProps({
@@ -416,6 +435,9 @@ const MENSAGENS_POR_ERRO = {
   PERFIL_NAO_PERMITIDO: 'Apenas administradores podem importar a planilha de postos.',
   IMPORTACAO_EM_ANDAMENTO: 'Já existe uma importação em andamento.',
   IMPORTACAO_NAO_ENCONTRADA: MENSAGEM_INTERROMPIDA,
+  PLANO_IMPORTACAO_DIVERGENTE:
+    'A quantidade de postos a desativar mudou desde a prévia. Gere uma nova prévia e confira antes de confirmar.',
+  DESATIVACAO_NAO_CONFIRMADA: 'Confirme a desativação dos postos antes de iniciar a importação.',
 }
 
 // === Estado ===
@@ -434,6 +456,11 @@ const faseAnalise = ref(null)
 const percentualEnvio = ref(0)
 const analiseDemorada = ref(false)
 const previa = ref(null)
+// Caixa "Conferi a lista e confirmo a desativação…". Volta a false a cada prévia.
+const desativacaoConfirmada = ref(false)
+// A API recusou o início porque o plano mudou desde a prévia: a prévia foi
+// descartada e a seleção oferece gerar outra com o mesmo arquivo.
+const planoDivergente = ref(false)
 
 const iniciando = ref(false)
 
@@ -483,6 +510,7 @@ watch(selecao, (valor) => {
   const escolhido = Array.isArray(valor) ? (valor[0] ?? null) : (valor ?? null)
   arquivo.value = escolhido
   erroApi.value = ''
+  planoDivergente.value = false
   erroArquivo.value = escolhido ? validarArquivo(escolhido) : ''
 })
 
@@ -516,6 +544,12 @@ const textoAlertaDesativacao = computed(() => {
   if (!d) return ''
   return d.alta ? `${d.texto} ${SUFIXO_DESATIVACAO_ALTA}` : d.texto
 })
+
+const exigeConfirmacao = computed(() => exigeConfirmacaoDesativacao(previa.value))
+const textoConfirmacao = computed(() => textoConfirmacaoDesativacao(previa.value))
+const botaoConfirmarHabilitado = computed(() =>
+  podeConfirmarImportacao(previa.value, desativacaoConfirmada.value),
+)
 
 const tempoEstimado = computed(() => descreverTempoEstimado(contarGeocodificacoes(previa.value)))
 
@@ -674,6 +708,8 @@ function limpar() {
   percentualEnvio.value = 0
   analiseDemorada.value = false
   previa.value = null
+  desativacaoConfirmada.value = false
+  planoDivergente.value = false
   iniciando.value = false
   importacao.value = null
   amostras.value = []
@@ -751,6 +787,8 @@ async function analisar() {
     const { data } = await previewImport(arquivo.value, { onUploadProgress: aoEnviar })
     if (requisicao !== requisicaoAtual) return
     previa.value = data
+    desativacaoConfirmada.value = false
+    planoDivergente.value = false
     etapa.value = 'previa'
   } catch (err) {
     if (requisicao !== requisicaoAtual) return
@@ -791,16 +829,44 @@ async function confirmarImportacao() {
   try {
     // O backend relê o arquivo e recalcula o plano: os erros da prévia podem
     // voltar aqui, e são tratados igual.
-    const { data } = await startImport(arquivo.value)
+    const { data } = await startImport(arquivo.value, {
+      desativacoesConfirmadas: desativacoesConfirmadasParaEnvio(previa.value, desativacaoConfirmada.value),
+    })
     if (requisicao !== requisicaoAtual) return
     acompanhar({ id: data.id, status: 'EM_ANDAMENTO' }, 0)
   } catch (err) {
     if (requisicao !== requisicaoAtual) return
-    if (err?.response?.status === 409) await acompanharExistente(requisicao)
-    else erroApi.value = mensagemDeErro(err)
+    // Pelo código do corpo: PLANO_IMPORTACAO_DIVERGENTE e IMPORTACAO_EM_ANDAMENTO
+    // são ambos 409.
+    switch (classificarErroInicioImportacao(err)) {
+      case 'em-andamento':
+        await acompanharExistente(requisicao)
+        break
+      case 'plano-divergente':
+        descartarPreviaDivergente(err)
+        break
+      case 'desativacao-nao-confirmada':
+        // A prévia continua válida: só falta a confirmação.
+        desativacaoConfirmada.value = false
+        erroApi.value = mensagemDeErro(err)
+        break
+      default:
+        erroApi.value = mensagemDeErro(err)
+    }
   } finally {
     if (requisicao === requisicaoAtual) iniciando.value = false
   }
+}
+
+// A planilha ou o banco mudaram desde a prévia, e a quantidade confirmada não
+// vale mais. Volta à seleção com o mesmo arquivo (o v-model `selecao` não é
+// tocado), e o botão vira "Gerar nova prévia".
+function descartarPreviaDivergente(err) {
+  erroApi.value = mensagemDeErro(err)
+  previa.value = null
+  desativacaoConfirmada.value = false
+  planoDivergente.value = true
+  etapa.value = 'selecao'
 }
 
 async function acompanharExistente(requisicao) {
@@ -1122,6 +1188,16 @@ onUnmounted(invalidarOperacoes)
 .linha-campos {
   font-size: var(--text-caption-size);
   color: var(--color-blue-600);
+}
+
+/* O rótulo do v-checkbox vem esmaecido por padrão; aqui é uma declaração do
+   administrador e precisa da cor de texto principal. Quebra linha no mobile. */
+.confirmacao-desativacao :deep(.v-label) {
+  opacity: 1;
+  white-space: normal;
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line);
+  color: var(--color-text);
 }
 
 .tempo-estimado {

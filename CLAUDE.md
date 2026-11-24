@@ -1557,6 +1557,24 @@ O dialog é uma máquina de etapas: `carregando` → `selecao` → `previa` →
     travados, porque fechar ali descartaria o 202 com a importação já rodando;
   - se o envio receber 409 `IMPORTACAO_EM_ANDAMENTO`, o dialog passa a acompanhar
     a importação existente em vez de mostrar erro.
+- **Ciência da desativação.** Quando a prévia tem itens em `desativar`, abaixo do
+  alerta de proporção aparece um `v-checkbox` "Conferi a lista e confirmo a
+  desativação de N postos." (singular para 1), e "Confirmar importação" fica
+  desabilitado até ele ser marcado. A caixa volta desmarcada a cada prévia. O
+  `startImport` envia `desativacoesConfirmadas` (campo do multipart) com
+  `previa.desativar.length`; sem desativação o campo é omitido e o fluxo é o de
+  antes. As regras são funções puras de `utils/importacaoPostos.js`
+  (`exigeConfirmacaoDesativacao`, `textoConfirmacaoDesativacao`,
+  `podeConfirmarImportacao`, `desativacoesConfirmadasParaEnvio`), cobertas por
+  `tests/importacao-confirmacao-desativacao.test.js`.
+  - **Os dois 409 são separados pelo código do corpo**, não pelo status
+    (`classificarErroInicioImportacao`). `PLANO_IMPORTACAO_DIVERGENTE` (a
+    quantidade mudou desde a prévia) mostra a mensagem, descarta a prévia e
+    volta à seleção com o mesmo arquivo, onde o botão vira "Gerar nova prévia".
+    Qualquer outro 409, inclusive sem corpo, continua sendo
+    `IMPORTACAO_EM_ANDAMENTO`.
+  - 422 `DESATIVACAO_NAO_CONFIRMADA` mostra a mensagem e mantém a prévia, com a
+    caixa desmarcada.
 - **Progresso.** Polling de `getImportStatus` a cada 3 s, com **`setTimeout`
   encadeado, nunca `setInterval`**. O dialog pode ser fechado: **fechar** só encerra
   o polling, nada é cancelado no servidor. Cancelar de fato é o botão "Cancelar
@@ -2569,7 +2587,7 @@ login do pgAdmin, que usa o mesmo e-mail com a senha `admin` e não tem relaçã
   **Testes do frontend:**
   - Ficam em `tests/` e usam `node:test` puro, sem dependência e sem script no
     `package.json`.
-  - São 32 arquivos e 246 testes depois do `?ocorrencia=` (244 nas notificações por tipo, 242 na exportação .xlsx, 219 no ajuste do R11, 217 no F4, 212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
+  - São 35 arquivos e 265 testes depois da ciência da desativação na importação (255 antes dela; 246 depois do `?ocorrencia=`; 244 nas notificações por tipo, 242 na exportação .xlsx, 219 no ajuste do R11, 217 no F4, 212 no R15, 204 no R14, 188 no R13, 182 no R12, 173 no F3, 172 no R11, 166 no R10, 160 no
     R9, 151 na correção do mapa, 139 no R8). Entre eles: `exclusao.test.js` (`utils/exclusao.js`),
     `veiculos-admin.test.js` (código-fonte de
     Veículos, ver §7 *Veículos do admin (R15)*), `usuario-exibicao.test.js`

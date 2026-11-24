@@ -79,9 +79,15 @@ export async function previewImport(arquivo, { onUploadProgress } = {}) {
 
 // Inicia a importação em segundo plano. O backend relê a planilha e recalcula o
 // plano; responde 202 { id } e o andamento sai de getImportStatus.
-export async function startImport(arquivo) {
+// desativacoesConfirmadas: quantidade de desativações que o administrador
+// confirmou na prévia. Omitido quando null (plano sem desativações); com
+// desativações, a API responde 422 sem ele e 409 se o número divergir do plano.
+export async function startImport(arquivo, { desativacoesConfirmadas = null } = {}) {
     const formData = new FormData();
     formData.append('arquivo', arquivo);
+    if (desativacoesConfirmadas != null) {
+        formData.append('desativacoesConfirmadas', String(desativacoesConfirmadas));
+    }
     return await apiPrivate.post('/api/gas-stations/import', formData);
 }
 

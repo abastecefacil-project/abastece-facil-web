@@ -86,6 +86,63 @@ export function descreverDesativacao(desativar, ativos) {
 }
 
 /**
+ * Quantos postos a prévia desativa. A API exige que o administrador confirme
+ * exatamente essa quantidade ao iniciar a importação.
+ */
+function quantidadeDesativacoes(previa) {
+  return previa?.desativar?.length ?? 0
+}
+
+/** A prévia só pede a caixa de confirmação quando há postos a desativar. */
+export function exigeConfirmacaoDesativacao(previa) {
+  return quantidadeDesativacoes(previa) > 0
+}
+
+/** "Conferi a lista e confirmo a desativação de 3 postos." (singular para 1). */
+export function textoConfirmacaoDesativacao(previa) {
+  const quantidade = quantidadeDesativacoes(previa)
+  const postos = quantidade === 1 ? 'posto' : 'postos'
+  return `Conferi a lista e confirmo a desativação de ${formatarNumero(quantidade)} ${postos}.`
+}
+
+/**
+ * O botão "Confirmar importação" exige uma prévia e, quando ela desativa
+ * postos, a caixa de confirmação marcada.
+ */
+export function podeConfirmarImportacao(previa, desativacaoConfirmada) {
+  if (!previa) return false
+  return !exigeConfirmacaoDesativacao(previa) || desativacaoConfirmada === true
+}
+
+/**
+ * Valor de `desativacoesConfirmadas` no envio. null quando não há desativação
+ * (o parâmetro é omitido, como antes) e também quando a caixa não foi marcada:
+ * nunca se declara à API uma confirmação que o administrador não deu.
+ */
+export function desativacoesConfirmadasParaEnvio(previa, desativacaoConfirmada) {
+  const quantidade = quantidadeDesativacoes(previa)
+  if (quantidade === 0 || desativacaoConfirmada !== true) return null
+  return quantidade
+}
+
+/**
+ * Classifica a falha do POST /import pelo código do corpo (`error`), não pelo
+ * status: há dois 409 com sentidos diferentes.
+ * - 'plano-divergente': PLANO_IMPORTACAO_DIVERGENTE (409), a prévia ficou velha;
+ * - 'desativacao-nao-confirmada': DESATIVACAO_NAO_CONFIRMADA (422);
+ * - 'em-andamento': qualquer outro 409, que é o IMPORTACAO_EM_ANDAMENTO. Um 409
+ *   sem corpo também cai aqui, como antes desta distinção;
+ * - 'outro': o resto.
+ */
+export function classificarErroInicioImportacao(err) {
+  const codigo = err?.response?.data?.error
+  if (codigo === 'PLANO_IMPORTACAO_DIVERGENTE') return 'plano-divergente'
+  if (codigo === 'DESATIVACAO_NAO_CONFIRMADA') return 'desativacao-nao-confirmada'
+  if (err?.response?.status === 409) return 'em-andamento'
+  return 'outro'
+}
+
+/**
  * Segundos restantes, estimados só com o relógio do navegador.
  *
  * `amostras` são { processados, instante } registradas a cada resposta do
