@@ -5,16 +5,11 @@ import vue from '@vitejs/plugin-vue'
 
 
 // https://vite.dev/config/
-export default defineConfig( async ({ mode }) => {
+export default defineConfig(({ mode }) => {
 
   const env = loadEnv(mode, process.cwd(), '');
   
   const plugins = [vue()];
-
-  if (mode === 'development') {
-    const { default: vueDevTools } = await import('vite-plugin-vue-devtools')
-    plugins.push(vueDevTools())
-  }
 
 
   return { 
