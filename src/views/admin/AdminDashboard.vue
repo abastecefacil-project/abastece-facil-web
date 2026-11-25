@@ -54,7 +54,7 @@
         </ListaComBarras>
       </DashboardSecao>
 
-      <DashboardSecao class="area-terco" titulo="Cidades com mais postos" subtitulo="Postos ativos">
+      <DashboardSecao class="area-terco" titulo="Cidades com mais postos" subtitulo="Base geral · postos ativos">
         <template #acoes>
           <router-link :to="{ name: 'StationAdmin' }" class="dashboard-secao__link">Ver todos</router-link>
         </template>

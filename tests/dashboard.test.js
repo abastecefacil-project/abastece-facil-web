@@ -53,10 +53,10 @@ test('meses iguais, inclusive os dois zerados, são estáveis', () => {
   assert.deepEqual(variacaoMensal(0, 0), estavel)
 })
 
-test('contexto dos postos concorda em número', () => {
-  assert.equal(contextoPostos({ inativos: 12, cidadesAtendidas: 34 }), '12 inativos · 34 cidades')
-  assert.equal(contextoPostos({ inativos: 1, cidadesAtendidas: 1 }), '1 inativo · 1 cidade')
-  assert.equal(contextoPostos({ inativos: 0, cidadesAtendidas: 1200 }), 'Nenhum inativo · 1.200 cidades')
+test('contexto dos postos identifica a base geral e concorda em número', () => {
+  assert.equal(contextoPostos({ inativos: 12, cidadesAtendidas: 34 }), 'Base geral · 12 inativos · 34 cidades')
+  assert.equal(contextoPostos({ inativos: 1, cidadesAtendidas: 1 }), 'Base geral · 1 inativo · 1 cidade')
+  assert.equal(contextoPostos({ inativos: 0, cidadesAtendidas: 1200 }), 'Base geral · Nenhum inativo · 1.200 cidades')
 })
 
 test('contexto da frota concorda em número', () => {

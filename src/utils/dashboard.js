@@ -52,9 +52,9 @@ function textoInativos(inativos) {
   return inativos === 0 ? 'Nenhum inativo' : plural(inativos, 'inativo', 'inativos')
 }
 
-/** "12 inativos · 34 cidades". */
+/** "Base geral · 12 inativos · 34 cidades". */
 export function contextoPostos({ inativos, cidadesAtendidas }) {
-  return `${textoInativos(inativos)} · ${plural(cidadesAtendidas, 'cidade', 'cidades')}`
+  return `Base geral · ${textoInativos(inativos)} · ${plural(cidadesAtendidas, 'cidade', 'cidades')}`
 }
 
 /** "3 inativos". */
@@ -199,9 +199,8 @@ export function subtituloPainel(perfil, carregadoEm) {
 }
 
 /**
- * Subtítulo de "Usuários por perfil". A contagem do backend é só de usuários
- * ativos (`is_active`), o que inclui quem ainda aguarda ativação, e o gestor
- * recebe só a própria regional (`UserRepository.contarAtivosPorPerfil*`).
+ * Subtítulo de "Usuários por perfil". A contagem exclui quem ainda aguarda
+ * ativação; o gestor recebe só a própria regional.
  */
 export function subtituloUsuariosPorPerfil(perfil) {
   return perfil === 'GESTOR_FROTA' ? 'Usuários ativos da sua regional' : 'Usuários ativos'
