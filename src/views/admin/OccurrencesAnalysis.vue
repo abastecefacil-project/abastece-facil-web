@@ -1,6 +1,6 @@
 <template>
   <div class="ocorrencias-container">
-    <PageHeader titulo="Ocorrências" subtitulo="Acompanhe as ocorrências registradas no sistema">
+    <PageHeader titulo="Ocorrências" subtitulo="Acompanhe as ocorrências registradas">
       <template #acoes>
         <BotaoExportar caminho="/api/incidents/export" entidade="ocorrencias" :params="filtrosAplicados" />
       </template>
