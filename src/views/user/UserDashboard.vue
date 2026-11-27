@@ -5,7 +5,7 @@
       subtitulo="Encontre um posto conveniado, registre uma ocorrência ou peça ajuda."
     />
 
-    <!-- Ordem do DOM é a da §5.8 e a do mobile: busca, ocorrência, ajuda, mapa.
+    <!-- Ordem do DOM é a da §5.8 e a do mobile: busca, mapa, ocorrência, ajuda.
          No desktop o grid põe a ajuda na coluna lateral. -->
     <div class="inicio-grid">
       <section class="inicio-card area-busca" aria-labelledby="inicio-busca-titulo">
@@ -25,6 +25,15 @@
           <v-btn type="submit" variant="outlined" class="btn-secundario">Buscar</v-btn>
         </form>
       </section>
+
+      <router-link :to="{ name: 'MapUser' }" class="inicio-card inicio-atalho area-mapa inicio-atalho--mapa">
+        <span class="inicio-card__icone"><v-icon icon="mdi-map-marker-outline" size="24" /></span>
+        <span class="inicio-card__textos">
+          <span class="inicio-card__titulo">Abrir mapa de postos</span>
+          <span class="inicio-card__texto">Encontre postos perto de você e trace uma rota.</span>
+        </span>
+        <v-icon icon="mdi-chevron-right" size="24" class="inicio-atalho__seta" />
+      </router-link>
 
       <section class="inicio-card area-ocorrencia" aria-labelledby="inicio-ocorrencia-titulo">
         <div class="inicio-card__linha">
@@ -47,14 +56,6 @@
         <template #descricao>Fale com o seguro ou com a gestão de frota da sua regional.</template>
       </ContactSection>
 
-      <router-link :to="{ name: 'MapUser' }" class="inicio-card inicio-atalho area-mapa">
-        <span class="inicio-card__icone"><v-icon icon="mdi-map-marker-outline" size="20" /></span>
-        <span class="inicio-card__textos">
-          <span class="inicio-card__titulo">Ver postos no mapa</span>
-          <span class="inicio-card__texto">Localize os postos perto de você e trace uma rota.</span>
-        </span>
-        <v-icon icon="mdi-chevron-right" size="20" class="inicio-atalho__seta" />
-      </router-link>
     </div>
   </div>
 </template>
@@ -99,9 +100,9 @@ function buscarPostos() {
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas:
     'busca'
+    'mapa'
     'ocorrencia'
-    'ajuda'
-    'mapa';
+    'ajuda';
   gap: var(--space-6);
 }
 
@@ -225,6 +226,11 @@ function buscarPostos() {
 
 .inicio-atalho:hover {
   border-color: var(--color-blue-200);
+}
+
+.inicio-atalho--mapa {
+  border-color: var(--color-blue-200);
+  background: var(--color-blue-50);
 }
 
 .inicio-atalho .inicio-card__titulo {

@@ -69,6 +69,9 @@
             <v-tooltip activator="parent" location="top">Copiar endereço</v-tooltip>
           </v-btn>
         </div>
+        <a :href="googleMapsUrl" target="_blank" rel="noopener noreferrer" class="abrir-maps">
+          <v-icon icon="mdi-open-in-new" size="18" /> Abrir no Google Maps
+        </a>
       </v-card-text>
 
       <v-card-actions class="dialog-actions">
@@ -119,6 +122,11 @@ watch(dialog, (newVal) => {
 })
 
 const linha = computed(() => (props.posto ? apresentacaoLinhaPosto(props.posto) : {}))
+const googleMapsUrl = computed(() => {
+  const { latitude, longitude, completeAddress } = props.posto || {}
+  const destino = latitude != null && longitude != null ? `${latitude},${longitude}` : completeAddress
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destino || '')}`
+})
 
 const closeModal = () => {
   dialog.value = false
@@ -171,6 +179,16 @@ const copyAddress = async () => {
 .dialogo-fechar {
   flex-shrink: 0;
   color: var(--color-text-muted);
+}
+
+.abrir-maps {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  color: var(--color-blue-700);
+  font-weight: 600;
+  text-decoration: none;
 }
 
 .dialogo-corpo {

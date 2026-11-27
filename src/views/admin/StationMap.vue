@@ -31,7 +31,7 @@
         <div class="route-panel-title">
           <v-icon icon="mdi-map-marker-path" size="20" class="route-panel-icon" />
           <div class="route-panel-heading">
-            <h2 id="titulo-trajeto">Encontrar postos no trajeto</h2>
+            <h2 id="titulo-trajeto">Traçar rota e encontrar postos</h2>
             <p v-if="route" class="route-panel-resumo-recolhido">
               {{ formatarDistancia(route.distance) }} · {{ formatarDuracao(route.duration) }}
             </p>
@@ -217,6 +217,7 @@ let watchPositionId = null
 let lastReroutePosition = null
 const suggestionTimers = { origin: null, destination: null }
 const suppressSuggestions = { origin: false, destination: false }
+const suggestionRequests = { origin: 0, destination: 0 }
 
 // Todas as páginas antes de entregar ao Map, que cria os marcadores de uma vez.
 // Começa junto com a geolocalização, sem esperar o mapa ser montado.
@@ -331,6 +332,7 @@ async function geocode(query) {
 }
 
 async function getSuggestions(field, query) {
+  const request = ++suggestionRequests[field]
   if (query.trim().length < 3 || query.trim().toLowerCase() === 'minha localização') {
     suggestions[field] = []
     return
@@ -347,12 +349,18 @@ async function getSuggestions(field, query) {
     params.set('viewbox', `${userMarker.lon - 0.7},${userMarker.lat + 0.7},${userMarker.lon + 0.7},${userMarker.lat - 0.7}`)
   }
 
-  const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
-    headers: { Accept: 'application/json' },
-  })
-  if (response.ok) {
-    const results = await response.json()
-    suggestions[field] = results.sort((first, second) => distanceToUser(first) - distanceToUser(second))
+  try {
+    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+    })
+    if (response.ok) {
+      const results = await response.json()
+      if (request === suggestionRequests[field]) {
+        suggestions[field] = results.sort((first, second) => distanceToUser(first) - distanceToUser(second))
+      }
+    }
+  } catch {
+    if (request === suggestionRequests[field]) suggestions[field] = []
   }
 }
 
@@ -369,6 +377,7 @@ function formatSuggestionDistance(location) {
 
 function scheduleSuggestions(field, value) {
   clearTimeout(suggestionTimers[field])
+  suggestionRequests[field]++
   if (suppressSuggestions[field]) {
     suppressSuggestions[field] = false
     suggestions[field] = []
@@ -406,6 +415,8 @@ function setRouteField(field, value) {
 
 function clearSuggestions() {
   Object.keys(suggestionTimers).forEach((field) => clearTimeout(suggestionTimers[field]))
+  suggestionRequests.origin++
+  suggestionRequests.destination++
   suggestions.origin = []
   suggestions.destination = []
 }
@@ -460,10 +471,10 @@ async function searchRoute() {
   loadingRoute.value = true
   routeError.value = ''
   try {
-    const start = origemEhMinhaLocalizacao()
-      ? [userMarker.lon, userMarker.lat]
-      : await geocode(origin.value)
-    const end = await geocode(destination.value)
+    const [start, end] = await Promise.all([
+      origemEhMinhaLocalizacao() ? [userMarker.lon, userMarker.lat] : geocode(origin.value),
+      geocode(destination.value),
+    ])
     followCurrentLocation.value = origemEhMinhaLocalizacao()
     activeDestination.value = end
     lastReroutePosition = followCurrentLocation.value ? start : null
@@ -629,6 +640,10 @@ function clearRoute() {
 /* O recolher só existe na folha inferior. */
 .route-panel-alternar {
   display: none;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-neutral-300);
+  background: var(--color-surface);
 }
 
 .field-heading {

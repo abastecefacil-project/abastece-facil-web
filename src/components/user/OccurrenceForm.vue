@@ -139,7 +139,7 @@
             class="btn-secundario"
             @click="handleClear"
           >
-            Cancelar
+            Limpar
           </v-btn>
           <v-btn
             color="primary"

@@ -28,6 +28,7 @@
         <template v-if="!carregando && !falhaCarga">
           <section aria-label="Relatos sobre o cartão Neo" aria-live="polite">
             <h3 class="neo-section-title">O que os usuários relataram</h3>
+            <p class="neo-caption">Os relatos não garantem aceitação futura.</p>
             <div class="neo-totals">
               <div class="neo-total">
                 <v-icon icon="mdi-thumb-up-outline" size="20" class="neo-total-icone neo-total-icone--sim" />
@@ -79,7 +80,6 @@
           <v-alert v-if="sucesso" type="success" variant="tonal" density="compact" class="mt-4" role="status">
             {{ resumo.minhaResposta === null ? 'Resposta removida.' : 'Resposta salva!' }}
           </v-alert>
-          <p class="neo-caption">Os relatos não garantem aceitação futura.</p>
         </template>
       </v-card-text>
       <v-card-actions class="dialog-actions neo-actions">

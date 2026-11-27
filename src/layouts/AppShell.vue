@@ -37,7 +37,7 @@
           >
             <v-avatar size="32" class="usuario-avatar">
               <span v-if="iniciais">{{ iniciais }}</span>
-              <v-icon v-else :icon="iconeAvatar" size="18" />
+              <v-icon v-else :icon="iconeAvatar" size="22" />
             </v-avatar>
             <span v-if="!mobile && (nomeUsuario || perfilLongo)" class="usuario-identidade">
               <span class="usuario-nome">{{ nomeUsuario || perfilLongo }}</span>
@@ -364,6 +364,7 @@ const trilha = computed(() => {
 
 /* Menu do usuário */
 .usuario-ativador {
+  min-width: 48px;
   padding-inline: var(--space-1) var(--space-2);
   gap: var(--space-2);
 }
@@ -373,8 +374,8 @@ const trilha = computed(() => {
 }
 
 .usuario-avatar {
-  background-color: var(--color-blue-50);
-  color: var(--color-blue-700);
+  background-color: var(--color-blue-700);
+  color: var(--color-neutral-0);
   font-size: var(--text-body-sm-size);
   font-weight: 600;
   letter-spacing: 0.02em;
